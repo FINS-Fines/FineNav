@@ -1,0 +1,5 @@
+record_topics:
+  - /lidar
+  - /lidar/pointcloud
+  - /imu
+bag_save_dir: /home/fins/records

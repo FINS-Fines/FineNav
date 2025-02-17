@@ -1,39 +1,59 @@
-# FineNav
+# FineNav2D
 
-#### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
+## How to use
 
-#### 软件架构
-软件架构说明
+1. clone the repository
+   
+```shell
+git clone https://gitee.com/huigg-practice/FineNav2D.git
+# Make sure you are in the root directory of the project
+git submodule init
+git submodule update --remote --recursive # since the reporsitry is under development, you need to get the lastest branch in remote.
+```
 
+2. build the project
 
-#### 安装教程
+   
+FineNav2D rely on several extern packages like hardware driver, LIO etc. All extern packages are managed in `<PROJECT_DIR>/FinNav_ExternPack`. You can see them in `<PROJECT_DIR>/.gitmodules`. You should make sure that the packages you want to use share the same ROS distribution. **It's crucial** for the project to build properly.
+   
+```shell
+# e.g. If you want to develop in ROS2, you should make sure every package in the extern package is ROS2 version
+# Change directory to FinNav_ExternPack/Driver/Livox_Mid360
+git branch
+# and then you can see the current branch
+# if you want to change the branch
+git checkout <TARGET_BRANCH>
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+```shell
+ colcon build
+```
 
-#### 使用说明
+If your device crash in compiling, then try to compile packages one by one by inpu
+```shell
+colcon build --executor sequential
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+3. launch
 
-#### 参与贡献
+```shell
+# Make sure you are in the root directory of the project
+source install/fine_nav_ros2/share/fine_nav_ros2/local_setup.bash
+```
+Example: Bring up FineNav2D with Livox Mid-360 and Fast-LIO
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+```shell
+# Check your ethernet interface
+ifconfig
+# Set the static IP address of your ethernet interface
+# The default ipv4 address is 192.168.1.50, you can change it in <PROJECT_DIR>/fn_bringup/config/MID360_config.yaml
+sudo ifconfig <interface> <ip>
+# Launch FineNav2D
+ros2 launch fine_nav2d_bringup bringup_nav2_real.launch.py \
+lidar_type:=livox \
+enable_recorder:=false \
+lio_type:=fast_lio \
+enable_rviz:=true
+```
+If everything goes well, you will see the following result:
+![expected_result.png](asset/expected_result.png)

@@ -1,0 +1,16 @@
+# Clion
+.idea/*
+!.idea/copyright/
+cmake-build-debug/
+
+# ROS1/ROS2
+build/
+devel/
+install/
+log/
+
+# Extern Packages
+FineNav_ExternPack/build/
+FineNav_ExternPack/devel/
+FineNav_ExternPack/install/
+FineNav_ExternPack/log/
