@@ -5,40 +5,24 @@
 1. clone the repository
    
 ```shell
+mkdir nav_ws && cd nav_ws/
 git clone https://gitee.com/huigg-practice/FineNav2D.git
-# Make sure you are in the root directory of the project
-git submodule init
-git submodule update --remote --recursive # since the reporsitry is under development, you need to get the lastest branch in remote.
+cd FineNav2D/
+git submodule update --init --recursive 
 ```
 
 2. build the project
 
-   
-FineNav2D rely on several extern packages like hardware driver, LIO etc. All extern packages are managed in `<PROJECT_DIR>/FinNav_ExternPack`. You can see them in `<PROJECT_DIR>/.gitmodules`. You should make sure that the packages you want to use share the same ROS distribution. **It's crucial** for the project to build properly.
-   
 ```shell
-# e.g. If you want to develop in ROS2, you should make sure every package in the extern package is ROS2 version
-# Change directory to FinNav_ExternPack/Driver/Livox_Mid360
-git branch
-# and then you can see the current branch
-# if you want to change the branch
-git checkout <TARGET_BRANCH>
-```
-
-```shell
- colcon build
-```
-
-If your device crash in compiling, then try to compile packages one by one by inpu
-```shell
-colcon build --executor sequential
+cd ..
+colcon build --symlink-install
 ```
 
 3. launch
 
 ```shell
 # Make sure you are in the root directory of the project
-source install/fine_nav_ros2/share/fine_nav_ros2/local_setup.bash
+source install/setup.bash
 ```
 Example: Bring up FineNav2D with Livox Mid-360 and Fast-LIO
 
