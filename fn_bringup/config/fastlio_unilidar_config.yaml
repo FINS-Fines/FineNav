@@ -1,0 +1,53 @@
+/**:
+    ros__parameters:
+        # https://github.com/hku-mars/FAST_LIO/issues/33:
+        feature_extract_enable: false
+        point_filter_num: 1 # 似乎会比3稳定一些？？？？？？this downsamples the pointcloud, grouping the number of points indicated in the parameter. You can set to 1 of course, the run time will be double i think.
+        max_iteration: 3 # the maximum iterations on ICP adjustment per scan, the influence is very tiny, I actually dont recommend to set it to large.
+        filter_size_surf: 0.05 # 似乎会比0.05稳定一些？？？？ I always use same one as filter_size_map but you can try to set this to a different and smaller value.
+        filter_size_map: 0.05 # the voxel size in the map. for indoor small environments, you may consider to set to 0.2-0.3, but in outdoor large scale scenes, smaller than 0.4 may lead to worse performance.
+        cube_side_length: 1000.0
+        runtime_pos_log_enable: false
+        map_file_path: "/home/fins/Desktop/pcd/test.pcd"
+
+        common:
+            lid_topic:  "/lidar"
+            imu_topic:  "/imu"
+            time_sync_en: false         # ONLY turn on when externalnsamp time synchronization is really not possible
+            time_offset_lidar_to_imu: 0.0 # Time offset between lidar and IMU calibrated by other algorithms, e.g. LI-Init (can be found in README).
+                                        # This param will take effect no matter what time_sync_en is. So if the time offset is not known exactly, please set as 0.0
+
+        preprocess:
+            lidar_type: 5                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 4 for any other pointcloud input
+            scan_line:  18               # resolution of your lidar, for ex; scan_line for vlp-16 is 16
+            blind: 0.5                  # Unit:m, blind is the region removed from the processed pointcloud, this is required to remove the robot body, in other words, all the lidar points inside the blind are removed
+            timestamp_unit: 0           # 0-second, 1-milisecond, 2-microsecond, 3-nanosecond.
+            scan_rate: 10
+
+        mapping:
+            acc_cov: 0.1
+            gyr_cov: 0.1
+            b_acc_cov: 0.0001
+            b_gyr_cov: 0.0001
+            fov_degree:    180.0
+            det_range:     100.0
+            extrinsic_est_en:  true      # true: enable the online estimation of IMU-LiDAR extrinsic
+            extrinsic_T: [ 0.007698, 0.014655, -0.00667] # ulhk # [-0.5, 1.4, 1.5] # utbm
+            extrinsic_R: [ 1.0, 0.0, 0.0,
+                           0.0, 1.0, 0.0,
+                           0.0, 0.0, 1.0 ] # ulhk 4 utbm 3
+
+
+
+        publish:
+            path_en: true                # true: publish Path
+            effect_map_en: false         # true: publish Effects
+            map_en: true                 # true: publish Map cloud
+            scan_publish_en:  true       # false: close all the point cloud output
+            dense_publish_en: false      # false: low down the points number in a global-frame point clouds scan.
+            scan_bodyframe_pub_en: true  # true: output the point cloud scans in IMU-body-frame
+
+        pcd_save:
+            pcd_save_en: true
+            interval: -1                 # how many LiDAR frames saved in each pcd file; 
+                                        # -1 : all frames will be saved in ONE pcd file, may lead to memory crash when having too much frames.

@@ -1,0 +1,39 @@
+# 接收全局定位信息，发布 /map -> /odom 的变换
+global_localization:
+    ros__parameters:
+        # 定位数据源类型， 0: local ; 1: global ; 2: global only when initialize
+        # local 类型会根据定位数据发布 /odom -> /base_link 的变换
+        # global 类型会根据定位数据发布 /map -> /odom 的变换
+        # global only when initialize 类型会根据定位数据发布 /map -> /odom 的静态变换
+        source_type: 1
+
+        # 是否启用定位源，如果不启用，将会发布 /map = /odom 变换
+        enable: false
+
+        # 全局定位话题，消息类型支持, 0: nav_msgs::msg::Odometry ; 1: geometry_msgs::msg::PoseWithCovarianceStamped
+        topic: /global_localization
+        message_type: 1
+
+        # 设置机器人导航坐标系
+        map_frame: map
+        odom_frame: odom
+        base_link_frame: base_link
+
+
+# 接收里程计定位信息，发布 /odom -> /base_link 的变换
+local_localization:
+    ros__parameters:
+        # 定位数据源类型， 0: local ; 1: global ; 2: global only in initialize
+        source_type: 0
+
+        # 是否启用定位源，如果不启用，将会发布 /odom = /base_link 变换
+        enable: true
+
+        # 局部定位话题，消息类型支持, 0: nav_msgs::msg::Odometry ; 1: geometry_msgs::msg::PoseWithCovarianceStamped
+        topic: /Odometry
+        message_type: 0
+
+        # 设置机器人导航坐标系
+        map_frame: map
+        odom_frame: odom
+        base_link_frame: base_link

@@ -7,9 +7,6 @@
 [submodule "FineNav_ExternPack/LIO/Fast_LIO"]
 	path = fn_localization/Fast_LIO
 	url = https://github.com/huigg296/FAST_LIO.git
-[submodule "FineNav_ExternPack/LIO/Point_LIO"]
-	path = fn_localization/Point_LIO
-	url = https://github.com/huigg296/Point-LIO.git
 [submodule "FineNav_ExternPack/Fines_Node"]
 	path = fn_driver/Fines_Node
 	url = https://gitee.com/huigg-practice/Fines_Node.git

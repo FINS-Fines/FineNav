@@ -68,7 +68,15 @@ def generate_launch_description():
         description='Enable RViz to visualize the data'
     )
 
-    ################### Robot Description ###################
+    # 12.串口编号
+    declare_serial_port = DeclareLaunchArgument(
+        'serial_port',
+        default_value='/dev/ttyUSB0',  # 默认值
+        description='Serial port for fines_serial node'
+    )
+
+
+################### Robot Description ###################
     robot_description_dir = FindPackageShare(package='fines_description').find('fines_description')
     robot_description = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([robot_description_dir, '/launch', '/publish_urdf.launch.py'])
@@ -80,6 +88,7 @@ def generate_launch_description():
         package = 'fines_serial',
         executable = 'fines_serial',
         name = 'serial_driver_node',
+        arguments=[LaunchConfiguration('serial_port')],
         output = 'both',
     )
 
@@ -89,12 +98,18 @@ def generate_launch_description():
         {"xfer_format": 4},         # 0-PointCloud2Msg(PointXYZRTL), 1-LivoxCustomMsg, 2-PclPxyziMsg, 3-LivoxImuMsg, 4-AllMsg
         {"multi_topic": 0},         # 0-All LiDARs share the same topic, 1-One LiDAR one topic
         {"data_src": 0},            # 0-lidar, others-Invalid data src
-        {"publish_freq": 10.0},     # freqency of publish, 5.0, 10.0, 20.0, 50.0, etc.
+        {"publish_freq": 20.0},     # freqency of publish, 5.0, 10.0, 20.0, 50.0, etc.
         {"output_data_type": 0},    # 0-Output ROS topic, 1-Output ROS bag
         {"frame_id": 'base_lidar'},
         {"lvx_file_path": '/home/livox/livox_test.lvx'},
         {"user_config_path": os.path.join(config_dir, 'MID360_config.json')},
-        {"cmdline_input_bd_code": 'livox0000000001'}
+        {"cmdline_input_bd_code": 'livox0000000001'},
+        {"self_filtering_box.min_x": -0.4},
+        {"self_filtering_box.max_x": 0.3},
+        {"self_filtering_box.min_y": -0.4},
+        {"self_filtering_box.max_y": 0.25},
+        {"self_filtering_box.min_z": -0.28},
+        {"self_filtering_box.max_z": 0.05},
     ]
 
     livox_driver_node = Node(
@@ -114,17 +129,26 @@ def generate_launch_description():
     ################### Unitree Driver  ###################
     # Unitree L1
     unitree_params = [
-        {'port': '/dev/ttyUSB0'},
+        {'port': '/dev/unilidar'},
         {'rotate_yaw_bias': 0.0},
         {'range_scale': 0.001},
         {'range_bias': 0.0},
         {'range_max': 50.0},
         {'range_min': 0.0},
-        {'cloud_frame': "lidar_frame"},
-        {'cloud_topic': "/cloud"},
-        {'cloud_scan_num': 18},
-        {'imu_frame': "imu_frame"},
-        {'imu_topic': "/imu"}
+        {'cloud_frame': "base_lidar"},
+        {'cloud_topic': "/lidar"},
+        {'cloud_scan_num': 4}, # 4以及往下开始会有问题
+        {'imu_frame': "base_lidar"},
+        {'imu_topic': "/imu"},
+        {'extrinsic_roll': -110.8},
+        {'extrinsic_pitch': -62.3},
+        {'extrinsic_yaw': -71.6},
+        {"self_filtering_box.min_x": float('-inf')},
+        {"self_filtering_box.max_x": 0.24},
+        {"self_filtering_box.min_y": -0.5},
+        {"self_filtering_box.max_y": 0.15},
+        {"self_filtering_box.min_z": -0.50},
+        {"self_filtering_box.max_z": 0.18}
     ]
 
     unitree_driver_node = Node(
@@ -136,34 +160,9 @@ def generate_launch_description():
         condition = LaunchConfigurationEquals('lidar_type', 'unitree')
     )
 
-
-    ################### PointCloud Preprocess ###################
-    pointcloud_to_laserscan_node = Node(
-        package = 'pointcloud_to_laserscan',
-        executable = 'pointcloud_to_laserscan_node',
-        name = 'pointcloud_to_laserscan_node',
-        output = 'both',
-        parameters=[{
-            'target_frame': 'base_link', # If provided, transform the pointcloud into this frame before converting to a laser scan.
-            'transform_tolerance': 0.01, # Time tolerance for transform lookups. Only used if a target_frame is provided.
-            'min_height': 0.2,
-            'max_height': 0.4,
-            'angle_min': -3.14159,  # -M_PI/2
-            'angle_max': 3.14159,   # M_PI/2
-            'angle_increment': 0.0043,  # M_PI/360.0
-            'scan_time': 0.3333, # The scan rate in seconds. Only used to populate the scan_time field of the output laser scan message.
-            'range_min': 0.3, # unit: /m # 在不滤除机器人本体点云的情况下，设置为0.3m比较安全，这样车身探测障碍物距离大约在车前10cm左右
-            'range_max': 10.0, # unit: /m
-            'use_inf': True, # If disabled, report infinite range (no obstacle) as range_max + 1. Otherwise report infinite range as +inf.
-            'inf_epsilon': 1.0
-        }],
-        remappings=[('cloud_in',  ['/lidar/pointcloud']),
-                    ('scan',  ['/obstacle_scan'])]
-    )
-
     ################### LIO ###################
     fast_lio_params = [
-        os.path.join(config_dir, 'fastlio_mid360_config.yaml'),
+        os.path.join(config_dir, 'fastlio_mid360_config.yaml'), # 需要根据LiDAR型号选择
         {
             'use_sim_time': LaunchConfiguration('use_sim_time')
         }
@@ -186,69 +185,23 @@ def generate_launch_description():
         }
     ]
 
+    localization_manager_dir = FindPackageShare(package='localization_manager').find('localization_manager')
+
     bringup_LIO_group = GroupAction([
-        # Node(
-        #     package = 'tf2_ros',
-        #     executable = 'static_transform_publisher',
-        #     name = 'odom_to_lidar_odom_broadcaster',
-        #     arguments=[
-        #         # Copied frome fines.urdf
-        #         "--x", "0.0",
-        #         "--y", "0.0",
-        #         "--z", "0.0",
-        #         "--roll", "0.0",
-        #         "--pitch", "0.0",
-        #         "--yaw", "0.0",
-        #         "--frame-id", "odom",
-        #         "--child-frame-id", "lidar_odom"
-        #     ]
-        # ),
         Node(
             package = 'tf2_ros',
             executable = 'static_transform_publisher',
             name = 'odom_to_lidar_odom_broadcaster',
             arguments=[
                 # Copied frome fines.urdf
-                "--x", "-0.0829998544383264",
-                "--y", "0.0",
+                "--x", "0.0",
+                "--y", "0.083",
                 "--z", "0.31",
                 "--roll", "0.0",
                 "--pitch", "0.0",
                 "--yaw", "0.0",
                 "--frame-id", "odom",
                 "--child-frame-id", "lidar_odom"
-            ]
-        ),
-        Node(
-            package = 'tf2_ros',
-            executable = 'static_transform_publisher',
-            name = 'base_liar_to_base_link_broadcaster',
-            arguments=[
-                # Copied frome fines.urdf
-                "--x", "0.0829998544383264",
-                "--y", "0.0",
-                "--z", "-0.31",
-                "--roll", "0.0",
-                "--pitch", "0.0",
-                "--yaw", "0.0",
-                "--frame-id", "base_lidar",
-                "--child-frame-id", "base_link"
-            ]
-        ),
-        Node(
-            package = 'tf2_ros',
-            executable = 'static_transform_publisher',
-            name = 'map_to_odom_broadcaster',
-            arguments=[
-                # Copied frome fines.urdf
-                "--x", "0.0",
-                "--y", "0.0",
-                "--z", "0.0",
-                "--roll", "0.0",
-                "--pitch", "0.0",
-                "--yaw", "0.0",
-                "--frame-id", "map",
-                "--child-frame-id", "odom"
             ]
         ),
         Node(
@@ -266,7 +219,8 @@ def generate_launch_description():
             parameters = point_lio_params,
             output = 'both',
             condition = LaunchConfigurationEquals('lio_type', 'point_lio')
-        )
+        ),
+        IncludeLaunchDescription(PythonLaunchDescriptionSource([localization_manager_dir, '/launch', '/example.launch.py']))
     ])
 
     ################### PointCloud to Occupancy Grid ###################
@@ -276,18 +230,26 @@ def generate_launch_description():
         executable='octomap_server_node',
         name='octomap_server_node',
         output='both',
+        # arguments=['--ros-args', '--log-level', 'debug'],
         parameters=[{
             'use_sime_time': LaunchConfiguration('use_sim_time'),
             'resolution': 0.05,  # Resolution in meter for the map when starting with an empty map. Otherwise the loaded file's resolution is used.
             'frame_id': 'map',  # Static global frame in which the map will be published. A transform from sensor data to this frame needs to be available when dynamically building maps.
-            'base_frame_id': 'base_footprint',  # The robot's base frame in which ground plane detection is performed (if enabled)
+            'base_frame_id': 'base_link',  # The robot's base frame in which ground plane detection is performed (if enabled)
             'latch': False,  #  For maximum performance when building a map (with frequent updates), set to false. When set to true, on every map change all topics and visualizations will be created.
-            'sensor_model.max_range': 10.0,  # Maximum range in meter for inserting point cloud data when dynamically building a map.
-            'point_cloud_min_z': 0.05,  # Minimum height of points to consider for insertion in the callback.
-            'point_cloud_max_z': 0.45,  # Maximum height of points to consider for insertion in the callback.
+            'occupancy_min_z': 0.15,
+            'occupancy_max_z': 0.5,
+            'sensor_model.max_range': 3.0, # Maximum range in meter for inserting point cloud data when dynamically building a map.
+            # 'point_cloud_min_z': 0.05,  # Minimum height of points to consider for insertion in the callback.
+            'point_cloud_max_z': 2.45,  # Maximum height of points to consider for insertion in the callback.
+            'filter_ground_plane': False,  # Whether the ground plane should be detected and ignored from scan data when dynamically building a map
+            # 'ground_filter.distance': 0.4,  # Distance threshold for points (in z direction) to be segmented to the ground plane
+            # 'ground_filter.angle': 0.15,  # Angular threshold of the detected plane from the horizontal plane to be detected as ground
+            # 'ground_filter.plane_distance': 0.07,  # Distance threshold from z=0 for a plane to be detected as ground
+
 
         }],
-        remappings=[('/cloud_in', '/lidar/pointcloud')],
+        remappings=[('/cloud_in', '/lidar/pointcloud')], # 要么区分LiDAR型号，要么规范话题名称
     )
 
     ################### Nav2 ###################
@@ -347,18 +309,17 @@ def generate_launch_description():
     ld.add_action(declare_lio_type)
     ld.add_action(declare_working_mode)
     ld.add_action(declare_enable_rviz)
-
+    ld.add_action(declare_serial_port)
     # 使用 TimerAction 来控制节点启动顺序 TODO PAREMETERS
     ld.add_action(TimerAction(period=0.0, actions=[recorder_node]))
     ld.add_action(TimerAction(period=0.0, actions=[robot_description]))
     ld.add_action(TimerAction(period=0.0, actions=[serial_driver_node]))
     ld.add_action(TimerAction(period=2.0, actions=[livox_driver_node]))
     ld.add_action(TimerAction(period=2.0, actions=[unitree_driver_node]))
-    ld.add_action(TimerAction(period=2.0, actions=[pointcloud_to_laserscan_node]))
     ld.add_action(TimerAction(period=6.0, actions=[bringup_LIO_group]))
-    ld.add_action(TimerAction(period=6.0, actions=[octomap_server_node]))
     ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))
     ld.add_action(TimerAction(period=8.0, actions=[rviz_node]))
+    ld.add_action(TimerAction(period=10.0, actions=[octomap_server_node]))
 
     # ld.add_action(recorder_node)
     # ld.add_action(robot_description)

@@ -7,7 +7,7 @@ global_costmap:
       use_sim_time: False
 
       global_frame: map # Reference frame
-      robot_base_frame: base_footprint
+      robot_base_frame: base_link
 
       #****************************************************************************************************************
       # TF
@@ -23,31 +23,30 @@ global_costmap:
       # update the polygon over time as needed due to changes in the robot’s state.
       #****************************************************************************************************************
       footprint: "[ [0.15 0.15], [0.15, -0.15], [-0.15, -0.15], [-0.15, 0.15] ]" # Ordered set of footprint points passed in as a string, must be closed set.
-      footprint_padding: 0.05 # Add additional padding to the footprint.
-      robot_radius: 0.22 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
+      footprint_padding: 0.04 # Add additional padding to the footprint.
+      robot_radius: 0.19 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
       # Costmap Configuration
-      # TODO: always_send_full_costmap, make it False
       #****************************************************************************************************************
       # Publish
-      always_send_full_costmap: True # Whether to send full costmap every update, rather than updates.
-      update_frequency: 1.0 # Default: 5.0
-      publish_frequency: 1.0 # Frequency to publish costmap to topic.
+      always_send_full_costmap: False # Whether to send full costmap every update, rather than updates.
+      update_frequency: 10.0 # Default: 5.0
+      publish_frequency: 9.0 # Frequency to publish costmap to topic. 不要设置整除update_frequency，否则发布速率不稳定
 
       # Size
-      resolution: 0.1 # Resolution of 1 pixel of the costmap, in meters.
-      height: 10 # 5 int
-      width: 10 # 5 int
-      origin_x: -5.0 # -2.5 double ; X origin of the costmap relative to width (m).
-      origin_y: -5.0 # -2.5 double ; Y origin of the costmap relative to height (m).
+      resolution: 0.05 # Resolution of 1 pixel of the costmap, in meters.
+      height: 5 # 5 int
+      width: 5 # 5 int
+      origin_x: -10.0 # double ; X origin of the costmap relative to width (m).
+      origin_y: -10.0 # double ; Y origin of the costmap relative to height (m).
       rolling_window: False # Whether costmap should roll with robot base frame. Only For Local Map Use.
       map_vis_z: 0.0 # Help modify the map slightly below the default plane, allows to avoid rviz visualization flickering at -0.008
 
       # Cost
       trinary_costmap: True # If occupancy grid map should be interpreted as only 3 values (free, occupied, unknown) or with its stored values.
-      track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
-      unknown_cost_value: 10 # Cost of unknown space if tracking it.
+      track_unknown_space: False # If false, treats unknown space as free space, else as unknown space.
+      unknown_cost_value: 255 # Cost of unknown space if tracking it.
       lethal_cost_threshold: 100 # Minimum cost of an occupancy grid map to be considered a lethal obstacle.
 
       #****************************************************************************************************************
@@ -65,87 +64,28 @@ global_costmap:
       use_maximum: False # Whether when combining costmaps to use the maximum cost or override. 似乎默认static_layer是最底层
 
 
-      plugins: ["static_layer", "obstacle_layer"]
-
+      #plugins: ["static_layer", "obstacle_layer"]
+      plugins: ["pointcloud_projection_layer", "inflation_layer"] # TODO: static_layer与pointcloud_projection_layer是否冲突？
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
-        map_topic: /projected_map # Topic to subscribe to for static map.
+        map_topic: /map # Topic to subscribe to for static map.
         subscribe_to_updates: True # After receiving first static map, Whether to subscribe to updates.
         map_subscribe_transient_local: False # QoS settings for map topic.
-        footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
+        footprint_clearing_enabled: False # Clear any occupied cells under robot footprint.
 
-      obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        combination_method: 0 # 0. Overwrite; 1. Maximum; 2. MaxWithoutUnknownOverwrite  https://docs.nav2.org/configuration/packages/costmap-plugins/obstacle.html
-        footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
-        max_obstacle_height: 0.45 # Maximum height to add return to occupancy grid.
-        observation_sources: scan
+      pointcloud_projection_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /projected_map
+        subscribe_to_updates: False
+        map_subscribe_transient_local: False # QoS settings for map topic.
+        footprint_clearing_enabled: False # Clear any occupied cells under robot footprint.
 
-        scan:
-          topic: /obstacle_scan # Relative topics will be relative to the node’s parent namespace.
-          data_type: "LaserScan" # Data type of input, LaserScan or PointCloud2
-          expected_update_rate: 0.0 # ????? defaule = 0.0
-
-          inf_is_valid: False # Are infinite returns from laser scanners valid measurements to raycast. # Cause inf represents robot itself ,which is set as range_min in pointcloud_to_laserscan.
-          max_obstacle_height: 0.45 # The maximum height in meters of a sensor reading considered valid.
-          clearing: True # Whether source should raytrace clear in costmap.
-          marking: False # Whether source should mark in costmap. Cause static_layer from slam already does this.
-
-          raytrace_max_range: 3.0 # Maximum range to raytrace clear obstacles from costmap.
-          raytrace_min_range: 0.0
-
-#        inflation_layer:
-#          plugin: "nav2_costmap_2d::InflationLayer"
-#          cost_scaling_factor: 10.0 # Exponential decay factor across inflation radius.
-#          inflation_radius: 0.25 # Radius to inflate costmap around lethal obstacles.
-#          inflate_unknown: False # Whether to inflate unknown cells as if lethal.
-#          inflate_around_unknown: False # Whether to inflate around unknown cells.
-
-      # TODO: Need dependencies of OpenVDB, which require boost higher than 1.8.0, while ours is 1.7.4
-      #      stvl_layer:
-      #        # https://github.com/SteveMacenski/spatio_temporal_voxel_layer/
-      #        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
-      #        voxel_decay: 5.0 # seconds if linear, e^n if exponential
-      #        decay_model: 0  # 0: linear, 1: exponential
-      #        voxel_size: 0.05 # meters
-      #        track_unknown_space: true # If false, treats unknown space as free space, else as unknown space.
-      #        max_obstacle_height: 0.6 # Maximum height to add return to occupancy grid.
-      #        mark_threshold: 0 # voxel height
-      #        update_footprint_enabled: true
-      #        combination_method: 1 # #1=max, 0=override
-      #        origin_z: 0.0
-      #        publish_voxel_map: true # default off
-      #        transform_tolerance: 0.2 # seconds
-      #        mapping_mode: false # default off, saves map not for navigation
-      #        map_save_duration: 60.0 # default 60s, how often to autosave
-      #
-      #        observation_sources: lidar
-      #        lidar:
-      #          topic: /lidar/pointcloud
-      #          data_type: PointCloud2
-      #          expected_update_rate: 0.0
-      #          observation_persistence: 0.0
-      #
-      #          inf_is_valid: false # default false, for laser scans
-      #          clear_after_reading: true # default false, clear the buffer after the layer gets readings from it
-      #
-      #          filter: "voxel" # default passthrough, apply "voxel", "passthrough", or no filter to sensor data, recommended to have at one filter on
-      #          voxel_min_points: 0 # default 0, minimum points per voxel for voxel filter
-      #
-      #          marking: true
-      #          clearing: true
-      #
-      #          obstacle_range: 3.0
-      #          min_obstacle_height: 0.0
-      #          max_obstacle_height: 0.6
-      #
-      #          max_z: 7.0 # default 0, meters
-      #          min_z: 0.1 # default 10, meters
-      #          vertical_fov_angle: 1.029 # 垂直视场角，单位为弧度，For 3D lidars it's the symmetric FOV about the planar axis.
-      #          vertical_fov_padding: 0.05 # 3D Lidar only. Default 0, in meters
-      #          horizontal_fov_angle: 6.29 # 水平视场角
-      #          decay_acceleration: 5.0 # default 0, 1/s^2.
-      #          model_type: 1 # default 0 (depth camera). Use 1 for 3D Lidar
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 4.0 # Exponential decay factor across inflation radius.
+        inflation_radius: 0.7 # Radius to inflate costmap around lethal obstacles.
+        inflate_unknown: False # Whether to inflate unknown cells as if lethal.
+        inflate_around_unknown: False # Whether to inflate around unknown cells.
 
   global_costmap_client:
     ros__parameters:
@@ -164,7 +104,7 @@ local_costmap:
       use_sim_time: False
 
       global_frame: odom # Reference frame
-      robot_base_frame: base_footprint
+      robot_base_frame: base_link
 
       #****************************************************************************************************************
       # TF
@@ -180,17 +120,16 @@ local_costmap:
       # update the polygon over time as needed due to changes in the robot’s state.
       #****************************************************************************************************************
       footprint: "[ [ 0.15 0.15 ], [ 0.15, -0.15 ], [ -0.15, -0.15 ], [ -0.15, 0.15 ] ]" # Ordered set of footprint points passed in as a string, must be closed set.
-      footprint_padding: 0.05 # Add additional padding to the footprint.
-      robot_radius: 0.22 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
+      footprint_padding: 0.04  # Add additional padding to the footprint.
+      robot_radius: 0.19 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
       # Costmap Configuration
-      # TODO: always_send_full_costmap, make it False
       #****************************************************************************************************************
       # Publish
-      always_send_full_costmap: True # Whether to send full costmap every update, rather than updates.
-      update_frequency: 1.0 # Default: 5.0
-      publish_frequency: 1.0 # Frequency to publish costmap to topic.
+      always_send_full_costmap: False # Whether to send full costmap every update, rather than updates.
+      update_frequency: 10.0 # Default: 5.0
+      publish_frequency: 6.0 # Frequency to publish costmap to topic.
 
       # Size
       resolution: 0.05 # Resolution of 1 pixel of the costmap, in meters.
@@ -203,8 +142,8 @@ local_costmap:
 
       # Cost
       trinary_costmap: True # If occupancy grid map should be interpreted as only 3 values (free, occupied, unknown) or with its stored values.
-      track_unknown_space: True # If false, treats unknown space as free space, else as unknown space.
-      unknown_cost_value: 10 # Cost of unknown space if tracking it.
+      track_unknown_space: False # If false, treats unknown space as free space, else as unknown space.
+      unknown_cost_value: 255 # Cost of unknown space if tracking it.
       lethal_cost_threshold: 100 # Minimum cost of an occupancy grid map to be considered a lethal obstacle.
 
       #****************************************************************************************************************
@@ -221,56 +160,19 @@ local_costmap:
       #****************************************************************************************************************
       use_maximum: False # Whether when combining costmaps to use the maximum cost or override.
 
-      plugins: ["obstacle_layer"]
+      plugins: ["pointcloud_projection_layer", "inflation_layer"]
 
-#      voxel_layer:
-#        plugin: "nav2_costmap_2d::VoxelLayer"
-#        publish_voxel_map: True # Whether to publish 3D voxel grid for debug, computationally expensive.
-#        combination_method: 1 # 0. Overwrite; 1. Maximum; 2. MaxWithoutUnknownOverwrite https://docs.nav2.org/configuration/packages/costmap-plugins/voxel.html
-#
-#        footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
-#        max_obstacle_height: 0.45 # Maximum height to add return to occupancy grid.
-#
-#        origin_z: 0.0
-#        z_resolution: 0.1
-#        z_voxels: 16
-#
-#        mark_threshold: 0 # Minimum number of voxels in a column to mark as occupied in 2D occupancy grid.
-#        observation_sources: scan
-#        scan:
-#          topic: /lidar/pointcloud
-#          max_obstacle_height: 2.0
-#          clearing: True
-#          marking: True
-#          data_type: "LaserScan"
-
-      obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        combination_method: 1 # 0. Overwrite; 1. Maximum; 2. MaxWithoutUnknownOverwrite  https://docs.nav2.org/configuration/packages/costmap-plugins/obstacle.html
-        footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
-        max_obstacle_height: 0.45 # Maximum height to add return to occupancy grid.
-        observation_sources: scan
-
-        scan:
-          topic: /obstacle_scan # Relative topics will be relative to the node’s parent namespace.
-          data_type: "LaserScan" # Data type of input, LaserScan or PointCloud2
-          expected_update_rate: 0.0 # ????? defaule = 0.0
-
-          inf_is_valid: True # Are infinite returns from laser scanners valid measurements to raycast.
-          max_obstacle_height: 0.45 # The maximum height in meters of a sensor reading considered valid.
-          clearing: True # Whether source should raytrace clear in costmap.
-          marking: True # Whether source should mark in costmap.
-
-          raytrace_max_range: 3.0 # Maximum range to raytrace clear obstacles from costmap.
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5 # Maximum range to mark obstacles in costmap.
-          obstacle_min_range: 0.0
-
+      pointcloud_projection_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /projected_map
+        subscribe_to_updates: False
+        map_subscribe_transient_local: False # QoS settings for map topic.
+        footprint_clearing_enabled: False # Clear any occupied cells under robot footprint.
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 10.0 # Exponential decay factor across inflation radius.
-        inflation_radius: 0.25 # Radius to inflate costmap around lethal obstacles.
+        cost_scaling_factor: 4.0 # Exponential decay factor across inflation radius.
+        inflation_radius: 0.7 # Radius to inflate costmap around lethal obstacles.
         inflate_unknown: False # Whether to inflate unknown cells as if lethal.
         inflate_around_unknown: False # Whether to inflate around unknown cells.
 
@@ -287,18 +189,31 @@ local_costmap:
 #****************************************************************************************************************
 planner_server:
   ros__parameters:
-    expected_planner_frequency: 20.0
     use_sim_time: False
+    expected_planner_frequency: 20.0
     planner_plugins: ["GridBased"]
+
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
-      tolerance: 0.05
-      use_astar: false
-      allow_unknown: true
+      plugin: "nav2_smac_planner/SmacPlanner2D" # In Iron and older versions, "/" was used instead of "::"
+      tolerance: 0.1                        # tolerance for planning if unable to reach exact pose, in meters
+      downsample_costmap: false             # whether to downsample the map
+      downsampling_factor: 1                # multiplier for the resolution of the costmap layer (e.g. 2 on a 5cm costmap would be 10cm)
+      allow_unknown: true                   # allow traveling in unknown space
+      max_iterations: 1000000               # maximum total iterations to search for before failing (in case unreachable), set to -1 to disable
+      max_on_approach_iterations: 1000      # maximum number of iterations to attempt to reach goal once in tolerance
+      max_planning_time: 2.0                # max time in s for planner to plan, smooth
+      cost_travel_multiplier: 2.0           # Cost multiplier to apply to search to steer away from high cost areas. Larger values will place in the center of aisles more exactly (if non-`FREE` cost potential field exists) but take slightly longer to compute. To optimize for speed, a value of 1.0 is reasonable. A reasonable tradeoff value is 2.0. A value of 0.0 effective disables steering away from obstacles and acts like a naive binary search A*.
+      use_final_approach_orientation: false # Whether to set the final path pose at the goal's orientation to the requested orientation (false) or in line with the approach angle so the robot doesn't rotate to heading (true)
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.2
+        tolerance: 1.0e-10
 
 planner_server_rclcpp_node:
   ros__parameters:
     use_sim_time: False
+
 
 #****************************************************************************************************************
 # Controller Server
@@ -306,14 +221,12 @@ planner_server_rclcpp_node:
 controller_server:
   ros__parameters:
     use_sim_time: False
-
-#    odom_topic: "Odometry" # Topic to get instantaneous measurement of speed from.
-    controller_frequency: 20.0
+    controller_frequency: 30.0
 
     failure_tolerance: 0.3 # The maximum duration in seconds the called controller plugin can fail before the nav2_msgs::action::FollowPath action fails
-    min_x_velocity_threshold: 0.001 # Velocity from odometry which below this threshold will be set to 0.0
-    min_y_velocity_threshold: 0.001 # Holonomic Parameter
-    min_theta_velocity_threshold: 0.001
+#    min_x_velocity_threshold: 0.001 # Velocity from odometry which below this threshold will be set to 0.0
+#    min_y_velocity_threshold: 0.001 # Holonomic Parameter
+#    min_theta_velocity_threshold: 0.001
 
     progress_checker_plugin: "progress_checker"
     goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
@@ -339,84 +252,164 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker" # 1. SimpleGoalChecker; 2. StoppedGoalChecker
-      xy_goal_tolerance: 0.25 # Tolerance to meet goal completion criteria (m).
-      yaw_goal_tolerance: 0.25 # Tolerance to meet goal completion criteria (rad).
+      xy_goal_tolerance: 0.15 # Tolerance to meet goal completion criteria (m).
+      yaw_goal_tolerance: 0.15 # Tolerance to meet goal completion criteria (rad).
 
-    #****************************************************************************************************************
-    # Follow Path plugin
-    # 1. DWB
-    #****************************************************************************************************************
     FollowPath:
-      plugin: "dwb_core::DWBLocalPlanner" # https://docs.nav2.org/configuration/packages/configuring-dwb-controller.html
-      debug_trajectory_details: False # Publish debug information (on what topic???)
+      plugin: "nav2_mppi_controller::MPPIController"
+      transform_tolerance: 0.1
+      #****************************************************************************************************************
+      # 动力学约束
+      #****************************************************************************************************************
+      motion_model: "DiffDrive"
+      vx_max: 2.0
+      vx_min: -0.35
+      vy_max: 0.5 # Max VY in either direction, if holonomic
+      wz_max: 3.5
+      ax_max: 5.0
+      ax_min: -3.0
+      ay_min: -3.0
+      ay_max: 3.0
+      az_max: 3.5
+      #****************************************************************************************************************
+      # 轨迹采样
+      #****************************************************************************************************************
+      time_steps: 56 # 每个待选轨迹的时间步数
+      model_dt: 0.05 # 每个时间步的时间间隔
+      iteration_count: 1 # 为了实时性考虑，基本上设置为1
+      batch_size: 2000 # 采样的待选轨迹数量
+      vx_std: 0.2 # 采样Vx的标准差
+      vy_std: 0.2 # 采样Vy的标准差
+      wz_std: 0.4 # 采样Wz的标准差
+      temperature: 0.3 # 根据轨迹成本进行选择，0表示采用成本最低的轨迹，数值很大时偏向于不考虑成本，将所有轨迹做平均
+      gamma: 0.015 # 在平滑性(high)和低能量消耗(low)之间权衡，影响非常复杂，通常无需调整
+      reset_period: 1.0 # Required time of inactivity to reset optimizer (only in Humble due to backport ABI policies).
+      regenerate_noises: false # 一般设置为false，具体原因见官方Github仓库
+      prune_distance: 1.7 # 将轨迹长度限制在此范围内
 
       #****************************************************************************************************************
-      # Kinematic Parameters
+      # 可视化
       #****************************************************************************************************************
-      min_vel_x: 0.08
-      min_vel_y: 0.08
-      max_vel_x: 1.0
-      max_vel_y: 1.0 # Holonomic Parameter
-      max_vel_theta: 1.0
-      min_speed_xy: 0.0
-      max_speed_xy: 1.0
-      min_speed_theta: 0.0
-      acc_lim_x: 2.5
-      acc_lim_y: 2.5 # Holonomic Parameter
-      acc_lim_theta: 3.2
-      decel_lim_x: -2.5
-      decel_lim_y: -2.5 # Holonomic Parameter
-      decel_lim_theta: -3.2
+      visualize: false # 可视化待选轨迹，对性能影响很大，仅仅用于调试
+#      publish_optimal_trajectory: false # 是否发布整条轨迹，用于可视化，或者下游控制器需要更前瞻的信息时使用，Humble似乎不支持
+      TrajectoryVisualizer:
+        trajectory_step: 5 # 轨迹可视化的步长
+        time_step: 3 # 轨迹可视化的时间步数
 
       #****************************************************************************************************************
-      # XYTheta Iterator
+      # 转向半径约束，仅在Ackermann模型下生效
       #****************************************************************************************************************
-      vx_samples: 20
-      vy_samples: 20 # Holonomic Parameter
-      vtheta_samples: 20
+#      AckermannConstraints:
+#        min_turning_r: 0.2
 
       #****************************************************************************************************************
-      # DWB Parameters
+      # ConstraintCritic： 惩罚在动力学约束外的轨迹
+      # GoalCritic： 与目标点足够近时，鼓励直接向目标点导航
+      # GoalAngleCritic： 与目标点足够近时，鼓励导航吊证姿态角度与目标姿态一致
+      # PreferForwardCritic： 鼓励前进方向，而不是倒退
+      # ObstaclesCritic： 通过robot_radius或footprint进行碰撞检查，惩罚膨胀的轨迹
+      # Cost Critic： 直接用膨胀后的costmap做避障惩罚
+      # PathAlignCritic： 鼓励与全局规划路径方向对齐
+      # PathFollowCritic： 鼓励与全局规划期路径尽可能近
+      # PathAngleCritic： 惩罚与全局规划路径夹角较大的轨迹，有助于机器人急转弯
+      # VelocityDeadbandCritic： 惩罚在死区下的速度
+      # TwirlingCritic： 惩罚holonomic机器人不必要的旋转
       #****************************************************************************************************************
-      sim_time: 1.7 # Time to simulate ahead by (s).
-      linear_granularity: 0.025 # Resolution of the trajectory (m).
-      angular_granularity: 0.025
-      transform_tolerance: 0.1 # TF transform tolerance (s).
-      short_circuit_trajectory_evaluation: True # Stop evaluating scores after best score is found.
-      stateful: True
-
-      #****************************************************************************************************************
-      # Used in RotateToGaal
-      #****************************************************************************************************************
-      xy_goal_tolerance: 0.25 # Tolerance to meet goal completion criteria (m).
-      trans_stopped_velocity: 0.25 # Velocity below is considered to be stopped at tolerance met (rad/s).
-
-      #****************************************************************************************************************
-      # Critic
-      # 1. RotateToGoal: Only allows the robot to rotate to the goal orientation when it is sufficiently close to the goal location.
-      # 2. Oscillation: Prevents the robot from oscillating back and forth.
-      # 3. BaseObstacle: To use this properly, you must use the inflation layer in costmap to expand obstacles by the robot’s radius.
-      # 4. PathAlign: Scores a trajectory based on how well it is aligned to the path provided by the global planner.
-      # 5. PathDist: Scores a trajectory based on how well it is aligned to the path provided by the global planner.
-      # 6. GoalAlign: Scores a trajectory based on how well aligned the trajectory is with the goal pose.
-      # 7. GoalDist: Scores a trajectory based on how close the trajectory gets the robot to the goal pose.
-      # 8. Twirling: Prevents holonomic robots from spinning as they make their way to the goal.
-      # 9. PreferForward: Scores trajectories that move the robot forwards more highly.
-      # 10. ObstacleFootprint: Scores a trajectory based on verifying all points along the robot’s footprint don’t touch an obstacle marked in the costmap.
-      #****************************************************************************************************************
-      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "PathAlign", "PathDist", "GoalAlign", "GoalDist", "Twirling"]
-      RotateToGoal.scale: 32.0
-      RotateToGoal.slowing_factor: 5.0 # Factor to slow robot motion by while rotating to goal.
-      RotateToGoal.lookahead_time: -1.0 # If > 0, amount of time to look forward for a collision for..
-      BaseObstacle.scale: 0.02
-      PathAlign.scale: 22.0
-      PathAlign.forward_point_distance: 0.2
-      PathDist.scale: 32.0
-      GoalAlign.scale: 5.0
-      GoalAlign.forward_point_distance: 0.2
-      GoalDist.scale: 20.0
-      Twirling.scale: 20.0
+      critics: ["ConstraintCritic", "GoalCritic", "GoalAngleCritic", "CostCritic", "ObstaclesCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic", "TwirlingCritic"]
+      ConstraintCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 4.0
+      GoalCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 1.4 # 离目标点在这个距离内，开始考虑GoalCritic
+      GoalAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.0
+        threshold_to_consider: 0.5 # 离目标点在这个距离内，GoalAngleCritic
+      ObstaclesCritic:
+        enabled: false
+        cost_power: 1
+        consider_footprint: false # 是否使用footprint
+        collision_cost: 10000.0 # 惩罚膨胀的轨迹
+        collision_margin_distance: 0.1 # 离碰撞一定的距离内，施加严重惩罚
+        critical_weight: 20.0 # 离碰撞一定的距离内，施加严重的惩罚系数，内部仅仅虚拟扩大机器人footprint
+        near_goal_distance: 0.5 # 在离目标点足够近时，停止优先考虑ObstaclesCritic，以平稳收敛到目标点
+        repulsion_weight: 1.5 # 更偏向lower cost space内的路径，可以用于动态场景中进行微调，避免过于贴近障碍物，在膨胀层范围内生效
+        inflation_radius: 0.7 # (only in Humble) 在Jazzy中，可以直接指定读取inflation_layer
+        cost_scaling_factor: 4.0 # (only in Humble) 在Jazzy中，可以直接指定读取inflation_layer
+      CostCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.81
+        critical_cost: 300.0 # 惩罚在膨胀层内的轨迹
+        consider_footprint: true
+        collision_cost: 1000000.0 # 惩罚发生膨胀的轨迹
+        near_goal_distance: 1.0 # 在离目标点足够近时，停止优先考虑CostCritic，以平稳收敛到目标点
+        trajectory_point_step: 2 # 评估轨迹采用的步长。由于轨迹非常密集，评估每个点开销很大
+      PathAlignCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 14.0
+        max_path_occupancy_ratio: 0.05 # 允许全局路径穿过occupied的比例，超过这个比例，会在跟踪路径的同时避障
+        trajectory_point_step: 4 # 评估轨迹采用的步长。由于轨迹非常密集，评估每个点开销很大
+        threshold_to_consider: 0.5 # 与goal在此距离内时，不考虑PathAlignCritic
+        offset_from_furthest: 20 # 只有待选轨迹规划了足够远的点，才会考虑PathAlignCritic
+        use_path_orientations: false # 是否听从全局路径的朝向，用于适应Hybrid A*之类的kinodynamic feasible的规划器
+      PathFollowCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        offset_from_furthest: 5 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
+        threshold_to_consider: 1.4 # 与goal在此距离内时，不考虑PathFollowCritic
+      PathAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 2.0
+        offset_from_furthest: 4 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
+        threshold_to_consider: 0.5 # 与goal在此距离内时，不考虑PathFollowCritic
+        max_angle_to_furthest: 1.0
+        mode: 0
+      PreferForwardCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 0.5
+      VelocityDeadbandCritic:
+        enabled: false
+        cost_power: 1
+        cost_weight: 35.0
+        deadband_velocities: [0.05, 0.05, 0.2] #  [vx, vz, wz]
+      TwirlingCritic:
+        enabled: false
+        twirling_cost_power: 1
+        twirling_cost_weight: 10.0
 
 controller_server_rclcpp_node:
   ros__parameters:
     use_sim_time: False
+
+velocity_smoother:
+  ros__parameters:
+    smoothing_frequency: 20.0
+    scale_velocities: false
+    feedback: "OPEN_LOOP"
+    max_velocity: [2.0, 0.0, 2.5]
+    min_velocity: [-0.50, 0.0, -2.5]
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0
+    max_accel: [5.0, 0.0, 3.2]
+    max_decel: [-2.5, 0.0, -3.2]
+    odom_topic: "odom"
+    odom_duration: 0.1
+    use_realtime_priority: false
+    enable_stamped_cmd_vel: false
+
+map_server:
+  ros__parameters:
+    yaml_filename: "$(find-pkg-share fine_nav2d_bringup)/maps/blank.yaml"
+    topic_name: "map"
+    frame_id: "map"
