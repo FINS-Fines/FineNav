@@ -242,7 +242,7 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
     color_free_.r = declare_parameter("color_free.r", 0.0);
     color_free_.g = declare_parameter("color_free.g", 1.0);
     color_free_.b = declare_parameter("color_free.b", 0.0);
-    color_free_.r = declare_parameter("color_free.a", 1.0);
+    color_free_.a = declare_parameter("color_free.a", 1.0);
 
     publish_free_space_ = declare_parameter("publish_free_space", false);
 
