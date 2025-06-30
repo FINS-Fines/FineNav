@@ -218,54 +218,63 @@ class OctomapServer : public rclcpp::Node {
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     std::unique_ptr<OcTreeT> octree_;
+    size_t tree_depth_;
     octomap::KeyRay key_ray_;  // temp storage for ray casting
+
+    OccupancyGrid gridmap_;
     octomap::OcTreeKey update_bbox_min_;
     octomap::OcTreeKey update_bbox_max_;
+    bool project_complete_map_;
+    bool map_origin_changed;
+    octomap::OcTreeKey padded_min_key_;
+    unsigned multires_2d_scale_;
 
-    double max_range_;
+    // 八叉树控制
+    double res_;
+    size_t max_tree_depth_;
+    bool compress_map_; // 压缩八叉树，通过octree_->prune()，将可以合并的子节点合并为父节点
+
+    // 可视化相关
+    ColorRGBA color_; // 似乎没用
+    ColorRGBA color_free_; // 可视化空闲空间的颜色
+    bool use_height_map_; // 发布marker_array时按高度赋色
+    double color_factor_; // 高度赋色的缩放因子
+
+
     std::string world_frame_id_;  // the map frame
     std::string base_frame_id_;   // base of the robot for ground plane filtering
-    bool use_height_map_; // 发布marker_array时按高度赋色
-    ColorRGBA color_;
-    ColorRGBA color_free_;
-    double color_factor_;
 
-    bool latched_topics_;
+    bool latched_topics_;  // topic锁存模式，发布者会保存最后一条消息，新订阅者一连接就会立即收到这条消息
+
+    // 发布空闲空间
     bool publish_free_space_;
+    bool publish_2d_map_;
 
-    double res_;
-    size_t tree_depth_;
-    size_t max_tree_depth_;
-
+    // 接收点云的边界范围
     double point_cloud_min_x_;
     double point_cloud_max_x_;
     double point_cloud_min_y_;
     double point_cloud_max_y_;
     double point_cloud_min_z_;
     double point_cloud_max_z_;
+    double max_range_; // 点云的最大范围，超过这个范围的点会被忽略
+
+    // 投影到二维栅格的高度范围
     double occupancy_min_z_;
     double occupancy_max_z_;
-    double min_x_size_;
-    double min_y_size_;
-    bool filter_speckles_;
+    double min_x_size_; // 保证生成的栅格地图不会小于某个范围
+    double min_y_size_; // TODO: 似乎nav2偶尔会报错机器人在代价地图外，最好定义这个参数
+    bool incremental_2D_projection_; // 是否增量更新2D地图
 
+    // 毛刺过滤控制，毛刺node不参与publishAll()过程
+    bool filter_speckles_; // TODO: 可以打开试试效果
+
+    // 地面滤波控制，基于RANSAC
     bool filter_ground_plane_;
     double ground_filter_distance_;
     double ground_filter_angle_;
     double ground_filter_plane_distance_;
 
-    bool compress_map_;
-
-    bool init_config_;
-
-    // downprojected 2D map:
-    bool incremental_2D_projection_;
-    OccupancyGrid gridmap_;
-    bool publish_2d_map_;
-    bool map_origin_changed;
-    octomap::OcTreeKey padded_min_key_;
-    unsigned multires_2d_scale_;
-    bool project_complete_map_;
 };
 }  // namespace octomap_server
 
