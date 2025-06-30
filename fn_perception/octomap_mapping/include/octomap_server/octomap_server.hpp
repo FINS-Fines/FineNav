@@ -66,15 +66,6 @@
 #include "octomap_ros/conversions.hpp"
 
 
-// switch color here - easier maintenance, only maintain OctomapServer.
-// Two targets are defined in the cmake, octomap_server_color and octomap_server.
-// One has this defined, and the other doesn't
-// #define COLOR_OCTOMAP_SERVER
-
-#ifdef COLOR_OCTOMAP_SERVER
-#include <octomap/ColorOcTree.h>
-#endif
-
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -92,15 +83,9 @@ using visualization_msgs::msg::MarkerArray;
 class OctomapServer : public rclcpp::Node
 {
 public:
-#ifdef COLOR_OCTOMAP_SERVER
-  using PCLPoint = pcl::PointXYZRGB;
-  using PCLPointCloud = pcl::PointCloud<pcl::PointXYZRGB>;
-  using OcTreeT = octomap::ColorOcTree;
-#else
   using PCLPoint = pcl::PointXYZ;
   using PCLPointCloud = pcl::PointCloud<pcl::PointXYZ>;
   using OcTreeT = octomap::OcTree;
-#endif
   using OctomapSrv = octomap_msgs::srv::GetOctomap;
   using BBoxSrv = octomap_msgs::srv::BoundingBoxQuery;
   using ResetSrv = std_srvs::srv::Empty;
@@ -305,7 +290,6 @@ protected:
   octomap::OcTreeKey padded_min_key_;
   unsigned multires_2d_scale_;
   bool project_complete_map_;
-  bool use_colored_map_;
 };
 }  // namespace octomap_server
 
