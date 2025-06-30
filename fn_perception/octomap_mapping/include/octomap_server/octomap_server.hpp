@@ -225,7 +225,7 @@ class OctomapServer : public rclcpp::Node {
     double max_range_;
     std::string world_frame_id_;  // the map frame
     std::string base_frame_id_;   // base of the robot for ground plane filtering
-    bool use_height_map_;
+    bool use_height_map_; // 发布marker_array时按高度赋色
     ColorRGBA color_;
     ColorRGBA color_free_;
     double color_factor_;
