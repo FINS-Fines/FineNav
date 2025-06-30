@@ -234,10 +234,10 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
     }
     gridmap_.info.resolution = res_;
 
-    color_.r = declare_parameter("color.r", 0.0);
-    color_.g = declare_parameter("color.g", 0.0);
-    color_.b = declare_parameter("color.b", 1.0);
-    color_.a = declare_parameter("color.a", 1.0);
+    // color_.r = declare_parameter("color.r", 0.0);
+    // color_.g = declare_parameter("color.g", 0.0);
+    // color_.b = declare_parameter("color.b", 1.0);
+    // color_.a = declare_parameter("color.a", 1.0);
 
     color_free_.r = declare_parameter("color_free.r", 0.0);
     color_free_.g = declare_parameter("color_free.g", 1.0);
@@ -1173,6 +1173,10 @@ void OctomapServer::update2DMap(const OcTreeT::iterator& it, bool occupied) {
     }
 }
 
+/**
+ * @brief 检测当前节点是否是一个毛刺点（speckle node）
+ * @note 判断周围26个邻居中，是否存在被占用的节点
+ */
 bool OctomapServer::isSpeckleNode(const octomap::OcTreeKey& n_key) const {
     octomap::OcTreeKey key;
     bool neighbor_found = false;

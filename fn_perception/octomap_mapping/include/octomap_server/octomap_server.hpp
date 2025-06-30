@@ -235,7 +235,6 @@ class OctomapServer : public rclcpp::Node {
     bool compress_map_; // 压缩八叉树，通过octree_->prune()，将可以合并的子节点合并为父节点
 
     // 可视化相关
-    ColorRGBA color_; // 似乎没用
     ColorRGBA color_free_; // 可视化空闲空间的颜色
     bool use_height_map_; // 发布marker_array时按高度赋色
     double color_factor_; // 高度赋色的缩放因子
