@@ -4,6 +4,7 @@
 
 Language: Cpp
 BasedOnStyle: Google
+SortIncludes: false # Do not sort includes, as it may cause conflicts with other tools
 AccessModifierOffset: -2 # Modified from -1 to -2
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: None
