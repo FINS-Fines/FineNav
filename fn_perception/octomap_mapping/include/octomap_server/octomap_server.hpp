@@ -222,6 +222,8 @@ class OctomapServer : public rclcpp::Node {
     octomap::KeyRay key_ray_;  // temp storage for ray casting
 
     OccupancyGrid gridmap_;
+    bool publish_2d_map_; // 默认设置为 true
+
     octomap::OcTreeKey update_bbox_min_;
     octomap::OcTreeKey update_bbox_max_;
     bool project_complete_map_;
@@ -243,11 +245,12 @@ class OctomapServer : public rclcpp::Node {
     std::string world_frame_id_;  // the map frame
     std::string base_frame_id_;   // base of the robot for ground plane filtering
 
-    bool latched_topics_;  // topic锁存模式，发布者会保存最后一条消息，新订阅者一连接就会立即收到这条消息
+    // topic锁存模式，发布者会保存最后一条消息，新订阅者一连接就会立即收到这条消息
+    // 栅格地图发布默认锁存，以适配导航系统订阅的qos
+    bool latched_topics_;
 
     // 发布空闲空间
     bool publish_free_space_;
-    bool publish_2d_map_;
 
     // 接收点云的边界范围
     double point_cloud_min_x_;

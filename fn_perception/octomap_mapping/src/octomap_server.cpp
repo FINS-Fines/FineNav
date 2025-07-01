@@ -261,9 +261,11 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
     binary_map_pub_ = create_publisher<Octomap>("octomap_binary", qos);
     full_map_pub_ = create_publisher<Octomap>("octomap_full", qos);
     point_cloud_pub_ = create_publisher<PointCloud2>("octomap_point_cloud_centers", qos);
-    map_pub_ = create_publisher<OccupancyGrid>("projected_map",
-                                               qos.keep_last(5).durability(rclcpp::DurabilityPolicy::TransientLocal));
     fmarker_pub_ = create_publisher<MarkerArray>("free_cells_vis_array", qos);
+
+    // 栅格地图发布的qos手动控制，必须设置为TransientLocal
+    map_pub_ = create_publisher<OccupancyGrid>("projected_map", qos.transient_local());
+    publish_2d_map_ = true;
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     auto timer_interface =
@@ -589,8 +591,6 @@ void OctomapServer::publishAll(const rclcpp::Time& rostime) {
     bool publish_full_map =
         (latched_topics_ ||
          full_map_pub_->get_subscription_count() + full_map_pub_->get_intra_process_subscription_count() > 0);
-    publish_2d_map_ =
-        (latched_topics_ || map_pub_->get_subscription_count() + map_pub_->get_intra_process_subscription_count() > 0);
 
     // init markers for free space:
     MarkerArray free_nodes_vis;
