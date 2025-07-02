@@ -351,8 +351,6 @@ bool OctomapServer::openFile(const std::string& filename) {
     return true;
 }
 
-static int i = 0;
-
 /**
  * @brief 插入点云回调函数
  * @param cloud 输入的点云消息
