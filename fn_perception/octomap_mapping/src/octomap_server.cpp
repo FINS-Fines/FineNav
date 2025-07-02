@@ -428,7 +428,7 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     PCLPointCloud pc_ground;
     PCLPointCloud pc_nonground;
     if (filter_ground_plane_) {
-        filterGroundPlane(pc, pc_ground, pc_nonground);
+        segmentGround(pc, pc_ground, pc_nonground);
     } else {
         pc_nonground = pc;
         // pc_nonground is empty without ground segmentation
@@ -916,8 +916,15 @@ void OctomapServer::publishFullOctoMap(const rclcpp::Time& rostime) const {
     }
 }
 
-void OctomapServer::filterGroundPlane(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const {
-
+void OctomapServer::segmentGround(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const {
+    std::vector<int> labels;
+    segmenter_->segment(pc, &labels);
+    for (size_t i = 0; i < labels.size(); ++i) {
+        if (labels[i] == 1)
+            ground.push_back(pc[i]);
+        else
+            nonground.push_back(pc[i]);
+    }
 }
 
 void OctomapServer::handlePreNodeTraversal(const rclcpp::Time& rostime) {

@@ -146,7 +146,7 @@ class OctomapServer : public rclcpp::Node {
 
     /// label the input cloud "pc" into ground and nonground.
     /// Should be in the robot's fixed frame (not world!)
-    void filterGroundPlane(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const;
+    void segmentGround(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const;
 
     /**
   * @brief Find speckle nodes (single occupied voxels with no neighbors). Only works on lowest resolution!
