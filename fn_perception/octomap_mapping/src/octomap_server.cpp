@@ -364,7 +364,6 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     PCLPointCloud pc;  // input cloud for filtering and ground-detection
     pcl::fromROSMsg(*cloud, pc);
 
-    // TODO: 处理这里的时间同步问题，应当访问lidar_end_time时候的时间戳,tf_tolenrance作为参数接口外露，默认100ms
     geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
     try {
         sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(
