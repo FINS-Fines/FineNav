@@ -71,6 +71,8 @@
 #include <string>
 #include <vector>
 
+#include "ground_segmentation/ground_segmentation.h"
+
 namespace octomap_server {
 using nav_msgs::msg::MapMetaData;
 using nav_msgs::msg::OccupancyGrid;
@@ -278,11 +280,11 @@ class OctomapServer : public rclcpp::Node {
     // 毛刺过滤控制，毛刺node不参与publishAll()过程
     bool filter_speckles_; // TODO: 可以打开试试效果
 
-    // 地面滤波控制，基于RANSAC
+    // 地面滤波控制，基于linefit_ground_segmentation
     bool filter_ground_plane_;
-    double ground_filter_distance_;
-    double ground_filter_angle_;
-    double ground_filter_plane_distance_;
+    GroundSegmentationParams params_;
+    std::shared_ptr<GroundSegmentation> segmenter_;
+
 
 };
 }  // namespace octomap_server

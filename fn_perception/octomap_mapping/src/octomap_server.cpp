@@ -117,39 +117,6 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
         filter_ground_plane_ = declare_parameter("filter_ground_plane", false, filter_ground_plane_desc);
     }
     {
-        // distance of points from plane for RANSAC
-        rcl_interfaces::msg::ParameterDescriptor ground_filter_distance_desc;
-        ground_filter_distance_desc.description = "Distance threshold to consider a point as ground";
-        rcl_interfaces::msg::FloatingPointRange ground_filter_distance_range;
-        ground_filter_distance_range.from_value = 0.001;
-        ground_filter_distance_range.to_value = 1.0;
-        ground_filter_distance_desc.floating_point_range.push_back(ground_filter_distance_range);
-        ground_filter_distance_ = declare_parameter("ground_filter.distance", 0.04, ground_filter_distance_desc);
-    }
-    {
-        // angular derivation of found plane:
-        rcl_interfaces::msg::ParameterDescriptor ground_filter_angle_desc;
-        ground_filter_angle_desc.description =
-            "Angular threshold of the detected plane from the horizontal plane to be detected as ground";
-        rcl_interfaces::msg::FloatingPointRange ground_filter_angle_range;
-        ground_filter_angle_range.from_value = 0.001;
-        ground_filter_angle_range.to_value = 15.0;
-        ground_filter_angle_desc.floating_point_range.push_back(ground_filter_angle_range);
-        ground_filter_angle_ = declare_parameter("ground_filter.angle", 0.15);
-    }
-    {
-        // distance of found plane from z=0 to be detected as ground (e.g. to exclude tables)
-        rcl_interfaces::msg::ParameterDescriptor ground_filter_plane_distance_desc;
-        ground_filter_plane_distance_desc.description =
-            "Distance threshold from z=0 for a plane to be detected as ground";
-        rcl_interfaces::msg::FloatingPointRange ground_filter_plane_distance_range;
-        ground_filter_plane_distance_range.from_value = 0.001;
-        ground_filter_plane_distance_range.to_value = 1.0;
-        ground_filter_plane_distance_desc.floating_point_range.push_back(ground_filter_plane_distance_range);
-        ground_filter_plane_distance_ =
-            declare_parameter("ground_filter.plane_distance", 0.07, ground_filter_plane_distance_desc);
-    }
-    {
         rcl_interfaces::msg::ParameterDescriptor max_range_desc;
         max_range_desc.description = "Sensor maximum range";
         rcl_interfaces::msg::FloatingPointRange max_range_range;
@@ -291,6 +258,8 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
     clear_bbox_srv_ = create_service<BBoxSrv>("~/clear_bbox", std::bind(&OctomapServer::clearBBoxSrv, this, _1, _2));
     reset_srv_ = create_service<ResetSrv>("~/reset", std::bind(&OctomapServer::resetSrv, this, _1, _2));
 
+    segmenter_ = std::make_shared<GroundSegmentation>(params_);
+
     // set parameter callback
     set_param_res_ = this->add_on_set_parameters_callback(std::bind(&OctomapServer::onParameter, this, _1));
 
@@ -421,9 +390,9 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     } else {
         pc_nonground = pc;
         // pc_nonground is empty without ground segmentation
-        pc_ground.header = pc.header;
-        pc_nonground.header = pc.header;
     }
+    pc_ground.header = pc.header;
+    pc_nonground.header = pc.header;
 
     // 发布地面点云和障碍物点云
     if (!pc_nonground.empty()) {
@@ -906,107 +875,7 @@ void OctomapServer::publishFullOctoMap(const rclcpp::Time& rostime) const {
 }
 
 void OctomapServer::filterGroundPlane(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const {
-    ground.header = pc.header;
-    nonground.header = pc.header;
 
-    if (pc.size() < 50) {
-        RCLCPP_WARN(get_logger(), "Pointcloud in OctomapServer too small, skipping ground plane extraction");
-        nonground = pc;
-    } else {
-        // plane detection for ground plane removal:
-        pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-        pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-
-        // Create the segmentation object and set up:
-        pcl::SACSegmentation<PCLPoint> seg;
-        seg.setOptimizeCoefficients(true);
-        // TODO(someone): maybe a filtering based on the surface normals
-        // might be more robust / accurate?
-        seg.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
-        seg.setMethodType(pcl::SAC_RANSAC);
-        seg.setMaxIterations(200);
-        seg.setDistanceThreshold(ground_filter_distance_);
-        seg.setAxis(Eigen::Vector3f(0, 0, 1));
-        seg.setEpsAngle(ground_filter_angle_);
-
-        PCLPointCloud cloud_filtered(pc);
-        // Create the filtering object
-        pcl::ExtractIndices<PCLPoint> extract;
-        bool ground_plane_found = false;
-
-        while (cloud_filtered.size() > 10 && !ground_plane_found) {
-            seg.setInputCloud(cloud_filtered.makeShared());
-            seg.segment(*inliers, *coefficients);
-            if (inliers->indices.size() == 0) {
-                RCLCPP_INFO(get_logger(), "PCL segmentation did not find any plane.");
-
-                break;
-            }
-
-            extract.setInputCloud(cloud_filtered.makeShared());
-            extract.setIndices(inliers);
-
-            if (std::abs(coefficients->values.at(3)) < ground_filter_plane_distance_) {
-                RCLCPP_DEBUG(get_logger(), "Ground plane found: %zu/%zu inliers. Coeff: %f %f %f %f",
-                             inliers->indices.size(), cloud_filtered.size(), coefficients->values.at(0),
-                             coefficients->values.at(1), coefficients->values.at(2), coefficients->values.at(3));
-                extract.setNegative(false);
-                extract.filter(ground);
-
-                // remove ground points from full pointcloud:
-                // workaround for PCL bug:
-                if (inliers->indices.size() != cloud_filtered.size()) {
-                    extract.setNegative(true);
-                    PCLPointCloud cloud_out;
-                    extract.filter(cloud_out);
-                    nonground += cloud_out;
-                    cloud_filtered = cloud_out;
-                }
-
-                ground_plane_found = true;
-            } else {
-                RCLCPP_DEBUG(get_logger(), "Horizontal plane (not ground) found: %zu/%zu inliers. Coeff: %f %f %f %f",
-                             inliers->indices.size(), cloud_filtered.size(), coefficients->values.at(0),
-                             coefficients->values.at(1), coefficients->values.at(2), coefficients->values.at(3));
-                pcl::PointCloud<PCLPoint> cloud_out;
-                extract.setNegative(false);
-                extract.filter(cloud_out);
-                nonground += cloud_out;
-                // debug
-                //            pcl::PCDWriter writer;
-                //            writer.write<PCLPoint>("nonground_plane.pcd",cloud_out, false);
-
-                // remove current plane from scan for next iteration:
-                // workaround for PCL bug:
-                if (inliers->indices.size() != cloud_filtered.size()) {
-                    extract.setNegative(true);
-                    cloud_out.points.clear();
-                    extract.filter(cloud_out);
-                    cloud_filtered = cloud_out;
-                } else {
-                    cloud_filtered.points.clear();
-                }
-            }
-        }
-        // TODO(someone): also do this if overall starting pointcloud too small?
-        if (!ground_plane_found) {  // no plane found or remaining points too small
-            RCLCPP_WARN(get_logger(), "No ground plane found in scan");
-            // do a rough fitlering on height to prevent spurious obstacles
-            pcl::PassThrough<PCLPoint> second_pass;
-            second_pass.setFilterFieldName("z");
-            second_pass.setFilterLimits(-ground_filter_plane_distance_, ground_filter_plane_distance_);
-            second_pass.setInputCloud(pc.makeShared());
-            second_pass.filter(ground);
-            second_pass.setNegative(true);
-            second_pass.filter(nonground);
-        }
-        // debug:
-        //        pcl::PCDWriter writer;
-        //        if (pc_ground.size() > 0)
-        //          writer.write<PCLPoint>("ground.pcd",pc_ground, false);
-        //        if (pc_nonground.size() > 0)
-        //          writer.write<PCLPoint>("nonground.pcd",pc_nonground, false);
-    }
 }
 
 void OctomapServer::handlePreNodeTraversal(const rclcpp::Time& rostime) {
@@ -1231,9 +1100,6 @@ rcl_interfaces::msg::SetParametersResult OctomapServer::onParameter(const std::v
     update_param(parameters, "filter_ground_plane", filter_ground_plane_);
     update_param(parameters, "compress_map", compress_map_);
     update_param(parameters, "incremental_2D_projection", incremental_2D_projection_);
-    update_param(parameters, "ground_filter_distance", ground_filter_distance_);
-    update_param(parameters, "ground_filter_angle", ground_filter_angle_);
-    update_param(parameters, "ground_filter_plane_distance", ground_filter_plane_distance_);
     update_param(parameters, "sensor_model.max_range", max_range_);
     double sensor_model_min{get_parameter("sensor_model.min").as_double()};
     update_param(parameters, "sensor_model.min", sensor_model_min);
