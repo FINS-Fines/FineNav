@@ -361,7 +361,6 @@ static int i = 0;
  */
 void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud) {
     const auto start_time = rclcpp::Clock{}.now();
-    i++; // TODO: 删除分频输出功能
 
     // 在sensor_frame中滤除地面点
     PCLPointCloud pc;  // input cloud for filtering and ground-detection
@@ -454,10 +453,7 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     RCLCPP_DEBUG(get_logger(), "Pointcloud insertion in OctomapServer done (%zu+%zu pts (ground/nonground), %f sec)",
                  pc_ground.size(), pc_nonground.size(), total_elapsed);
 
-    if (i == 5) {
-        publishAll(cloud->header.stamp);
-        i = 0;
-    }
+    publishAll(cloud->header.stamp);
 }
 
 /**
