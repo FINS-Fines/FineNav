@@ -353,15 +353,21 @@ bool OctomapServer::openFile(const std::string& filename) {
 
 static int i = 0;
 
+/**
+ * @brief 插入点云回调函数
+ * @param cloud 输入的点云消息
+ *
+ * 该函数会处理点云数据，滤除地面点，并将点云插入到八叉树中。
+ */
 void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud) {
     const auto start_time = rclcpp::Clock{}.now();
-    i++;
-    //
-    // ground filtering in base frame
-    //
+    i++; // TODO: 删除分频输出功能
+
+    // 在sensor_frame中滤除地面点
     PCLPointCloud pc;  // input cloud for filtering and ground-detection
     pcl::fromROSMsg(*cloud, pc);
 
+    // TODO: 处理这里的时间同步问题，应当访问lidar_end_time时候的时间戳,tf_tolenrance作为参数接口外露，默认100ms
     geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
     try {
         sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(
@@ -371,7 +377,7 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
         return;
     }
 
-    // set up filter for height range, also removes NANs:
+    // 滤除范围外的点云
     pcl::PassThrough<PCLPoint> pass_x;
     pass_x.setFilterFieldName("x");
     pass_x.setFilterLimits(point_cloud_min_x_, point_cloud_max_x_);
@@ -382,15 +388,19 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     pass_z.setFilterFieldName("z");
     pass_z.setFilterLimits(point_cloud_min_z_, point_cloud_max_z_);
 
-    PCLPointCloud pc_ground;     // segmented ground plane
-    PCLPointCloud pc_nonground;  // everything else
+    PCLPointCloud pc_ground;
+    PCLPointCloud pc_nonground;
 
+    // TODO: 如果需要滤除地面，点云转换到机器人坐标系，发布地面点云和障碍物点云
+    // TODO: 如果不需要滤除地面，点云也要转换到机器人坐标系，发布点云，并且最后转换到世界坐标系【逻辑大改】
     if (filter_ground_plane_) {
+
+        // 三个坐标系： world -> base -> sensor
         geometry_msgs::msg::TransformStamped sensor_to_base_transform_stamped;
         geometry_msgs::msg::TransformStamped base_to_world_transform_stamped;
         try {
             tf2_buffer_->canTransform(base_frame_id_, cloud->header.frame_id, cloud->header.stamp,
-                                      rclcpp::Duration::from_seconds(0.2));
+                                      rclcpp::Duration::from_seconds(0.2));  // TODO: 这行似乎没有必要
             sensor_to_base_transform_stamped = tf2_buffer_->lookupTransform(
                 base_frame_id_, cloud->header.frame_id, cloud->header.stamp, rclcpp::Duration::from_seconds(1.0));
             base_to_world_transform_stamped = tf2_buffer_->lookupTransform(
@@ -402,14 +412,16 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
                                                      "You need to set the base_frame_id or disable filter_ground.");
         }
 
-        // transform pointcloud from sensor frame to fixed robot frame
+        // 把传感器坐标系上的点云变换到机器人坐标系
         pcl_ros::transformPointCloud(pc, pc, sensor_to_base_transform_stamped);
+
         pass_x.setInputCloud(pc.makeShared());
         pass_x.filter(pc);
         pass_y.setInputCloud(pc.makeShared());
         pass_y.filter(pc);
         pass_z.setInputCloud(pc.makeShared());
         pass_z.filter(pc);
+
         filterGroundPlane(pc, pc_ground, pc_nonground);
 
         // transform clouds to world frame for insertion
@@ -448,6 +460,14 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     }
 }
 
+/**
+ * @brief 插入点云数据到八叉树中
+ * @param sensor_origin_tf 传感器原点在世界坐标系中的位置
+ * @param ground 地面点云
+ * @param nonground 非地面点云
+ *
+ * 该函数处理插入八叉树的逻辑
+ */
 void OctomapServer::insertScan(const tf2::Vector3& sensor_origin_tf, const PCLPointCloud& ground,
                                const PCLPointCloud& nonground) {
     const auto sensor_origin = octomap::pointTfToOctomap(sensor_origin_tf);
@@ -457,21 +477,24 @@ void OctomapServer::insertScan(const tf2::Vector3& sensor_origin_tf, const PCLPo
         RCLCPP_ERROR_STREAM(get_logger(), "Could not generate Key for origin " << sensor_origin);
     }
 
-    // instead of direct scan insertion, compute update to filter ground:
     octomap::KeySet free_cells, occupied_cells;
+
+    // ground points for raytrace : 仅清除路径上的点，不记录末端占用点
     // insert ground points only as free:
     for (PCLPointCloud::const_iterator it = ground.begin(); it != ground.end(); ++it) {
         octomap::point3d point(it->x, it->y, it->z);
-        // maxrange check
+
+        // 如果测距点超过 max_range_，在 max_range_ 处截断
         if ((max_range_ > 0.0) && ((point - sensor_origin).norm() > max_range_)) {
             point = sensor_origin + (point - sensor_origin).normalized() * max_range_;
         }
 
-        // only clear space (ground points)
+        // 将光线路径上的点标记为free_cells
         if (octree_->computeRayKeys(sensor_origin, point, key_ray_)) {
             free_cells.insert(key_ray_.begin(), key_ray_.end());
         }
 
+        // 更新变化区域的边界框
         octomap::OcTreeKey end_key;
         if (octree_->coordToKeyChecked(point, end_key)) {
             updateMinKey(end_key, update_bbox_min_);
@@ -481,16 +504,16 @@ void OctomapServer::insertScan(const tf2::Vector3& sensor_origin_tf, const PCLPo
         }
     }
 
-    // all other points: free on ray, occupied on endpoint:
+    // nonground points for raytrace : 清除路径上的点，记录末端占用点
     for (PCLPointCloud::const_iterator it = nonground.begin(); it != nonground.end(); ++it) {
         octomap::point3d point(it->x, it->y, it->z);
-        // maxrange check
+
         if ((max_range_ < 0.0) || ((point - sensor_origin).norm() <= max_range_)) {
-            // free cells
+            // 将光线路径上的点标记为free_cells
             if (octree_->computeRayKeys(sensor_origin, point, key_ray_)) {
                 free_cells.insert(key_ray_.begin(), key_ray_.end());
             }
-            // occupied endpoint
+            // 将末端点标记为occupied_cells，同时更新变化区域的边界框
             octomap::OcTreeKey key;
             if (octree_->coordToKeyChecked(point, key)) {
                 occupied_cells.insert(key);
@@ -498,11 +521,12 @@ void OctomapServer::insertScan(const tf2::Vector3& sensor_origin_tf, const PCLPo
                 updateMinKey(key, update_bbox_min_);
                 updateMaxKey(key, update_bbox_max_);
             }
-        } else {  // ray longer than maxrange
+        } else {  // 如果测距点超过 max_range_，在 max_range_ 处截断
             octomap::point3d new_end = sensor_origin + (point - sensor_origin).normalized() * max_range_;
             if (octree_->computeRayKeys(sensor_origin, new_end, key_ray_)) {
                 free_cells.insert(key_ray_.begin(), key_ray_.end());
 
+                // 将截断后的末端点标记为occupied_cells，同时更新变化区域的边界框
                 octomap::OcTreeKey end_key;
                 if (octree_->coordToKeyChecked(new_end, end_key)) {
                     free_cells.insert(end_key);
@@ -515,14 +539,12 @@ void OctomapServer::insertScan(const tf2::Vector3& sensor_origin_tf, const PCLPo
         }
     }
 
-    // mark free cells only if not seen occupied in this cloud
+    // 只有一次都没有标记过occupied的点，才会被标记为free，其余的点都被认为是occupied
     for (auto it = free_cells.begin(), end = free_cells.end(); it != end; ++it) {
         if (occupied_cells.find(*it) == occupied_cells.end()) {
             octree_->updateNode(*it, false);
         }
     }
-
-    // now mark all occupied cells:
     for (auto it = occupied_cells.begin(), end = occupied_cells.end(); it != end; it++) {
         octree_->updateNode(*it, true);
     }
@@ -551,8 +573,7 @@ void OctomapServer::insertScan(const tf2::Vector3& sensor_origin_tf, const PCLPo
     //    update_bbox_max_ = tmpMax;
     // }
 
-    // TODO(someone): we could also limit the bbx to be
-    // within the map bounds here (see publishing check)
+    // TODO(someone): we could also limit the bbx to be within the map bounds here (see publishing check)
     min_pt = octree_->keyToCoord(update_bbox_min_);
     max_pt = octree_->keyToCoord(update_bbox_max_);
     RCLCPP_DEBUG_STREAM(get_logger(), "Updated area bounding box: " << min_pt << " - " << max_pt);
