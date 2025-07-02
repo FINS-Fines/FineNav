@@ -127,6 +127,8 @@ class OctomapServer : public rclcpp::Node {
     void publishFullOctoMap(const rclcpp::Time& rostime) const;
     virtual void publishAll(const rclcpp::Time& rostime);
 
+    void filterPointCloud(PCLPointCloud & pcd);
+
     /**
   * @brief update occupancy map with a scan labeled as ground and nonground.
   * The scans should be in the global map frame.

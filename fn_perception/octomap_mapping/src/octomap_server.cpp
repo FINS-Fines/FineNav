@@ -354,6 +354,27 @@ bool OctomapServer::openFile(const std::string& filename) {
     return true;
 }
 
+void OctomapServer::filterPointCloud(PCLPointCloud& pcd) {
+    pcl::PassThrough<PCLPoint> pass_x;
+    pass_x.setFilterFieldName("x");
+    pass_x.setFilterLimits(point_cloud_min_x_, point_cloud_max_x_);
+    pass_x.setInputCloud(pcd.makeShared());
+    pass_x.filter(pcd);
+
+    pcl::PassThrough<PCLPoint> pass_y;
+    pass_y.setFilterFieldName("y");
+    pass_y.setFilterLimits(point_cloud_min_y_, point_cloud_max_y_);
+    pass_y.setInputCloud(pcd.makeShared());
+    pass_y.filter(pcd);
+
+    pcl::PassThrough<PCLPoint> pass_z;
+    pass_z.setFilterFieldName("z");
+    pass_z.setFilterLimits(point_cloud_min_z_, point_cloud_max_z_);
+    pass_z.setInputCloud(pcd.makeShared());
+    pass_z.filter(pcd);
+}
+
+
 /**
  * @brief 插入点云回调函数
  * @param cloud 输入的点云消息
@@ -386,7 +407,7 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     }
     auto tf_sensor_to_base = tf2::transformToEigen(sensor_to_base_transform_stamped.transform);
     auto tf_base_to_world = tf2::transformToEigen(base_to_world_transform_stamped.transform);
-    auto tf_sensor_to_world = tf_base_to_world * tf_sensor_to_base;\
+    auto tf_sensor_to_world = tf_base_to_world * tf_sensor_to_base;
     auto sensor_to_world_transform = tf2::toMsg(tf_sensor_to_world);
 
     // 把传感器坐标系上的点云变换到机器人坐标系
@@ -420,32 +441,13 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
         pc_ground_pub_->publish(pc_ground_msg);
     }
 
-
     // 转换到world坐标系后，进行后续处理
     pcl_ros::transformPointCloud(pc_ground, pc_ground, base_to_world_transform_stamped);
     pcl_ros::transformPointCloud(pc_nonground, pc_nonground, base_to_world_transform_stamped);
 
     // 在插入八叉树之前，进行passthrough滤波和voxel_grid滤波
-    pcl::PassThrough<PCLPoint> pass_x;
-    pass_x.setFilterFieldName("x");
-    pass_x.setFilterLimits(point_cloud_min_x_, point_cloud_max_x_);
-    pass_x.setInputCloud(pc.makeShared());
-    pass_x.filter(pc_ground);
-    pass_x.filter(pc_nonground);
-
-    pcl::PassThrough<PCLPoint> pass_y;
-    pass_y.setFilterFieldName("y");
-    pass_y.setFilterLimits(point_cloud_min_y_, point_cloud_max_y_);
-    pass_y.setInputCloud(pc.makeShared());
-    pass_y.filter(pc_ground);
-    pass_y.filter(pc_nonground);
-
-    pcl::PassThrough<PCLPoint> pass_z;
-    pass_z.setFilterFieldName("z");
-    pass_z.setFilterLimits(point_cloud_min_z_, point_cloud_max_z_);
-    pass_z.setInputCloud(pc.makeShared());
-    pass_z.filter(pc_ground);
-    pass_z.filter(pc_nonground);
+    filterPointCloud(pc_ground);
+    filterPointCloud(pc_nonground);
 
     const auto& t = sensor_to_world_transform.position;
     tf2::Vector3 sensor_to_world_vec3{t.x, t.y, t.z};
