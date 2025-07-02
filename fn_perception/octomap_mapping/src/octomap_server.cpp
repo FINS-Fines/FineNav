@@ -258,7 +258,8 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
     clear_bbox_srv_ = create_service<BBoxSrv>("~/clear_bbox", std::bind(&OctomapServer::clearBBoxSrv, this, _1, _2));
     reset_srv_ = create_service<ResetSrv>("~/reset", std::bind(&OctomapServer::resetSrv, this, _1, _2));
 
-    segmenter_ = std::make_shared<GroundSegmentation>(params_);
+    // 初始化地面分割器
+    initGroundSegmenter();
 
     // set parameter callback
     set_param_res_ = this->add_on_set_parameters_callback(std::bind(&OctomapServer::onParameter, this, _1));
@@ -267,6 +268,47 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
     if (!openFile(filename)) {
         RCLCPP_WARN(get_logger(), "Could not open file %s", filename.c_str());
     }
+
+    RCLCPP_INFO(get_logger(), "Octomap server initialized.");
+}
+
+void OctomapServer::initGroundSegmenter() {
+    seg_params.visualize = this->declare_parameter("visualize", seg_params.visualize);
+    seg_params.n_bins = this->declare_parameter("n_bins", seg_params.n_bins);
+    seg_params.n_segments =
+        this->declare_parameter("n_segments", seg_params.n_segments);
+    seg_params.max_dist_to_line =
+        this->declare_parameter("max_dist_to_line", seg_params.max_dist_to_line);
+    seg_params.max_slope = this->declare_parameter("max_slope", seg_params.max_slope);
+    seg_params.min_slope = this->declare_parameter("min_slope", seg_params.min_slope);
+    seg_params.long_threshold =
+        this->declare_parameter("long_threshold", seg_params.long_threshold);
+    seg_params.max_long_height =
+        this->declare_parameter("max_long_height", seg_params.max_long_height);
+    seg_params.max_start_height =
+        this->declare_parameter("max_start_height", seg_params.max_start_height);
+    seg_params.sensor_height =
+        this->declare_parameter("sensor_height", seg_params.sensor_height); // TODO: sensor_height可以从tf拿到
+    seg_params.line_search_angle =
+        this->declare_parameter("line_search_angle", seg_params.line_search_angle);
+    seg_params.n_threads = this->declare_parameter("n_threads", seg_params.n_threads);
+    seg_params.r_min = this->declare_parameter("r_min", seg_params.r_min);
+    seg_params.r_max = this->declare_parameter("r_max", seg_params.r_max);
+    seg_params.max_fit_error =
+        this->declare_parameter("max_fit_error", seg_params.max_fit_error);
+    // Params that need to be squared.
+    double r_min, r_max, max_fit_error;
+    if (this->get_parameter("r_min", r_min)) {
+        seg_params.r_min_square = r_min * r_min;
+    }
+    if (this->get_parameter("r_max", r_max)) {
+        seg_params.r_max_square = r_max * r_max;
+    }
+    if (this->get_parameter("max_fit_error", max_fit_error)) {
+        seg_params.max_error_square = max_fit_error * max_fit_error;
+    }
+    
+    segmenter_ = std::make_shared<GroundSegmentation>(seg_params);
 }
 
 bool OctomapServer::openFile(const std::string& filename) {

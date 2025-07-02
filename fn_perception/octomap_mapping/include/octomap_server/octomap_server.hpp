@@ -102,6 +102,8 @@ class OctomapServer : public rclcpp::Node {
     virtual bool openFile(const std::string& filename);
 
   protected:
+    void initGroundSegmenter();
+
     inline static void updateMinKey(const octomap::OcTreeKey& in, octomap::OcTreeKey& min) {
         for (size_t i = 0; i < 3; ++i) {
             min[i] = std::min(in[i], min[i]);
@@ -282,7 +284,7 @@ class OctomapServer : public rclcpp::Node {
 
     // 地面滤波控制，基于linefit_ground_segmentation
     bool filter_ground_plane_;
-    GroundSegmentationParams params_;
+    GroundSegmentationParams seg_params;
     std::shared_ptr<GroundSegmentation> segmenter_;
 
 
