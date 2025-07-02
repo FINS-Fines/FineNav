@@ -208,12 +208,17 @@ class OctomapServer : public rclcpp::Node {
     rclcpp::Publisher<PointCloud2>::SharedPtr point_cloud_pub_;
     rclcpp::Publisher<OccupancyGrid>::SharedPtr map_pub_;
     rclcpp::Publisher<MarkerArray>::SharedPtr fmarker_pub_;
+    rclcpp::Publisher<PointCloud2>::SharedPtr pc_nonground_pub_;
+    rclcpp::Publisher<PointCloud2>::SharedPtr pc_ground_pub_;
+
     message_filters::Subscriber<PointCloud2> point_cloud_sub_;
     std::shared_ptr<tf2_ros::MessageFilter<PointCloud2>> tf_point_cloud_sub_;
+
     rclcpp::Service<OctomapSrv>::SharedPtr octomap_binary_srv_;
     rclcpp::Service<OctomapSrv>::SharedPtr octomap_full_srv_;
     rclcpp::Service<BBoxSrv>::SharedPtr clear_bbox_srv_;
     rclcpp::Service<ResetSrv>::SharedPtr reset_srv_;
+
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 

@@ -261,6 +261,9 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions& node_options) : Node("oc
     binary_map_pub_ = create_publisher<Octomap>("octomap_binary", qos);
     full_map_pub_ = create_publisher<Octomap>("octomap_full", qos);
     point_cloud_pub_ = create_publisher<PointCloud2>("octomap_point_cloud_centers", qos);
+    pc_nonground_pub_ = create_publisher<PointCloud2>("obstacle_cloud", qos);
+    pc_ground_pub_ = create_publisher<PointCloud2>("ground_cloud", qos);
+
     fmarker_pub_ = create_publisher<MarkerArray>("free_cells_vis_array", qos);
 
     // 栅格地图发布的qos手动控制，必须设置为TransientLocal
@@ -354,94 +357,97 @@ bool OctomapServer::openFile(const std::string& filename) {
 /**
  * @brief 插入点云回调函数
  * @param cloud 输入的点云消息
+ * @note 接收到点云后，检测是否可以转换到世界坐标系，可以转换时才触发回调。
  *
  * 该函数会处理点云数据，滤除地面点，并将点云插入到八叉树中。
  */
 void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud) {
     const auto start_time = rclcpp::Clock{}.now();
 
-    // 在sensor_frame中滤除地面点
-    PCLPointCloud pc;  // input cloud for filtering and ground-detection
+    PCLPointCloud pc;
     pcl::fromROSMsg(*cloud, pc);
 
-    geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
+    // 三个坐标系： world -> base -> sensor
+    geometry_msgs::msg::TransformStamped sensor_to_base_transform_stamped;
+    geometry_msgs::msg::TransformStamped base_to_world_transform_stamped;
+
     try {
-        sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(
-            world_frame_id_, cloud->header.frame_id, cloud->header.stamp, rclcpp::Duration::from_seconds(1.0));
+        tf2_buffer_->canTransform(base_frame_id_, cloud->header.frame_id, cloud->header.stamp,
+                                  rclcpp::Duration::from_seconds(0.2));  // TODO: 这行似乎没有必要
+        sensor_to_base_transform_stamped = tf2_buffer_->lookupTransform(
+            base_frame_id_, cloud->header.frame_id, cloud->header.stamp, rclcpp::Duration::from_seconds(1.0));
+        base_to_world_transform_stamped = tf2_buffer_->lookupTransform(
+            world_frame_id_, base_frame_id_, cloud->header.stamp, rclcpp::Duration::from_seconds(1.0));
     } catch (const tf2::TransformException& ex) {
-        RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-        return;
+        RCLCPP_ERROR_STREAM(get_logger(), "Transform error for ground plane filter: "
+                                              << ex.what()
+                                              << ", quitting callback.\n"
+                                                 "You need to set the base_frame_id or disable filter_ground.");
     }
+    auto tf_sensor_to_base = tf2::transformToEigen(sensor_to_base_transform_stamped.transform);
+    auto tf_base_to_world = tf2::transformToEigen(base_to_world_transform_stamped.transform);
+    auto tf_sensor_to_world = tf_base_to_world * tf_sensor_to_base;\
+    auto sensor_to_world_transform = tf2::toMsg(tf_sensor_to_world);
 
-    // 滤除范围外的点云
-    pcl::PassThrough<PCLPoint> pass_x;
-    pass_x.setFilterFieldName("x");
-    pass_x.setFilterLimits(point_cloud_min_x_, point_cloud_max_x_);
-    pcl::PassThrough<PCLPoint> pass_y;
-    pass_y.setFilterFieldName("y");
-    pass_y.setFilterLimits(point_cloud_min_y_, point_cloud_max_y_);
-    pcl::PassThrough<PCLPoint> pass_z;
-    pass_z.setFilterFieldName("z");
-    pass_z.setFilterLimits(point_cloud_min_z_, point_cloud_max_z_);
+    // 把传感器坐标系上的点云变换到机器人坐标系
+    pcl_ros::transformPointCloud(pc, pc, sensor_to_base_transform_stamped);
 
+    // 分离地面点云pc_ground， pc_nonground
     PCLPointCloud pc_ground;
     PCLPointCloud pc_nonground;
-
-    // TODO: 如果需要滤除地面，点云转换到机器人坐标系，发布地面点云和障碍物点云
-    // TODO: 如果不需要滤除地面，点云也要转换到机器人坐标系，发布点云，并且最后转换到世界坐标系【逻辑大改】
     if (filter_ground_plane_) {
-
-        // 三个坐标系： world -> base -> sensor
-        geometry_msgs::msg::TransformStamped sensor_to_base_transform_stamped;
-        geometry_msgs::msg::TransformStamped base_to_world_transform_stamped;
-        try {
-            tf2_buffer_->canTransform(base_frame_id_, cloud->header.frame_id, cloud->header.stamp,
-                                      rclcpp::Duration::from_seconds(0.2));  // TODO: 这行似乎没有必要
-            sensor_to_base_transform_stamped = tf2_buffer_->lookupTransform(
-                base_frame_id_, cloud->header.frame_id, cloud->header.stamp, rclcpp::Duration::from_seconds(1.0));
-            base_to_world_transform_stamped = tf2_buffer_->lookupTransform(
-                world_frame_id_, base_frame_id_, cloud->header.stamp, rclcpp::Duration::from_seconds(1.0));
-        } catch (const tf2::TransformException& ex) {
-            RCLCPP_ERROR_STREAM(get_logger(), "Transform error for ground plane filter: "
-                                                  << ex.what()
-                                                  << ", quitting callback.\n"
-                                                     "You need to set the base_frame_id or disable filter_ground.");
-        }
-
-        // 把传感器坐标系上的点云变换到机器人坐标系
-        pcl_ros::transformPointCloud(pc, pc, sensor_to_base_transform_stamped);
-
-        pass_x.setInputCloud(pc.makeShared());
-        pass_x.filter(pc);
-        pass_y.setInputCloud(pc.makeShared());
-        pass_y.filter(pc);
-        pass_z.setInputCloud(pc.makeShared());
-        pass_z.filter(pc);
-
         filterGroundPlane(pc, pc_ground, pc_nonground);
-
-        // transform clouds to world frame for insertion
-        pcl_ros::transformPointCloud(pc_ground, pc_ground, base_to_world_transform_stamped);
-        pcl_ros::transformPointCloud(pc_nonground, pc_nonground, base_to_world_transform_stamped);
     } else {
-        // directly transform to map frame:
-        pcl_ros::transformPointCloud(pc, pc, sensor_to_world_transform_stamped);
-
-        // just filter height range:
-        pass_x.setInputCloud(pc.makeShared());
-        pass_x.filter(pc);
-        pass_y.setInputCloud(pc.makeShared());
-        pass_y.filter(pc);
-        pass_z.setInputCloud(pc.makeShared());
-        pass_z.filter(pc);
-
         pc_nonground = pc;
         // pc_nonground is empty without ground segmentation
         pc_ground.header = pc.header;
         pc_nonground.header = pc.header;
     }
 
-    const auto& t = sensor_to_world_transform_stamped.transform.translation;
+    // 发布地面点云和障碍物点云
+    if (!pc_nonground.empty()) {
+        sensor_msgs::msg::PointCloud2 pc_nonground_msg;
+        pcl::toROSMsg(pc_nonground, pc_nonground_msg);
+        pc_nonground_msg.header = cloud->header;
+        pc_nonground_msg.header.frame_id = base_frame_id_;
+        pc_nonground_pub_->publish(pc_nonground_msg);
+    }
+    if (!pc_ground.empty()) {
+        sensor_msgs::msg::PointCloud2 pc_ground_msg;
+        pcl::toROSMsg(pc_ground, pc_ground_msg);
+        pc_ground_msg.header = cloud->header;
+        pc_ground_msg.header.frame_id = base_frame_id_;
+        pc_ground_pub_->publish(pc_ground_msg);
+    }
+
+
+    // 转换到world坐标系后，进行后续处理
+    pcl_ros::transformPointCloud(pc_ground, pc_ground, base_to_world_transform_stamped);
+    pcl_ros::transformPointCloud(pc_nonground, pc_nonground, base_to_world_transform_stamped);
+
+    // 在插入八叉树之前，进行passthrough滤波和voxel_grid滤波
+    pcl::PassThrough<PCLPoint> pass_x;
+    pass_x.setFilterFieldName("x");
+    pass_x.setFilterLimits(point_cloud_min_x_, point_cloud_max_x_);
+    pass_x.setInputCloud(pc.makeShared());
+    pass_x.filter(pc_ground);
+    pass_x.filter(pc_nonground);
+
+    pcl::PassThrough<PCLPoint> pass_y;
+    pass_y.setFilterFieldName("y");
+    pass_y.setFilterLimits(point_cloud_min_y_, point_cloud_max_y_);
+    pass_y.setInputCloud(pc.makeShared());
+    pass_y.filter(pc_ground);
+    pass_y.filter(pc_nonground);
+
+    pcl::PassThrough<PCLPoint> pass_z;
+    pass_z.setFilterFieldName("z");
+    pass_z.setFilterLimits(point_cloud_min_z_, point_cloud_max_z_);
+    pass_z.setInputCloud(pc.makeShared());
+    pass_z.filter(pc_ground);
+    pass_z.filter(pc_nonground);
+
+    const auto& t = sensor_to_world_transform.position;
     tf2::Vector3 sensor_to_world_vec3{t.x, t.y, t.z};
 
     insertScan(sensor_to_world_vec3, pc_ground, pc_nonground);
@@ -456,8 +462,8 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
 /**
  * @brief 插入点云数据到八叉树中
  * @param sensor_origin_tf 传感器原点在世界坐标系中的位置
- * @param ground 地面点云
- * @param nonground 非地面点云
+ * @param ground 地面点云，在world坐标系中
+ * @param nonground 非地面点云，在world坐标系中
  *
  * 该函数处理插入八叉树的逻辑
  */
