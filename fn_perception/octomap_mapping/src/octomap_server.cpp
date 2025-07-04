@@ -393,11 +393,9 @@ bool OctomapServer::openFile(const std::string & filename)
   return true;
 }
 
-static int i=0;
 void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
 {
   const auto start_time = rclcpp::Clock{}.now();
-  i++;
   //
   // ground filtering in base frame
   //
@@ -490,10 +488,7 @@ void OctomapServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
     "Pointcloud insertion in OctomapServer done (%zu+%zu pts (ground/nonground), %f sec)",
     pc_ground.size(), pc_nonground.size(), total_elapsed);
 
-  if(i==5) {
       publishAll(cloud->header.stamp);
-      i=0;
-  }
 }
 
 void OctomapServer::insertScan(

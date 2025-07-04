@@ -59,7 +59,9 @@ class LocalizationManager : public rclcpp::Node {
 
     std::string map_frame_;
     std::string odom_frame_;
+    std::string lidar_odom_frame_;
     std::string base_link_frame_;
+
 };
 
 }  // namespace finenav_2d

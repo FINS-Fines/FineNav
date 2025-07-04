@@ -24,7 +24,7 @@ global_costmap:
       #****************************************************************************************************************
       footprint: "[ [0.15 0.15], [0.15, -0.15], [-0.15, -0.15], [-0.15, 0.15] ]" # Ordered set of footprint points passed in as a string, must be closed set.
       footprint_padding: 0.04 # Add additional padding to the footprint.
-      robot_radius: 0.19 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
+      robot_radius: 0.24 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
       # Costmap Configuration
@@ -121,7 +121,7 @@ local_costmap:
       #****************************************************************************************************************
       footprint: "[ [ 0.15 0.15 ], [ 0.15, -0.15 ], [ -0.15, -0.15 ], [ -0.15, 0.15 ] ]" # Ordered set of footprint points passed in as a string, must be closed set.
       footprint_padding: 0.04  # Add additional padding to the footprint.
-      robot_radius: 0.19 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
+      robot_radius: 0.24 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
       # Costmap Configuration
@@ -133,10 +133,10 @@ local_costmap:
 
       # Size
       resolution: 0.05 # Resolution of 1 pixel of the costmap, in meters.
-      height: 3 # 5 int
-      width: 3 # 5 int
-      origin_x: -1.5 # -1.5 double ; X origin of the costmap relative to width (m).
-      origin_y: -1.5 # -1.5 double ; Y origin of the costmap relative to height (m).
+      height: 7 # 5 int
+      width: 7 # 5 int
+      origin_x: -3.5 # -1.5 double ; X origin of the costmap relative to width (m).
+      origin_y: -3.5 # -1.5 double ; Y origin of the costmap relative to height (m).
       rolling_window: True # Whether costmap should roll with robot base frame. Only For Local Map Use.
       map_vis_z: 0.0 # Help modify the map slightly below the default plane, allows to avoid rviz visualization flickering at -0.008
 
@@ -216,12 +216,13 @@ planner_server_rclcpp_node:
 
 
 #****************************************************************************************************************
-# Controller Server
+# Controller Server5
 #****************************************************************************************************************
 controller_server:
   ros__parameters:
     use_sim_time: False
     controller_frequency: 30.0
+    odom_topic: "Odometry"
 
     failure_tolerance: 0.3 # The maximum duration in seconds the called controller plugin can fail before the nav2_msgs::action::FollowPath action fails
 #    min_x_velocity_threshold: 0.001 # Velocity from odometry which below this threshold will be set to 0.0
@@ -256,7 +257,16 @@ controller_server:
       yaw_goal_tolerance: 0.15 # Tolerance to meet goal completion criteria (rad).
 
     FollowPath:
-      plugin: "nav2_mppi_controller::MPPIController"
+      plugin: "nav2_rotation_shim_controller::RotationShimController"
+      primary_controller: "nav2_mppi_controller::MPPIController"
+      angular_dist_threshold: 0.785
+      forward_sampling_distance: 0.5
+      rotate_to_heading_angular_vel: 2.0
+      max_angular_accel: 20.0
+      simulate_ahead_time: 1.0
+      rotate_to_goal_heading: false
+      use_path_orientations: false
+
       transform_tolerance: 0.1
       #****************************************************************************************************************
       # 动力学约束
@@ -274,18 +284,18 @@ controller_server:
       #****************************************************************************************************************
       # 轨迹采样
       #****************************************************************************************************************
-      time_steps: 56 # 每个待选轨迹的时间步数
+      time_steps: 30 # 每个待选轨迹的时间步数
       model_dt: 0.05 # 每个时间步的时间间隔
       iteration_count: 1 # 为了实时性考虑，基本上设置为1
       batch_size: 2000 # 采样的待选轨迹数量
-      vx_std: 0.2 # 采样Vx的标准差
+      vx_std: 0.5 # 采样Vx的标准差
       vy_std: 0.2 # 采样Vy的标准差
       wz_std: 0.4 # 采样Wz的标准差
       temperature: 0.3 # 根据轨迹成本进行选择，0表示采用成本最低的轨迹，数值很大时偏向于不考虑成本，将所有轨迹做平均
       gamma: 0.015 # 在平滑性(high)和低能量消耗(low)之间权衡，影响非常复杂，通常无需调整
       reset_period: 1.0 # Required time of inactivity to reset optimizer (only in Humble due to backport ABI policies).
       regenerate_noises: false # 一般设置为false，具体原因见官方Github仓库
-      prune_distance: 1.7 # 将轨迹长度限制在此范围内
+      prune_distance: 3.5 # 将轨迹长度限制在此范围内
 
       #****************************************************************************************************************
       # 可视化
@@ -363,13 +373,13 @@ controller_server:
         enabled: true
         cost_power: 1
         cost_weight: 5.0
-        offset_from_furthest: 5 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
+        offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
         threshold_to_consider: 1.4 # 与goal在此距离内时，不考虑PathFollowCritic
       PathAngleCritic:
         enabled: true
         cost_power: 1
         cost_weight: 2.0
-        offset_from_furthest: 4 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
+        offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
         threshold_to_consider: 0.5 # 与goal在此距离内时，不考虑PathFollowCritic
         max_angle_to_furthest: 1.0
         mode: 0
@@ -403,7 +413,7 @@ velocity_smoother:
     velocity_timeout: 1.0
     max_accel: [5.0, 0.0, 3.2]
     max_decel: [-2.5, 0.0, -3.2]
-    odom_topic: "odom"
+    odom_topic: "Odometry"
     odom_duration: 0.1
     use_realtime_priority: false
     enable_stamped_cmd_vel: false
