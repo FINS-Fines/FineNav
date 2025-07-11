@@ -71,7 +71,7 @@ def generate_launch_description():
     # 12.串口编号
     declare_serial_port = DeclareLaunchArgument(
         'serial_port',
-        default_value='/dev/ttyUSB0',  # 默认值
+        default_value='/dev/ttyACM0',  # 默认值
         description='Serial port for fines_serial node'
     )
 

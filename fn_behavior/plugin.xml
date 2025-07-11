@@ -1,0 +1,7 @@
+<library path="lib/fn_behavior">  <!-- 注意：库文件名是 lib + 目标名称（random_goal_node） -->
+  <class name="fn_behavior/RandomGoalAction"
+         type="fn_behavior::RandomGoalAction"
+         base_class_type="BT::SyncActionNode">
+    <description>Random goal generation behavior</description>
+  </class>
+</library>
