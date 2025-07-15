@@ -35,7 +35,6 @@ sudo ifconfig <interface> <ip>
 # Launch FineNav2D
 ros2 launch fine_nav2d_bringup bringup_nav2_real.launch.py \
 lidar_type:=livox \
-enable_recorder:=false \
 lio_type:=fast_lio \
 enable_rviz:=true
 ```
