@@ -81,8 +81,8 @@ global_costmap:
       # update the polygon over time as needed due to changes in the robot’s state.
       #****************************************************************************************************************
       footprint: "[ [0.15 0.15], [0.15, -0.15], [-0.15, -0.15], [-0.15, 0.15] ]" # Ordered set of footprint points passed in as a string, must be closed set.
-      footprint_padding: 0.02 # Add additional padding to the footprint.
-      robot_radius: 0.226 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
+      footprint_padding: 0.07 # Add additional padding to the footprint.
+      robot_radius: 0.311 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
       # Costmap Configuration
@@ -178,8 +178,8 @@ local_costmap:
       # update the polygon over time as needed due to changes in the robot’s state.
       #****************************************************************************************************************
       footprint: "[ [ 0.15 0.15 ], [ 0.15, -0.15 ], [ -0.15, -0.15 ], [ -0.15, 0.15 ] ]" # Ordered set of footprint points passed in as a string, must be closed set.
-      footprint_padding: 0.02  # Add additional padding to the footprint.
-      robot_radius: 0.226 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
+      footprint_padding: 0.07  # Add additional padding to the footprint.
+      robot_radius: 0.311 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
       # Costmap Configuration
@@ -237,7 +237,7 @@ local_costmap:
       stvl_layer:
         plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
         enabled: true
-        voxel_decay: 5.0    #seconds if linear, e^n if exponential
+        voxel_decay: 0.5    #seconds if linear, e^n if exponential
         decay_model: 0      #0=linear, 1=exponential, -1=persistent
         voxel_size: 0.01   #meters
         track_unknown_space: true   #default space is unknown
@@ -258,7 +258,7 @@ local_costmap:
           topic: '/cloud_registered_body'
           marking: true
           clearing: false
-          min_obstacle_height: 0.3     #default 0, meters
+          min_obstacle_height: 0.2     #default 0, meters
           max_obstacle_height: 2.0     #defaule 3, meters
           expected_update_rate: 0.0    #default 0, if not updating at this rate at least, remove from buffer
           observation_persistence: 0.0 #default 0, use all measurements taken during now-value, 0=latest
@@ -344,18 +344,19 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker" # 1. SimpleGoalChecker; 2. StoppedGoalChecker
-      xy_goal_tolerance: 0.25 # Tolerance to meet goal completion criteria (m).
+      xy_goal_tolerance: 0.05 # Tolerance to meet goal completion criteria (m).
       yaw_goal_tolerance: 0.25 # Tolerance to meet goal completion criteria (rad).
 
     FollowPath:
       plugin: "nav2_rotation_shim_controller::RotationShimController"
       primary_controller: "nav2_mppi_controller::MPPIController"
       angular_dist_threshold: 0.785
-      forward_sampling_distance: 0.25
+      forward_sampling_distance: 0.5
       rotate_to_heading_angular_vel: 2.0
       max_angular_accel: 20.0
       simulate_ahead_time: 1.0
       rotate_to_goal_heading: true
+      rotate_to_heading_once: true
       use_path_orientations: false
 
       transform_tolerance: 0.1
@@ -378,7 +379,7 @@ controller_server:
       time_steps: 30 # 每个待选轨迹的时间步数
       model_dt: 0.05 # 每个时间步的时间间隔
       iteration_count: 1 # 为了实时性考虑，基本上设置为1
-      batch_size: 2000 # 采样的待选轨迹数量
+      batch_size: 2000 # 采样的待选轨迹数量	
       vx_std: 0.5 # 采样Vx的标准差
       vy_std: 0.2 # 采样Vy的标准差
       wz_std: 0.4 # 采样Wz的标准差
@@ -422,23 +423,23 @@ controller_server:
         cost_power: 1
         cost_weight: 4.0
       GoalCritic:
-        enabled: true
+        enabled: false
         cost_power: 1
         cost_weight: 5.0
-        threshold_to_consider: 1.4 # 离目标点在这个距离内，开始考虑GoalCritic
+        threshold_to_consider: 0.25 # 离目标点在这个距离内，开始考虑GoalCritic
       GoalAngleCritic:
-        enabled: true
+        enabled: false
         cost_power: 1
         cost_weight: 3.0
-        threshold_to_consider: 0.5 # 离目标点在这个距离内，GoalAngleCritic
+        threshold_to_consider: 0.25 # 离目标点在这个距离内，GoalAngleCritic
       ObstaclesCritic:
         enabled: true
         cost_power: 1
-        consider_footprint: false # 是否使用footprint
+        consider_footprint: true # 是否使用footprint
         collision_cost: 10.0 # 惩罚膨胀的轨迹(不建议过高，过高会引起震荡)
         collision_margin_distance: 0.05 # 离碰撞一定的距离内，施加严重惩罚
         critical_weight: 10.0 # 离碰撞一定的距离内，施加严重的惩罚系数，内部仅仅虚拟扩大机器人footprint
-        near_goal_distance: 0.5 # 在离目标点足够近时，停止优先考虑ObstaclesCritic，以平稳收敛到目标点
+        near_goal_distance: 0.25 # 在离目标点足够近时，停止优先考虑ObstaclesCritic，以平稳收敛到目标点
         repulsion_weight: 2.5 # 更偏向lower cost space内的路径，可以用于动态场景中进行微调，避免过于贴近障碍物，在膨胀层范围内生效
         inflation_radius: 0.7 # (only in Humble) 在Jazzy中，可以直接指定读取inflation_layer
         cost_scaling_factor: 4.0 # (only in Humble) 在Jazzy中，可以直接指定读取inflation_layer
@@ -457,7 +458,7 @@ controller_server:
         cost_weight: 50.0
         max_path_occupancy_ratio: 0.05 # 允许全局路径穿过occupied的比例，超过这个比例，会在跟踪路径的同时避障
         trajectory_point_step: 4 # 评估轨迹采用的步长。由于轨迹非常密集，评估每个点开销很大
-        threshold_to_consider: 0.3 # 与goal在此距离内时，不考虑PathAlignCritic
+        threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathAlignCritic
         offset_from_furthest: 20 # 只有待选轨迹规划了足够远的点，才会考虑PathAlignCritic
         use_path_orientations: false # 是否听从全局路径的朝向，用于适应Hybrid A*之类的kinodynamic feasible的规划器
       PathFollowCritic:
@@ -465,20 +466,20 @@ controller_server:
         cost_power: 1
         cost_weight: 5.0
         offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
-        threshold_to_consider: 1.4 # 与goal在此距离内时，不考虑PathFollowCritic
+        threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathFollowCritic
       PathAngleCritic:
         enabled: true
         cost_power: 1
         cost_weight: 2.0
         offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
-        threshold_to_consider: 0.5 # 与goal在此距离内时，不考虑PathFollowCritic
+        threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathFollowCritic
         max_angle_to_furthest: 1.0
         mode: 0
       PreferForwardCritic:
-        enabled: true
+        enabled: false
         cost_power: 1
         cost_weight: 20.0
-        threshold_to_consider: 0.5
+        threshold_to_consider: 0.25
       VelocityDeadbandCritic:
         enabled: false
         cost_power: 1
