@@ -80,7 +80,7 @@ def generate_launch_description():
     declare_nav_strategy = DeclareLaunchArgument(
         'navigation_strategy',
         default_value='aggressive',
-        description='Choose the strategy of navigation: aggressive or Conservative'
+        description='Choose the strategy of navigation: aggressive or conservative'
     )
 
     declare_map_save = DeclareLaunchArgument(

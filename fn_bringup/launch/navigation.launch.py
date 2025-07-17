@@ -13,13 +13,13 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch.conditions import LaunchConfigurationEquals, IfCondition
+from launch.substitutions import PythonExpression
 
 def generate_launch_description():
     # 配置文件路径
     bringup_dir = get_package_share_directory('fine_nav2d_bringup')
-    config_dir = os.path.join(bringup_dir, 'config')
     rviz_dir = os.path.join(bringup_dir, 'rviz')
-
+    config_dir = os.path.join(bringup_dir, 'config')
 
     ################### Declare Parameters ###################
 
@@ -39,7 +39,7 @@ def generate_launch_description():
     declare_nav_strategy = DeclareLaunchArgument(
         'navigation_strategy',
         default_value='aggressive',
-        description='Choose the strategy of navigation: aggressive or Conservative'
+        description='Choose the strategy of navigation: aggressive or conservative'
     )
 
 
@@ -48,7 +48,9 @@ def generate_launch_description():
 
     nav2_bringup_dir = FindPackageShare(package='nav2_bringup').find('nav2_bringup')
     map_yaml_path = LaunchConfiguration('map', default=os.path.join(bringup_dir,'maps','fins_bot_map.yaml'))
-    nav2_param_path =LaunchConfiguration('params_file', default=os.path.join(bringup_dir,'config','nav2_real.yaml'))
+    nav2_param_path = PythonExpression([
+        '"', config_dir, '/nav2_', LaunchConfiguration('navigation_strategy'), '.yaml"'
+    ])
     # rviz_config_dir = os.path.join(nav2_bringup_dir,'rviz','nav2_default_view.rviz')
 
     nav2_bringup = IncludeLaunchDescription(
