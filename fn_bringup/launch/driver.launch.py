@@ -58,7 +58,7 @@ def generate_launch_description():
 
     ################### Livox 雷达驱动 ###################
     livox_params = [
-        {"xfer_format": 4},          # 0-PointCloud2, 1-CustomMsg, 4-AllMsg
+        {"xfer_format": 1},          # 0-PointCloud2, 1-CustomMsg, 4-AllMsg
         {"frame_id": 'base_lidar'},
         {"user_config_path": os.path.join(config_dir, 'MID360_config.json')},
         {"self_filtering_box.min_x": -0.4},
