@@ -13,9 +13,13 @@
         common:
             lid_topic:  "/lidar"
             imu_topic:  "/imu"
+            initial_frame: "lidar_odom"
+            body_frame: "base_lidar"
             time_sync_en: false         # ONLY turn on when externalnsamp time synchronization is really not possible
             time_offset_lidar_to_imu: 0.0 # Time offset between lidar and IMU calibrated by other algorithms, e.g. LI-Init (can be found in README).
                                         # This param will take effect no matter what time_sync_en is. So if the time offset is not known exactly, please set as 0.0
+            use_imu_odometry: true             # true = 输出imu里程计，false = 输出lidar里程计
+            imu_window_size_: 5       # imu 滑动窗口大小
 
         preprocess:
             lidar_type: 1                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 4 for any other pointcloud input
@@ -46,6 +50,7 @@
             scan_publish_en:  true       # false: close all the point cloud output
             dense_publish_en: false      # false: low down the points number in a global-frame point clouds scan.
             scan_bodyframe_pub_en: true  # true: output the point cloud scans in IMU-body-frame
+            tf_en: false                  # false: publish the tf of odometry
 
         pcd_save:
             pcd_save_en: true
