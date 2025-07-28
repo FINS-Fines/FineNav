@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version='1.7'>
+  <world name='default'>
+    <physics name="1ms" type="ode">  <!-- 启用ODE物理引擎 -->
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <!-- 物理引擎插件 -->
+    <plugin filename="libignition-gazebo-physics-system.so"
+      name="ignition::gazebo::systems::Physics">
+    </plugin>
+
+    <!-- 场景广播插件（用于GUI显示） -->
+    <plugin filename="libignition-gazebo-scene-broadcaster-system.so"
+      name="ignition::gazebo::systems::SceneBroadcaster">
+    </plugin>
+
+    <!-- 用户指令处理插件 -->
+    <plugin filename="libignition-gazebo-user-commands-system.so"
+      name="ignition::gazebo::systems::UserCommands">
+    </plugin>
+
+    <!-- 传感器系统插件（含激光雷达） -->
+    <plugin filename="libignition-gazebo-sensors-system.so"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <!-- IMU传感器插件 -->
+    <plugin filename="libignition-gazebo-imu-system.so"
+      name="ignition::gazebo::systems::Imu">
+    </plugin>
+
+    <!-- 接触传感器插件（碰撞检测） -->
+    <plugin filename="libignition-gazebo-contact-system.so"
+      name="ignition::gazebo::systems::Contact">
+    </plugin>
+
+    <!-- 平行光设置 -->
+    <light type='directional' name='direct_light'>
+      <visualize>false</visualize>
+      <cast_shadows>true</cast_shadows>
+      <pose>14.6 7.9 10 0 0 0</pose>
+      <diffuse>1.0 1.0 1.0 1</diffuse>
+      <specular>0.5 0.5 0.5 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>0 0 -1</direction>
+    </light>
+
+    <!-- 环境模型 -->
+    <model name='rmuc_2025'>
+      <include>
+        <uri>model://rmuc_2025</uri>
+      </include>
+      <pose>-10.0 -10.0 0 0 0 0</pose>
+      <static>true</static>
+    </model>
+  </world>
+</sdf>

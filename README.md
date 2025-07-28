@@ -38,5 +38,14 @@ lidar_type:=livox \
 lio_type:=fast_lio \
 enable_rviz:=true
 ```
+
+Example: Bring up FineNav2D with Virtual and Fast-LIO
+```shell
+ros2 launch fine_nav2d_bringup bringup_gazebo_sim.launch.py \
+lidar_type:=virtual \
+lio_type:=fast_lio \
+enable_rviz:=true
+```
+
 If everything goes well, you will see the following result:
 ![expected_result.png](asset/expected_result.png)

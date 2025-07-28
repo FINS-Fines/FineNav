@@ -48,8 +48,10 @@ def generate_launch_description():
 
     nav2_bringup_dir = FindPackageShare(package='nav2_bringup').find('nav2_bringup')
     map_yaml_path = LaunchConfiguration('map', default=os.path.join(bringup_dir,'maps','fins_bot_map.yaml'))
+    
+    # 暂时修改为SIM的
     nav2_param_path = PythonExpression([
-        '"', config_dir, '/nav2_', LaunchConfiguration('navigation_strategy'), '.yaml"'
+        '"', config_dir, '/nav2_', 'sim_', LaunchConfiguration('navigation_strategy'), '.yaml"'
     ])
     # rviz_config_dir = os.path.join(nav2_bringup_dir,'rviz','nav2_default_view.rviz')
 
@@ -81,7 +83,7 @@ def generate_launch_description():
     ld.add_action(declare_nav_strategy)
     # 使用 TimerAction 来控制节点启动顺序 TODO PAREMETERS
 
-    ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))
+    # ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))
     ld.add_action(TimerAction(period=8.0, actions=[rviz_node]))
 
     return ld

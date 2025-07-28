@@ -55,11 +55,13 @@ def generate_launch_description():
         description='Enable octomap loading a map before navigation'
     )
 
-# 动态选择配置文件路径（使用 PythonExpression）
+    # 动态选择配置文件路径（使用 PythonExpression）
     fast_lio_config = PythonExpression([
-        '"', config_dir, '/fastlio_mid360_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "livox" else "',
-        config_dir, '/fastlio_unilidar_config.yaml"'
+        '"', config_dir, '/fastlio_mid360_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "livox" else ',
+        '"', config_dir, '/fastlio_gazebo_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "virtual" else ',
+        '"', config_dir, '/fastlio_unilidar_config.yaml"'
     ])
+    
 
     # FAST-LIO 参数
     fast_lio_params = [
@@ -108,15 +110,31 @@ def generate_launch_description():
     )
 
 
-    # 静态 TF 广播（odom → lidar_odom）
+    # 静态 TF 广播（odom → lidar_odom）这里做一个暂时的修改
+    # static_tf_node = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='odom_to_lidar_odom',
+    #     arguments=[
+    #         "--x", "0.057", "--y", "0.083", "--z", "0.31",
+    #         "--roll", "0.0", "--pitch", "0.0", "--yaw", "0.0",
+    #         "--frame-id", "odom", "--child-frame-id", "lidar_odom"
+    #     ]
+    # )
+        # 静态 TF 广播（odom → lidar_odom）这里做一个暂时的修改
     static_tf_node = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='odom_to_lidar_odom',
         arguments=[
-            "--x", "0.057", "--y", "0.083", "--z", "0.31",
-            "--roll", "0.0", "--pitch", "0.0", "--yaw", "0.0",
-            "--frame-id", "odom", "--child-frame-id", "lidar_odom"
+            "--x", "0.8",   # X方向偏移：激光雷达在底盘前方0.8米
+            "--y", "0.0",   # Y方向偏移：无左右偏移
+            "--z", "0.5",   # Z方向偏移：激光雷达在底盘上方0.5米
+            "--roll", "0.0", 
+            "--pitch", "0.0", 
+            "--yaw", "0.0",  # 姿态无偏移（与底盘一致）
+            "--frame-id", "odom", 
+            "--child-frame-id", "lidar_odom"
         ]
     )
 

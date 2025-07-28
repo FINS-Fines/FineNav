@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="FINES">
+  <!-- 基础坐标系 -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.0" />
+      <inertia ixx="1.0" ixy="0" ixz="0" iyy="1.0" iyz="0" izz="1.0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.5 0.5 0.1" />
+      </geometry>
+      <material name="base_material">
+        <color rgba="0.75 0.75 0.75 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.5 0.5 0.1" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 点云发布坐标系（激光雷达坐标系） -->
+  <link name="base_lidar">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder radius="0.05" length="0.1" />
+      </geometry>
+      <material name="lidar_material">
+        <color rgba="0.5 0.5 0.5 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder radius="0.05" length="0.1" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 定义两个坐标系之间的固定关系 -->
+  <joint name="lidar_joint" type="fixed">
+    <origin xyz="0.8 0 0.5" rpy="0 0 0" /> <!-- 激光雷达相对base_link的位置 -->
+    <parent link="base_link" />
+    <child link="base_lidar" />
+    <axis xyz="0 0 0" />
+  </joint>
+</robot>
