@@ -22,7 +22,6 @@ def generate_launch_description():
 
     ld = LaunchDescription()
 
-    # Declare the launch options
     ld.add_action(start_rviz2)
 
     return ld

@@ -3,24 +3,24 @@
     <model name="vehicle_blue" canonical_link="base_link">
         <pose>0 0 0 0 0 0</pose>
 
-        <!-- 底盘 -->
         <link name="base_link">
-            <pose relative_to="__model__">0.5 0 0.4 0 0 0</pose>
+            <!-- 位置相对于模型按1/4比例缩小 -->
+            <pose relative_to="__model__">0.0625 0 0.05 0 0 0</pose> <!-- 原0.25 0 0.2 → 缩小1/4 -->
             <inertial>
-                <mass>1.14395</mass>
+                <mass>0.0223</mass> <!-- 质量按体积比例（1/64）缩小（原0.143 → 0.143/(4³)≈0.00223） -->
                 <inertia>
-                    <ixx>0.095329</ixx>
+                    <ixx>0.00046</ixx> <!-- 惯性按体积比例（1/64）缩小（原0.0119 → 0.0119/64≈0.000046） -->
                     <ixy>0</ixy>
                     <ixz>0</ixz>
-                    <iyy>0.381317</iyy>
+                    <iyy>0.00186</iyy> <!-- 原0.0477 → 0.0477/64≈0.000186 -->
                     <iyz>0</iyz>
-                    <izz>0.476646</izz>
+                    <izz>0.00232</izz> <!-- 原0.0596 → 0.0596/64≈0.000232 -->
                 </inertia>
             </inertial>
             <visual name="visual">
                 <geometry>
                     <box>
-                        <size>2.0 1.0 0.5</size>
+                        <size>0.25 0.125 0.0625</size> <!-- 原1.0x0.5x0.25 → 缩小1/4 -->
                     </box>
                 </geometry>
                 <material>
@@ -32,10 +32,11 @@
             <collision name="collision">
                 <geometry>
                     <box>
-                        <size>2.0 1.0 0.5</size>
+                        <size>0.25 0.125 0.0625</size> <!-- 同visual尺寸，缩小1/4 -->
                     </box>
                 </geometry>
             </collision>
+            <!-- IMU和接触传感器参数不变 -->
             <sensor name="imu_sensor" type="imu">
                 <always_on>1</always_on>
                 <update_rate>200</update_rate>
@@ -47,6 +48,7 @@
                     <collision>collision</collision>
                 </contact>
             </sensor>
+            <!-- 激光雷达参数不变 -->
             <sensor name='gpu_lidar' type='gpu_lidar'>
                 <pose relative_to='base_lidar'>0 0 0 0 0 0</pose>
                 <topic>lidar</topic>
@@ -76,25 +78,25 @@
             </sensor>
         </link>
 
-        <!-- 左轮（红色） -->
         <link name="left_wheel">
-            <pose relative_to="base_link">-0.5 0.6 0 -1.5707 0 0</pose>
+            <!-- 相对于base_link的位置按1/4比例缩小 -->
+            <pose relative_to="base_link">-0.0625 0.075 0 -1.5707 0 0</pose> <!-- 原-0.25 0.3 0 → 缩小1/4 -->
             <inertial>
-                <mass>1</mass>
+                <mass>0.00195</mass> <!-- 质量按体积比例（1/64）缩小（原0.125 → 0.125/64≈0.00195） -->
                 <inertia>
-                    <ixx>0.043333</ixx>
+                    <ixx>0.000021</ixx> <!-- 原0.0054 → 0.0054/64≈0.000021 -->
                     <ixy>0</ixy>
                     <ixz>0</ixz>
-                    <iyy>0.043333</iyy>
+                    <iyy>0.000021</iyy> <!-- 同ixx -->
                     <iyz>0</iyz>
-                    <izz>0.08</izz>
+                    <izz>0.000039</izz> <!-- 原0.01 → 0.01/64≈0.000039 -->
                 </inertia>
             </inertial>
             <visual name="visual">
                 <geometry>
                     <cylinder>
-                        <radius>0.4</radius>
-                        <length>0.2</length>
+                        <radius>0.05</radius> <!-- 原0.2 → 缩小1/4 -->
+                        <length>0.025</length> <!-- 原0.1 → 缩小1/4 -->
                     </cylinder>
                 </geometry>
                 <material>
@@ -106,32 +108,33 @@
             <collision name="collision">
                 <geometry>
                     <cylinder>
-                        <radius>0.4</radius>
-                        <length>0.2</length>
+                        <radius>0.05</radius>
+                        <length>0.025</length>
                     </cylinder>
                 </geometry>
             </collision>
         </link>
 
-        <!-- 右轮（红色） -->
+        <!-- 右轮（缩小为原尺寸的1/4） -->
         <link name="right_wheel">
-            <pose relative_to="base_link">-0.5 -0.6 0 -1.5707 0 0</pose>
+            <!-- 相对于base_link的位置按1/4比例缩小 -->
+            <pose relative_to="base_link">-0.0625 -0.075 0 -1.5707 0 0</pose> <!-- 原-0.25 -0.3 0 → 缩小1/4 -->
             <inertial>
-                <mass>1</mass>
+                <mass>0.00195</mass> <!-- 同左轮质量 -->
                 <inertia>
-                    <ixx>0.043333</ixx>
+                    <ixx>0.000021</ixx>
                     <ixy>0</ixy>
                     <ixz>0</ixz>
-                    <iyy>0.043333</iyy>
+                    <iyy>0.000021</iyy>
                     <iyz>0</iyz>
-                    <izz>0.08</izz>
+                    <izz>0.000039</izz>
                 </inertia>
             </inertial>
             <visual name="visual">
                 <geometry>
                     <cylinder>
-                        <radius>0.4</radius>
-                        <length>0.2</length>
+                        <radius>0.05</radius>
+                        <length>0.025</length>
                     </cylinder>
                 </geometry>
                 <material>
@@ -143,34 +146,34 @@
             <collision name="collision">
                 <geometry>
                     <cylinder>
-                        <radius>0.4</radius>
-                        <length>0.2</length>
+                        <radius>0.05</radius>
+                        <length>0.025</length>
                     </cylinder>
                 </geometry>
             </collision>
         </link>
 
-        <!-- 脚轮（绿色） -->
+        <!-- 脚轮（缩小为原尺寸的1/4） -->
         <frame name="caster_frame" attached_to="base_link">
-            <pose>0.8 0 -0.2 0 0 0</pose>
+            <pose>0.1 0 -0.025 0 0 0</pose> <!-- 原0.4 0 -0.1 → 缩小1/4 -->
         </frame>
         <link name="caster">
             <pose relative_to="caster_frame" />
             <inertial>
-                <mass>1</mass>
+                <mass>0.00195</mass> <!-- 同轮子质量缩放比例 -->
                 <inertia>
-                    <ixx>0.016</ixx>
+                    <ixx>0.000008</ixx> <!-- 原0.002 → 0.002/64≈0.000008 -->
                     <ixy>0</ixy>
                     <ixz>0</ixz>
-                    <iyy>0.016</iyy>
+                    <iyy>0.000008</iyy>
                     <iyz>0</iyz>
-                    <izz>0.016</izz>
+                    <izz>0.000008</izz>
                 </inertia>
             </inertial>
             <visual name="visual">
                 <geometry>
                     <sphere>
-                        <radius>0.2</radius>
+                        <radius>0.025</radius> <!-- 原0.1 → 缩小1/4 -->
                     </sphere>
                 </geometry>
                 <material>
@@ -182,13 +185,13 @@
             <collision name="collision">
                 <geometry>
                     <sphere>
-                        <radius>0.2</radius>
+                        <radius>0.025</radius>
                     </sphere>
                 </geometry>
             </collision>
         </link>
 
-        <!-- 关节定义 -->
+        <!-- 关节定义（位置按比例缩小，保持相对关系） -->
         <joint name="left_wheel_joint" type="revolute">
             <pose relative_to="left_wheel" />
             <parent>base_link</parent>
@@ -220,18 +223,18 @@
             <child>caster</child>
         </joint>
 
-        <!-- 差速驱动插件 -->
+        <!-- 差速驱动插件（参数按1/4比例缩小） -->
         <plugin filename="libignition-gazebo-diff-drive-system.so"
             name="ignition::gazebo::systems::DiffDrive">
             <left_joint>left_wheel_joint</left_joint>
             <right_joint>right_wheel_joint</right_joint>
-            <wheel_separation>1.2</wheel_separation>
-            <wheel_radius>0.4</wheel_radius>
+            <wheel_separation>0.15</wheel_separation> <!-- 原0.6 → 缩小1/4 -->
+            <wheel_radius>0.05</wheel_radius> <!-- 原0.2 → 缩小1/4（与轮子半径匹配） -->
             <odom_publish_frequency>1</odom_publish_frequency>
             <topic>cmd_vel</topic>
         </plugin>
 
-        <!-- 碰撞检测插件 -->
+        <!-- 碰撞检测插件（参数不变） -->
         <plugin filename="libignition-gazebo-touchplugin-system.so"
             name="ignition::gazebo::systems::TouchPlugin">
             <target>vehicle_blue</target>
@@ -240,58 +243,9 @@
             <enabled>true</enabled>
         </plugin>
 
-        <!-- 激光雷达坐标系 -->
+        <!-- 激光雷达坐标系（位置按1/4比例缩小） -->
         <frame name="base_lidar" attached_to='base_link'>
-            <pose>0.8 0 0.5 0 0 0</pose>
+            <pose>0.1 0 0.1 0 0 0</pose> <!-- 原0.8 0 0.5 → 缩小1/4 -->
         </frame>
     </model>
-
-            <!-- 3. 键盘控制插件（通过按键发布速度指令） -->
-        <!-- 前进（对应键盘按键：上箭头） -->
-        <plugin 
-            filename="libignition-gazebo-triggered-publisher-system.so"
-            name="ignition::gazebo::systems::TriggeredPublisher">
-            <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
-                <match field="data">16777235</match>
-            </input>
-            <output type="ignition.msgs.Twist" topic="/cmd_vel">
-                linear: {x: 0.5}, angular: {z: 0.0}
-            </output>
-        </plugin>
-
-        <!-- 后退（对应键盘按键：下箭头） -->
-        <plugin 
-            filename="libignition-gazebo-triggered-publisher-system.so"
-            name="ignition::gazebo::systems::TriggeredPublisher">
-            <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
-                <match field="data">16777237</match>
-            </input>
-            <output type="ignition.msgs.Twist" topic="/cmd_vel">
-                linear: {x: -0.5}, angular: {z: 0.0}
-            </output>
-        </plugin>
-
-        <!-- 左转（对应键盘按键：左箭头） -->
-        <plugin 
-            filename="libignition-gazebo-triggered-publisher-system.so"
-            name="ignition::gazebo::systems::TriggeredPublisher">
-            <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
-                <match field="data">16777234</match>
-            </input>
-            <output type="ignition.msgs.Twist" topic="/cmd_vel">
-                linear: {x: 0.0}, angular: {z: 0.5}
-            </output>
-        </plugin>
-
-        <!-- 右转（对应键盘按键：右箭头） -->
-        <plugin 
-            filename="libignition-gazebo-triggered-publisher-system.so"
-            name="ignition::gazebo::systems::TriggeredPublisher">
-            <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
-                <match field="data">16777236</match>
-            </input>
-            <output type="ignition.msgs.Twist" topic="/cmd_vel">
-                linear: {x: 0.0}, angular: {z: -0.5}
-            </output>
-        </plugin>
 </sdf>

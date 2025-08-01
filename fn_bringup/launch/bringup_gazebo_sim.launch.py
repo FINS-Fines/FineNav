@@ -105,7 +105,7 @@ def generate_launch_description():
         # 启动slam.launch.py
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
-                PathJoinSubstitution([launch_dir, 'slam.launch.py'])
+                PathJoinSubstitution([launch_dir, 'gazebo_slam.launch.py'])
             ]),
             launch_arguments={
                 'use_sim_time': LaunchConfiguration('use_sim_time'),

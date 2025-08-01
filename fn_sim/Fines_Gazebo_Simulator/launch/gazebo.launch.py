@@ -28,7 +28,6 @@ def generate_launch_description():
         description="Path to the Ignition Gazebo GUI configuration file",
     )
 
-    # Set Gazebo plugin and resource path 这里是用来告诉gazebo插件到哪里去找模型中引用的资源即“model//”目录在哪里
     append_enviroment_worlds = AppendEnvironmentVariable(
         name="GAZEBO_PLUGIN_PATH",
         value=os.path.join(pkg_simulator, "resource", "worlds"),

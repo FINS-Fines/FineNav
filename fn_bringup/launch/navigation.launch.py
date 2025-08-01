@@ -83,7 +83,7 @@ def generate_launch_description():
     ld.add_action(declare_nav_strategy)
     # 使用 TimerAction 来控制节点启动顺序 TODO PAREMETERS
 
-    # ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))
+    ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))
     ld.add_action(TimerAction(period=8.0, actions=[rviz_node]))
 
     return ld

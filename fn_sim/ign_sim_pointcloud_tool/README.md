@@ -4,4 +4,4 @@ This package converts pointcloud in Ignition Gazebo to velodyne format. This is 
 
 Some SLAM algorithm needs pointcloud in Velodyne format so that it can extract corner points. But Isaac ROS only send pointcloud contains XYZ information. This package helps to convert pointcloud to velodyne format.
 
-同时因为我们要进行一个点云到标准底盘坐标系下的转换，以及关键是这个frame_id的变换
+同时因为我们要进行一个点云到标准底盘坐标系下的转换，将点云从 base_lidar 转换到 base_link

@@ -36,6 +36,114 @@
       name="ignition::gazebo::systems::Contact">
     </plugin>
 
+    <!-- 前进（对应键盘按键：上箭头） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">16777235</match>
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: 0.5}, angular: {z: 0.0}
+      </output>
+    </plugin>
+
+    <!-- 后退（对应键盘按键：下箭头） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">16777237</match>
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: -0.5}, angular: {z: 0.0}
+      </output>
+    </plugin>
+
+    <!-- 左转（对应键盘按键：左箭头） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">16777234</match>
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: 0.0}, angular: {z: 0.5}
+      </output>
+    </plugin>
+
+    <!-- 右转（对应键盘按键：右箭头） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">16777236</match>
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: 0.0}, angular: {z: -0.5}
+      </output>
+    </plugin>
+
+    <!-- 暂停 （对应键盘按键：空格键） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress"> 
+        <match field="data">81</match>
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: 0.0}, angular: {z: 0.0}
+      </output>
+    </plugin>
+
+        <!-- W键：增加线速度 -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">87</match>  
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: 1.5}, angular: {z: 0.0} 
+      </output>
+    </plugin>
+
+    <!-- S键：减小线速度（更大的反向速度） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">83</match>
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: -1.5}, angular: {z: 0.0} 
+      </output>
+    </plugin>
+
+    <!-- A键：增加角速度（更快左转） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">65</match>  
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: 0.0}, angular: {z: 1.0}  
+      </output>
+    </plugin>
+
+    <!-- D键：减小角速度（更快右转） -->
+    <plugin
+      filename="libignition-gazebo-triggered-publisher-system.so"
+      name="ignition::gazebo::systems::TriggeredPublisher">
+      <input type="ignition.msgs.Int32" topic="/keyboard/keypress">
+        <match field="data">68</match> 
+      </input>
+      <output type="ignition.msgs.Twist" topic="/cmd_vel">
+        linear: {x: 0.0}, angular: {z: -1.0}  
+      </output>
+    </plugin>
+
     <!-- 平行光设置 -->
     <light type='directional' name='direct_light'>
       <visualize>false</visualize>

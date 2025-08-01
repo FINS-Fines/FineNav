@@ -3,7 +3,7 @@
 #****************************************************************************************************************
 bt_navigator:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: False
     global_frame: map
     robot_base_frame: base_link
     odom_topic: /Odometry

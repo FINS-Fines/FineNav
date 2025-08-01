@@ -21,7 +21,7 @@ def generate_launch_description():
     # 声明参数
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='true',  # 临时修改
+        default_value='true',  # Sim 模式 下的特殊设置
         description='Use simulation (Gazebo) clock if true'
     )
 
@@ -110,17 +110,34 @@ def generate_launch_description():
     )
 
 
-    # 静态 TF 广播（odom → lidar_odom）
+    # 静态 TF 广播（odom → lidar_odom）这里做一个暂时的修改
+    # static_tf_node = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='odom_to_lidar_odom',
+    #     arguments=[
+    #         "--x", "0.057", "--y", "0.083", "--z", "0.31",
+    #         "--roll", "0.0", "--pitch", "0.0", "--yaw", "0.0",
+    #         "--frame-id", "odom", "--child-frame-id", "lidar_odom"
+    #     ]
+    # )
+        # 静态 TF 广播（odom → lidar_odom）这里做一个暂时的修改
     static_tf_node = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='odom_to_lidar_odom',
-        arguments=[
-            "--x", "0.057", "--y", "0.083", "--z", "0.31",
-            "--roll", "0.0", "--pitch", "0.0", "--yaw", "0.0",
-            "--frame-id", "odom", "--child-frame-id", "lidar_odom"
-        ]
-    )
+    package='tf2_ros',
+    executable='static_transform_publisher',
+    name='odom_to_lidar_odom',
+    arguments=[
+        "--x", "0.1",   # X方向偏移：激光雷达在底盘前方0.8米
+        "--y", "0.0",   # Y方向偏移：无左右偏移
+        "--z", "0.1",   # Z方向偏移：激光雷达在底盘上方0.5米
+        "--roll", "0.0", 
+        "--pitch", "0.0", 
+        "--yaw", "0.0",  # 姿态无偏移（与底盘一致）
+        "--frame-id", "odom", 
+        "--child-frame-id", "lidar_odom"
+    ],
+    parameters=[{'use_sim_time': True}]
+)
 
     # Localization Manager 节点
     localization_manager_node = IncludeLaunchDescription(

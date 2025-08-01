@@ -15,7 +15,6 @@
             imu_topic:  "/imu"   # 与SDF中IMU的topic一致
             time_sync_en: false  # Gazebo中传感器时间已同步，关闭
             time_offset_lidar_to_imu: 0.0  # 虚拟环境时间对齐，无需偏移
-            use_sim_time: true         # 使用仿真时间
 
         preprocess:
             lidar_type: 2  # 关键修改：32线激光雷达模拟Velodyne类型
