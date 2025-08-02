@@ -10,10 +10,10 @@
 namespace finenav_2d {
 
 template <typename T>
-GridMap<T>::GridMap(const Length& length, const double& resolution, const Position& origin = Position::Zero())
+GridMap<T>::GridMap(const Length& length, const double& resolution, const Position& origin)
     : length_(length), resolution_(resolution), origin_(origin) {
 
-    size_ = (length.array() / resolution).ceil();
+    size_ = (length.array() / resolution).ceil().cast<int>();
     size_ = size_.unaryExpr([](int v) {
         return (v % 2 == 0) ? v + 1 : v; // 确保尺寸为奇数
     });
@@ -81,7 +81,7 @@ bool GridMap<T>::moveTo(const Position& position, bool keep_removed, std::vector
     //
     // // 如果没有设置keep_remove，删除删掉栅格的数据
     //
-    // return true;
+    return true;
 }
 
 template <typename T>

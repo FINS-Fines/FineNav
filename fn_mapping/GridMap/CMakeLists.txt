@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(fn_mapping)
+project(fn_grid_map)
 
 find_package(ament_cmake_auto REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -10,10 +10,10 @@ include_directories(
         include
 )
 
-ament_auto_add_executable(fn_mapping_node
+ament_auto_add_executable(fn_grid_map_node
         src/test.cpp
 )
-target_include_directories(fn_mapping_node PRIVATE ${EIGEN3_INCLUDE_DIR})
+target_include_directories(fn_grid_map_node PRIVATE ${EIGEN3_INCLUDE_DIR})
 
 #ament_auto_add_library(fn_mapping SHARED
 #        src/mapper.cpp

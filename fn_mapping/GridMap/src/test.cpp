@@ -6,7 +6,8 @@
 #include "grid_map.hpp"
 
 int main(int argc, char** argv) {
+    using namespace finenav_2d;
     std::cout << "Hello, World!" << std::endl;
-    finenav_2d::GridMap<int> grid_map;
+    GridMap<int> grid_map({10.0, 10.0, 10.0}, 0.1, {0.0, 0.0, 0.0});
   return 0;
 }

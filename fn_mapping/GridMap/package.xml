@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
-    <name>fn_mapping</name>
+    <name>fn_grid_map</name>
     <version>0.1.0</version>
-    <description>FineNav Mapping Stack</description>
+    <description>Rolling Grid Map used in FineNav</description>
 
     <maintainer email="wangjinghui@sjtu.edu.cn">Jinghui Wang</maintainer>
     <license>MPL 2.0</license>

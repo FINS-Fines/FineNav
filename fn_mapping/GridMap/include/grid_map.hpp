@@ -25,7 +25,7 @@ public:
      * @param origin 栅格地图的原点坐标
      * @note 所有地图数据均为零初始化
      */
-    GridMap(const Length& length, const double& resolution, const Position& origin);
+    GridMap(const Length& length, const double& resolution, const Position& origin = Position::Zero());
 
     /**
      * @brief 默认的构造函数
@@ -148,4 +148,5 @@ private:
 
 } // namespace finenav_2d
 
+#include "grid_map_impl.hpp"
 #endif  //FINENAV2D_GRID_MAP_3D_HPP

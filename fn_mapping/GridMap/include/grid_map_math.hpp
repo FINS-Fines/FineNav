@@ -7,8 +7,6 @@
 
 #include <Eigen/Core>
 
-#include "grid_map_math_copy.hpp"
-
 namespace finenav_2d {
 using Index = Eigen::Vector3i;
 using Size = Eigen::Vector3i;
@@ -39,7 +37,7 @@ inline Index wrapIndexToRange(const Index& index, const Size& size) {
  */
 inline Index getIndexShiftFromPositionShift(const Position& position_shift, const double& resolution) {
     Vector index_shift_vector = position_shift / resolution;
-    return index_shift_vector.array().round().matrix();
+    return index_shift_vector.array().round().matrix().cast<int>();
 
 }
 
