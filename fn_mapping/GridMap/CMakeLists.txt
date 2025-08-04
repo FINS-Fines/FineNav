@@ -6,25 +6,16 @@ find_package(Eigen3 REQUIRED)
 
 ament_auto_find_build_dependencies()
 
-include_directories(
+add_library(fn_grid_map INTERFACE)
+target_include_directories(fn_grid_map INTERFACE
         include
+        ${EIGEN3_INCLUDE_DIR}
 )
 
-ament_auto_add_executable(fn_grid_map_node
-        src/test.cpp
-)
-target_include_directories(fn_grid_map_node PRIVATE ${EIGEN3_INCLUDE_DIR})
+if (BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+    ament_find_gtest()
+    add_subdirectory(test)
+endif ()
 
-#ament_auto_add_library(fn_mapping SHARED
-#        src/mapper.cpp
-#        src/mapper_node.cpp
-#        src/mapper_server.cpp
-#)
-
-ament_auto_package(
-#        INSTALL_TO_SHARE
-#        launch
-#        config
-#        rviz
-#        maps
-)
+ament_auto_package()
