@@ -47,10 +47,6 @@ inline Index wrapIndexToRange(const Index& index, const Size& size) {
     return result;
 }
 
-
-
-
-
 /**
  * @brief 将位置偏移转换为索引偏移
  * @param position_shift 位置偏移量
