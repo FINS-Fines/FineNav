@@ -13,7 +13,6 @@ TEST(GridMapMath, WrapIndexToRange) {
     {
         Index unwrapped_index(0, 0, 0);
         Index result{0, 0, 0};
-        auto wrapped_index= wrapIndexToRange(unwrapped_index, size);
         EXPECT_EQ(result, wrapIndexToRange(unwrapped_index, size));
     }
     {
@@ -24,7 +23,6 @@ TEST(GridMapMath, WrapIndexToRange) {
     {
         Index unwrapped_index(11, 35, -25);
         Index result{0, 2, 8};
-        auto wrapped_index = wrapIndexToRange(unwrapped_index, size);
         EXPECT_EQ(result, wrapIndexToRange(unwrapped_index, size));
     }
 }
@@ -95,22 +93,4 @@ TEST(GridMapMath, PositionShiftFromIndexShift) {
         Position result{10.0, 50.0, 100.0};
         EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution)));
     }
-
-
 }
-
-//
-// TEST(GridMapMath, DataAcessFromIndex) {
-//
-// }
-//
-//
-// TEST(GridMapMath, DataAcessFromPosition) {
-//
-// }
-//
-//
-//
-// TEST(GridMapMath, CheckIfIndexValid) {
-//
-// }
