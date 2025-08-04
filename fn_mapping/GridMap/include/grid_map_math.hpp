@@ -16,18 +16,40 @@ using Vector = Eigen::Vector3d;
 
 /**
  * @brief 将索引向量的每个元素取模，确保索引在指定的范围内
- * @param index 输入的索引向量
+ * @param index 输入的索引
  * @param size 指定的范围大小
  * @return 取模后的索引向量
  * @note 输入的索引向量可以是负数元素
+ * TODO: 是否能够优化expensive的取模运算
  */
+inline int wrapIndexToRange(const int& index, const int& size) {
+    // 通过分支减少高昂的取模运算
+    if (index < size) {
+        if (index >= 0) { // [0, size)
+            return index;
+        } else if (index >= -size) { // [-size, 0)
+            return index + size;
+        } else { // [-inf, -size)
+            return index % size + size;
+        }
+    } else if (index < size*2) { // [size, 2*size)
+        return index - size;
+    } else { // [2*size, inf)
+        return index % size;
+    }
+}
+
 inline Index wrapIndexToRange(const Index& index, const Size& size) {
     Index result;
-    for (int i = 0; i < index.size(); ++i) {
-        result[i] = (index[i] + size[i]) % size[i];
+    for (int i = 0; i < index.size(); i++) {
+        result[i] = wrapIndexToRange(index[i], size[i]);
     }
     return result;
 }
+
+
+
+
 
 /**
  * @brief 将位置偏移转换为索引偏移

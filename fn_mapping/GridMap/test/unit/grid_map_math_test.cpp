@@ -9,14 +9,26 @@ using namespace finenav_2d;
 
 
 TEST(GridMapMath, WrapIndexToRange) {
-    const Size size {5,5,5};
-
+    const Size size {11,11,11};
     {
-        Index index(-0, 0, 0);
+        Index unwrapped_index(0, 0, 0);
         Index result{0, 0, 0};
-        auto wrapped_index= wrapIndexToRange(index, size);
+        auto wrapped_index= wrapIndexToRange(unwrapped_index, size);
         EXPECT_EQ(wrapped_index, result);
     }
+    {
+        Index unwrapped_index(-1, 4, 5);
+        Index result{10, 4, 5};
+        auto wrapped_index = wrapIndexToRange(unwrapped_index, size);
+        EXPECT_EQ(wrapped_index, result);
+    }
+    {
+        Index unwrapped_index(11, 35, -25);
+        Index result{0, 2, 8};
+        auto wrapped_index = wrapIndexToRange(unwrapped_index, size);
+        EXPECT_EQ(wrapped_index, result);
+    }
+
 
 }
 
