@@ -120,13 +120,115 @@ inline bool checkIfIndexValid(const Index& index, const Size& size) {
 }
 
 /**
+ * @brief 检查B是否完全在A外部
+ */
+inline bool isBCompletelyOutsideA(const Index& index_shift, const Size& size) {
+    Index half_size = size / 2;
+    Index b_min = -half_size + index_shift;
+    Index b_max = half_size + index_shift;
+    
+    // 如果B的最小坐标大于A的最大坐标，或者B的最大坐标小于A的最小坐标
+    return (b_min.x() > half_size.x() || b_max.x() < -half_size.x() ||
+            b_min.y() > half_size.y() || b_max.y() < -half_size.y() ||
+            b_min.z() > half_size.z() || b_max.z() < -half_size.z());
+}
+
+/**
  * @brief 对于两个栅格地图A和B，计算差集A-B
  * @param[in] index_shift 相对于地图A的索引偏移量
  * @param[in] size 两个栅格地图的大小
  * @param[out] difference_indices 输出的差集索引
  * @note 索引定义在地图A的坐标系下，栅格地图的原点位于地图中心
  */
-inline void getDifference(const Index& index_shift, const Size& size, std::vector<Index>& difference_indices) {}
+inline void getDifference(const Index& index_shift, const Size& size, std::vector<Index>& difference_indices) {
+    difference_indices.clear();
+
+    Index half_size = size / 2;
+    Index a_min = -half_size;
+    Index a_max = half_size;
+
+    Index b_min = -half_size + index_shift;
+    Index b_max = half_size + index_shift;
+
+    if (isBCompletelyOutsideA(index_shift, size)) {
+        for (int x = -half_size.x(); x <= half_size.x(); ++x) {
+            for (int y = -half_size.y(); y <= half_size.y(); ++y) {
+                for (int z = -half_size.z(); z <= half_size.z(); ++z) {
+                    difference_indices.emplace_back(x, y, z);
+                }
+            }
+        }
+        return;
+    }
+
+    // 辅助函数：添加指定范围的索引到差集
+    auto add_range = [&](int x_start, int x_end, int y_start, int y_end, int z_start, int z_end) {
+        // 限制范围在 A 内
+        x_start = std::max(x_start, a_min.x());
+        x_end = std::min(x_end, a_max.x());
+        y_start = std::max(y_start, a_min.y());
+        y_end = std::min(y_end, a_max.y());
+        z_start = std::max(z_start, a_min.z());
+        z_end = std::min(z_end, a_max.z());
+
+        if (x_start > x_end || y_start > y_end || z_start > z_end) return;
+
+        for (int x = x_start; x <= x_end; ++x) {
+            for (int y = y_start; y <= y_end; ++y) {
+                for (int z = z_start; z <= z_end; ++z) {
+                    difference_indices.emplace_back(x, y, z);
+                }
+            }
+        }
+    };
+
+    // 依次判断 z,x,y
+    if (a_min.z() <= b_max.z() && b_max.z() <= a_max.z()) {
+        add_range(a_min.x(), a_max.x(), a_min.y(), a_max.y(), b_max.z() + 1, a_max.z());
+
+        // x
+        if (a_min.x() <= b_min.x() && b_min.x() <= a_max.x()) {
+            add_range(a_min.x(), b_min.x()-1, a_min.y(), a_max.y(), a_min.z(), b_max.z());
+            
+            // y
+            if (a_min.y() <= b_min.y() && b_min.y() <= a_max.y()) {
+                add_range(b_min.x(), b_max.x(), a_min.y(), b_min.y() - 1, a_min.z(), b_max.z());
+            } else if(a_min.y() <= b_max.y() && b_max.y() <= a_max.y()){
+                add_range(b_min.x(), b_max.x(), b_max.y() + 1, a_max.y(), a_min.z(), b_max.z());
+            }
+        } else if(a_min.x() <= b_max.x() && b_max.x() <= a_max.x()){
+            add_range(b_max.x()+1, a_max.x(), a_min.y(), a_max.y(), a_min.z(), b_max.z());
+            
+            // y
+            if (a_min.y() <= b_min.y() && b_min.y() <= a_max.y()) {
+                add_range(b_min.x(), b_max.x(), a_min.y(), b_min.y() - 1, a_min.z(), b_max.z());
+            } else if(a_min.y() <= b_max.y() && b_max.y() <= a_max.y()){
+                add_range(b_min.x(), b_max.x(), b_max.y() + 1, a_max.y(), a_min.z(), b_max.z());
+            }
+        }
+    } else if(a_min.z() <= b_min.z() && b_min.z() <= a_max.z()){
+        add_range(a_min.x(), a_max.x(), a_min.y(), a_max.y(), a_min.z(), b_min.z() - 1);
+
+        // x
+        if (a_min.x() <= b_min.x() && b_min.x() <= a_max.x()) {
+            add_range(a_min.x(), b_min.x()-1, a_min.y(), a_max.y(), b_min.z(), a_max.z());
+            
+            if (a_min.y() <= b_min.y() && b_min.y() <= a_max.y()) {
+                add_range(b_min.x(), b_max.x(), a_min.y(), b_min.y() - 1, b_min.z(), a_max.z());
+            } else if(a_min.y() <= b_max.y() && b_max.y() <= a_max.y()){
+                add_range(b_min.x(), b_max.x(), b_max.y() + 1, a_max.y(), b_min.z(), a_max.z());
+            }
+        } else if (a_min.x() <= b_max.x() && b_max.x() <= a_max.x()){
+            add_range(b_max.x()+1, a_max.x(), a_min.y(), a_max.y(), b_min.z(), a_max.z());
+            
+            if (a_min.y() <= b_min.y() && b_min.y() <= a_max.y()) {
+                add_range(b_min.x(), b_max.x(), a_min.y(), b_min.y() - 1, b_min.z(), a_max.z());
+            } else if(a_min.y() <= b_max.y() && b_max.y() <= a_max.y()){
+                add_range(b_min.x(), b_max.x(), b_max.y() + 1, a_max.y(), b_min.z(), a_max.z());
+            }
+        }
+    }
+}
 
 
 } // namespace finenav_2d
