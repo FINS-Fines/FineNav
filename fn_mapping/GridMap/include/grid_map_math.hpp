@@ -120,27 +120,13 @@ inline bool checkIfIndexValid(const Index& index, const Size& size) {
 }
 
 /**
- * @brief 检查B是否完全在A外部
- */
-inline bool isBCompletelyOutsideA(const Index& index_shift, const Size& size) {
-    Index half_size = size / 2;
-    Index b_min = -half_size + index_shift;
-    Index b_max = half_size + index_shift;
-    
-    // 如果B的最小坐标大于A的最大坐标，或者B的最大坐标小于A的最小坐标
-    return (b_min.x() > half_size.x() || b_max.x() < -half_size.x() ||
-            b_min.y() > half_size.y() || b_max.y() < -half_size.y() ||
-            b_min.z() > half_size.z() || b_max.z() < -half_size.z());
-}
-
-/**
  * @brief 对于两个栅格地图A和B，计算差集A-B
  * @param[in] index_shift 相对于地图A的索引偏移量
  * @param[in] size 两个栅格地图的大小
  * @param[out] difference_indices 输出的差集索引
  * @note 索引定义在地图A的坐标系下，栅格地图的原点位于地图中心
  */
-inline void getDifference(const Index& index_shift, const Size& size, std::vector<Index>& difference_indices) {
+inline void getDifferenceSet(const Index& index_shift, const Size& size, std::vector<Index>& difference_indices) {
     difference_indices.clear();
 
     Index half_size = size / 2;
@@ -149,8 +135,9 @@ inline void getDifference(const Index& index_shift, const Size& size, std::vecto
 
     Index b_min = -half_size + index_shift;
     Index b_max = half_size + index_shift;
-
-    if (isBCompletelyOutsideA(index_shift, size)) {
+    
+    // 如果B完全在A外面，直接返回整个A
+    if ((b_min.array() > half_size.array()).any() || (b_max.array() < -half_size.array()).any()) {
         for (int x = -half_size.x(); x <= half_size.x(); ++x) {
             for (int y = -half_size.y(); y <= half_size.y(); ++y) {
                 for (int z = -half_size.z(); z <= half_size.z(); ++z) {
