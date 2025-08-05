@@ -8,7 +8,7 @@
 using namespace finenav_2d;
 
 
-TEST(GridMapMath, WrapIndexToRange) {
+TEST(GridMapMathTest, WrapIndexToRange) {
     const Size size {11,11,11};
     {
         Index unwrapped_index(0, 0, 0);
@@ -27,7 +27,7 @@ TEST(GridMapMath, WrapIndexToRange) {
     }
 }
 
-TEST(GridMapMath, IndexShiftFromPositionShift) {
+TEST(GridMapMathTest, IndexShiftFromPositionShift) {
     const double resolution = 0.1;
     {
         Position position_shift{0.0, 0.0, 0.0};
@@ -61,7 +61,7 @@ TEST(GridMapMath, IndexShiftFromPositionShift) {
     }
 }
 
-TEST(GridMapMath, PositionShiftFromIndexShift) {
+TEST(GridMapMathTest, PositionShiftFromIndexShift) {
     const double resolution = 0.1;
     {
         Index index_shift{1, 4, 5};

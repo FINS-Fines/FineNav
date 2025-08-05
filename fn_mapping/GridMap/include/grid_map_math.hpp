@@ -122,7 +122,7 @@ inline bool checkIfIndexValid(const Index& index, const Size& size) {
 /**
  * @brief 对于两个栅格地图A和B，计算差集A-B
  * @param[in] index_shift 相对于地图A的索引偏移量
- * @param[in] size 两个栅格地图的大小
+ * @param[in] size 两个栅格地图的大小，地图大小需要为奇数
  * @param[out] difference_indices 输出的差集索引
  * @note 索引定义在地图A的坐标系下，栅格地图的原点位于地图中心
  */
