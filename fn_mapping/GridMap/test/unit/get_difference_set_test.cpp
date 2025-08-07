@@ -160,7 +160,7 @@ TEST(GetDifferenceSetTest, LargeMapCase) {
         baseline(index_shift, size, baseline_result);
         EXPECT_TRUE(compareVectors(method_result, baseline_result));
 
-        GTEST_LOG_(INFO) << "index nums: " << baseline_result.size();
+        // GTEST_LOG_(INFO) << "index nums: " << baseline_result.size();
         // for (const auto& idx : baseline_result) {
         //     GTEST_LOG_(INFO) << idx.transpose();
         // }
