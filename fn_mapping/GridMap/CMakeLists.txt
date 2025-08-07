@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 project(fn_grid_map)
 
+set(CMAKE_CXX_STANDARD 17)
+
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif ()
+
 find_package(ament_cmake_auto REQUIRED)
 find_package(Eigen3 REQUIRED)
 
