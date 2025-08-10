@@ -161,11 +161,19 @@
     </light>
 
     <!-- 环境模型 -->
-    <model name='rmuc_2025'>
+    <!-- <model name='rmuc_2025'>
       <include>
         <uri>model://rmuc_2025</uri>
       </include>
       <pose>-10.0 -10.0 0 0 0 0</pose>
+      <static>true</static>
+    </model> -->
+
+    <model name='field_description'>
+      <include>
+        <uri>model://field_description</uri>
+      </include>
+      <pose>0 0 0 0 0 0</pose>
       <static>true</static>
     </model>
   </world>

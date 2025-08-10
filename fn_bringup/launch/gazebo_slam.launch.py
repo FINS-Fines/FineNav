@@ -127,9 +127,9 @@ def generate_launch_description():
     executable='static_transform_publisher',
     name='odom_to_lidar_odom',
     arguments=[
-        "--x", "0.1",   # X方向偏移：激光雷达在底盘前方0.8米
+        "--x", "0.0",   # X方向偏移：激光雷达在底盘前方0.8米
         "--y", "0.0",   # Y方向偏移：无左右偏移
-        "--z", "0.1",   # Z方向偏移：激光雷达在底盘上方0.5米
+        "--z", "0.6",   # Z方向偏移：激光雷达在底盘上方0.5米
         "--roll", "0.0", 
         "--pitch", "0.0", 
         "--yaw", "0.0",  # 姿态无偏移（与底盘一致）
