@@ -30,10 +30,10 @@
             <uri>model://field_description/meshes/base_link.dae</uri>
           </mesh>
         </geometry>
-        <material>
-          <diffuse>0 0 1 0.8</diffuse>  <!-- 蓝色（B=1），透明度50%（A=0.5） -->
+        <!-- <material>
+          <diffuse>0 0 1 0.8</diffuse>  
           <ambient>0 0 1 0.8</ambient>
-        </material>
+        </material> -->
       </visual>
     </link>
   </model>
