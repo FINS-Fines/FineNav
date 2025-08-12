@@ -12,6 +12,8 @@
  * =================================
  * ros2 run fn_fine_pct tomography_node
  * ros2 run fn_fine_pct tomography_node --ros-args -p pcd_file_path:=rsc/another.pcd
+ * =================================
+ * ros2 run rviz2 rviz2
  */
 
 int main(int argc, char** argv) {

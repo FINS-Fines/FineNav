@@ -21,10 +21,10 @@
     <depend>rclcpp</depend>
     <depend>sensor_msgs</depend>
     <depend>pcl_conversions</depend>
+    <depend>visualization_msgs</depend>
     <depend>PCL</depend>
-
-    <!-- 如果使用Python节点则取消注释 -->
-    <!-- <exec_depend>rclpy</exec_depend> -->
+    <depend>tf2_ros</depend>
+    <depend>geometry_msgs</depend>
 
     <!-- 导出依赖 -->
     <export>

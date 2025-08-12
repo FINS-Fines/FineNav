@@ -9,7 +9,10 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common io)
+find_package(tf2_ros REQUIRED)          # 必须正确拼写
+find_package(geometry_msgs REQUIRED)    # 用于 TransformStamped 消息
 
 # 包含目录
 include_directories(
@@ -51,6 +54,9 @@ ament_target_dependencies(tomography_node
         sensor_msgs
         pcl_conversions
         PCL
+        visualization_msgs
+        tf2_ros
+        geometry_msgs
 )
 
 # 安装目标
