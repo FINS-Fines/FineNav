@@ -31,7 +31,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <cylinder length="0.35" radius="0.03"/>
+        <cylinder length="0.6" radius="0.03"/>
       </geometry>
     </visual>
     <inertial>
@@ -41,7 +41,7 @@
     </inertial>
   </link>
   <joint name="base_lidar_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0.0 0 0.6"/>
+    <origin rpy="3.14159 0 0" xyz="0.0 0 0.6"/>
     <parent link="base_link"/>
     <child link="base_lidar"/>
   </joint>
@@ -76,7 +76,7 @@
       <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
     </inertial>
   </link>
-  <joint name="rigth_front_joint" type="fixed">
+  <joint name="right_front_joint" type="fixed">
     <origin rpy="-1.57 0 0" xyz="0.2 0.25 -0.1"/>
     <parent link="base_link"/>
     <child link="right_front_wheel"/>
