@@ -5,6 +5,7 @@
 #ifndef GRID_MAP_IMPL_HPP
 #define GRID_MAP_IMPL_HPP
 
+#include <cfloat>  // 提供 DBL_MAX
 #include "grid_map.hpp"
 
 namespace finenav_2d {
@@ -110,6 +111,8 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
     auto direction = end - origin_;
     auto length = direction.norm();
     direction /= length;
+    Eigen::Vector3i current_voxel = origin_ / resolution_;
+    Eigen::Vector3i last_voxel = end / resolution_;
 
     Eigen::Vector3i step;
     Eigen::Vector3d tMax, tDelta;
@@ -118,25 +121,46 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
         step[i] = sign(direction[i]);
 
         if (step[i] != 0) {
-
+            tMax[i] = step[i] * resolution_ / direction[i];
+            tDelta[i] = resolution_ / direction[i] * step[i];
+        }
+        else{
+            tMax[i] = DBL_MAX ;
+            tDelta[i] = DBL_MAX ;
         }
     }
 
+    // TODO:需不需要对step为负值的情况做处理
 
 
-
-
-
-
-
-
+    indices.push_back(current_voxel);
+    while(last_voxel != current_voxel) {
+        if (tMax[0] < tMax[1]) {
+            if (tMax[0] < tMax[2]) {
+                current_voxel[0] += step[0];;
+                tMax[0] += tDelta[0];
+            } else {
+                current_voxel[2] += step[2];
+                tMax[2] += tDelta[2];
+            }
+        } else {
+            if (tMax[1] < tMax[2]) {
+                current_voxel[1] += step[1];
+                tMax[1] += tDelta[1];
+            } else {
+                current_voxel[2] += step[2];
+                tMax[2] += tDelta[2];
+            }
+        }
+        indices.push_back(current_voxel);
+    }
 
 
     // 光线投射算法实现
     // 这里可以使用Bresenham算法或其他光线投射算法
     // 需要根据end位置计算出经过的栅格索引，并存储在indices中
     // 返回true表示成功，false表示失败（例如光线超出地图范围）
-    return false; // 需要实现具体逻辑
+    return true; // 需要实现具体逻辑
 }
 
 
