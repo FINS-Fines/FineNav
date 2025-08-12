@@ -63,6 +63,7 @@ bool GridMap<T>::moveTo(const Position& position) {
 template <typename T>
 bool GridMap<T>::moveTo(const Position& position, bool keep_removed, std::vector<Index>& indices) {
 
+
     // // 计算移动了的栅格数
     // const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_);
     // if (index_shift.isZero()) {
@@ -83,6 +84,61 @@ bool GridMap<T>::moveTo(const Position& position, bool keep_removed, std::vector
     //
     return true;
 }
+
+template <typename T>
+bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const {
+
+    indices.clear();
+
+    auto origin_index = Index::Zero();
+    auto end_index = getIndex(end);
+
+    // 光线超出地图范围，结束
+    if (!checkIfIndexValid(end_index, size_)) {
+        return false; // TODO: 光线超出范围时，是否应该找将整条光线上的栅格记为free?即，过远的传感器数据是否可信？
+    }
+
+    // 光线终点为原点，结束
+    if (origin_index == end_index) {
+        return true;
+    }
+
+    // TODO:要不要先把原点放进来
+
+
+    // 初始化
+    auto direction = end - origin_;
+    auto length = direction.norm();
+    direction /= length;
+
+    Eigen::Vector3i step;
+    Eigen::Vector3d tMax, tDelta;
+
+    for (int i = 0; i < 3; ++i) {
+        step[i] = sign(direction[i]);
+
+        if (step[i] != 0) {
+
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+    // 光线投射算法实现
+    // 这里可以使用Bresenham算法或其他光线投射算法
+    // 需要根据end位置计算出经过的栅格索引，并存储在indices中
+    // 返回true表示成功，false表示失败（例如光线超出地图范围）
+    return false; // 需要实现具体逻辑
+}
+
 
 template <typename T>
 void GridMap<T>::setOrigin(const Position& origin) {

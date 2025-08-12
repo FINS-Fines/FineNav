@@ -48,6 +48,18 @@ inline Index wrapIndexToRange(const Index& index, const Size& size) {
 }
 
 /**
+ * @brief 返回一个数的符号
+ * @Tparam 数据类型，支持 >, < 操作符
+ * @param x 输入的数值
+ * @return -1 如果 x < 0, -1 如果 x == 0, 0 如果 x > 0, 1
+ */
+template <typename T>
+inline int sign(T x) {
+    return (x > 0) - (x < 0);
+}
+
+
+/**
  * @brief 将位置偏移转换为索引偏移
  * @param position_shift 位置偏移量
  * @param resolution 栅格地图的分辨率

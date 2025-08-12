@@ -77,7 +77,7 @@ public:
     /**
      * @brief 移动地图，这会造成栅格数据的更新
      * @param position  地图原点移动到的新的位置
-     * @return 如果移动成功返回true，否则返回false
+     * @return 如果地图实际发生移动返回true，否则返回false
      * @note 删除的栅格数据会被清除
      */
     bool moveTo(const Position& position);
@@ -91,6 +91,14 @@ public:
      * @note 当再次调用moveTo()时，之前返回的indices没有意义
      */
     bool moveTo(const Position& position, bool keep_removed, std::vector<Index>& indices);
+
+    /**
+     * @brief 光线投射
+     * @param end 光线的终点位置
+     * @param indices 返回光线经过的栅格索引
+     * @return 如果光线终点超出地图范围，返回false；否则返回true
+     */
+    bool rayCast(const Position& end, std::vector<Index>& indices) const;
 
     /**
      * @brief 设置地图的原点，即地图在世界坐标系中的位置
