@@ -59,7 +59,7 @@ void baseline(const Index& index_shift, const Size& size, std::vector<Index>& di
 /**
  * @brief 输入两个std::vector，比较它们的内容是否相同
  */
-bool compareVectors(const std::vector<Index>& vec1, const std::vector<Index>& vec2) {
+static bool compareVectors(const std::vector<Index>& vec1, const std::vector<Index>& vec2) {
     auto toTuple = [](const Index& idx) {
         return std::make_tuple(idx.x(), idx.y(), idx.z());
     };

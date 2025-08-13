@@ -100,22 +100,22 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
     }
 
     // 光线终点为原点，结束
-    if (origin_index == end_index) {
-        return true;
-    }
+ //   if (origin_index == end_index) {
+ //       return true;
+ //   }
 
     // TODO:要不要先把原点放进来
 
 
     // 初始化
-    auto direction = end - origin_;
-    auto length = direction.norm();
-    direction /= length;
-    Eigen::Vector3i current_voxel = origin_ / resolution_;
-    Eigen::Vector3i last_voxel = end / resolution_;
+    Vector direction (end - origin_);
+ //   auto length = direction.norm();
+ //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
+    Index current_voxel = (origin_ / resolution_).cast<int>();
+    Index last_voxel = (end / resolution_).cast<int>();
 
+    Vector tMax, tDelta;
     Eigen::Vector3i step;
-    Eigen::Vector3d tMax, tDelta;
 
     for (int i = 0; i < 3; ++i) {
         step[i] = sign(direction[i]);
@@ -132,24 +132,23 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
 
     // TODO:需不需要对step为负值的情况做处理
 
-
     indices.push_back(current_voxel);
     while(last_voxel != current_voxel) {
-        if (tMax[0] < tMax[1]) {
-            if (tMax[0] < tMax[2]) {
-                current_voxel[0] += step[0];;
-                tMax[0] += tDelta[0];
+        if (tMax.x() < tMax.y()) {
+            if (tMax.x() < tMax.z()) {
+                current_voxel.x() += step.x();;
+                tMax.x() += tDelta.x();
             } else {
-                current_voxel[2] += step[2];
-                tMax[2] += tDelta[2];
+                current_voxel.z() += step.z();
+                tMax.z() += tDelta.z();
             }
         } else {
-            if (tMax[1] < tMax[2]) {
-                current_voxel[1] += step[1];
-                tMax[1] += tDelta[1];
+            if (tMax.y() < tMax.z()) {
+                current_voxel.y() += step.y();
+                tMax.y() += tDelta.y();
             } else {
-                current_voxel[2] += step[2];
-                tMax[2] += tDelta[2];
+                current_voxel.z() += step.z();
+                tMax.z() += tDelta.z();
             }
         }
         indices.push_back(current_voxel);
