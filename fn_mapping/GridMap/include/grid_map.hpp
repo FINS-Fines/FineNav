@@ -107,6 +107,13 @@ public:
     void setOrigin(const Position& origin);
 
     /**
+     * @brief 获取满足某个条件的栅格索引
+     * @param[out] indices 输出满足条件的栅格索引
+     * @param[in] condition 条件函数，接受栅格数据类型T的引用，返回bool值
+     */
+    void selectCellsByCondition(std::vector<Index>& indices, std::function<bool(const T&)> condition) const;
+
+    /**
      * @brief 获取地图中某个位置的索引
      * @param position 相对于地图原点的位置
      * @return 对应的栅格地图索引

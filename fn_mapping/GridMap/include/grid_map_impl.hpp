@@ -9,7 +9,6 @@
 #include "grid_map.hpp"
 
 namespace finenav_2d {
-
 template <typename T>
 GridMap<T>::GridMap(const Length& length, const double& resolution, const Position& origin)
     : length_(length), resolution_(resolution), origin_(origin) {
@@ -100,17 +99,17 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
     }
 
     // 光线终点为原点，结束
- //   if (origin_index == end_index) {
- //       return true;
- //   }
+    //   if (origin_index == end_index) {
+    //       return true;
+    //   }
 
     // TODO:要不要先把原点放进来
 
 
     // 初始化
     Vector direction (end - origin_);
- //   auto length = direction.norm();
- //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
+    //   auto length = direction.norm();
+    //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
     Index current_voxel = (origin_ / resolution_).cast<int>();
     Index last_voxel = (end / resolution_).cast<int>();
 
@@ -197,7 +196,20 @@ template <typename T>
 Position GridMap<T>::getOrigin() const {
     return origin_;
 }
-
+template <typename T>
+void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::function<bool(const T&)> condition) const {
+    indices.clear();
+    Size half_size = size_ / 2;
+    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
+        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
+            for (int z = -half_size.z(); z <= half_size.z(); ++z) {
+                Index idx(x, y, z);
+                if (condition(at(idx))) {
+                    indices.push_back(idx);
+                }
+            }
+        }
+    }
 }
-
+}
 #endif  //GRID_MAP_IMPL_HPP
