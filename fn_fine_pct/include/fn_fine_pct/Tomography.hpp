@@ -8,6 +8,8 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <string>
 #include <vector>
+#include "nav_msgs/msg/occupancy_grid.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
 #include "Config.hpp"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
@@ -48,6 +50,7 @@ private:
     void inflateCosts();
     void simplifyLayers();
     void publishStaticTransform();
+    void publishCostmapAndGradients();
 
     // Map data
     std::vector<float> center_;
@@ -82,11 +85,13 @@ private:
     std::string pcd_file_path_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 
-    // 添加发布器成员变量
+    // 发布
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_tomography_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_ground_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_ceiling_;
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_broadcaster_;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr pub_costmap_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_gradients_;
 
     // 添加发布方法
     void publishTomographyResults();

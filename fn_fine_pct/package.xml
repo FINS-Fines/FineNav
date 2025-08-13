@@ -25,6 +25,7 @@
     <depend>PCL</depend>
     <depend>tf2_ros</depend>
     <depend>geometry_msgs</depend>
+    <depend>nav_msgs</depend>
 
     <!-- 导出依赖 -->
     <export>

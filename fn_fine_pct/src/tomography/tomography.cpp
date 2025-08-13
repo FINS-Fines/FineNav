@@ -19,6 +19,8 @@ Tomography::Tomography()
     pcd_file_path_ = this->get_parameter("pcd_file_path").as_string();
 
     // 初始化发布器
+    pub_costmap_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("costmap", 10);
+    pub_gradients_ = this->create_publisher<geometry_msgs::msg::PoseArray>("gradients", 10);
     pub_tomography_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "tomography_results",
         rclcpp::SensorDataQoS().reliable());
@@ -76,7 +78,8 @@ void Tomography::processPointCloud() {
 
     // 执行发布
     try {
-        publishTomographyResults();  // 调用你的发布函数
+        publishTomographyResults();
+        publishCostmapAndGradients();
 
         auto end_time = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
@@ -378,21 +381,48 @@ void Tomography::publishTomographyResults() {
 
     // 2. 填充点云数据（按高度着色）
     for (size_t k = 0; k < layers_g_simp_.size(); ++k) {
+        // 分层着色
+        float hue = static_cast<float>(k) / layers_g_simp_.size() * 360.0f;
+
+        // 将HSV转换为RGB (H:0-360, S:1.0, V:1.0)
+        float c = 1.0f;
+        float x = c * (1.0f - fabs(fmod(hue / 60.0f, 2.0f) - 1.0f));
+        float m = 0.0f;
+
+        float r, g, b;
+        if (hue < 60) {
+            r = c; g = x; b = 0;
+        } else if (hue < 120) {
+            r = x; g = c; b = 0;
+        } else if (hue < 180) {
+            r = 0; g = c; b = x;
+        } else if (hue < 240) {
+            r = 0; g = x; b = c;
+        } else if (hue < 300) {
+            r = x; g = 0; b = c;
+        } else {
+            r = c; g = 0; b = x;
+        }
+
+        // 转换为0-255范围
+        uint8_t R = static_cast<uint8_t>((r + m) * 255);
+        uint8_t G = static_cast<uint8_t>((g + m) * 255);
+        uint8_t B = static_cast<uint8_t>((b + m) * 255);
+
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
                 if (std::isnan(layers_g_simp_[k][i][j])) continue;
 
                 pcl::PointXYZRGB point;
-                // 坐标转换（重要！）
+                // 坐标转换
                 point.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
                 point.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
                 point.z = layers_g_simp_[k][i][j];
 
-                // 高度映射颜色（可视化关键）
-                float height_ratio = (point.z - cfg_.ground_h) / (cfg_.slice_dh * layers_g_simp_.size());
-                point.r = static_cast<uint8_t>(255 * height_ratio);
-                point.g = static_cast<uint8_t>(255 * (1 - height_ratio));
-                point.b = 100;
+                // set color option
+                point.r = R;
+                point.g = G;
+                point.b = B;
 
                 colored_cloud.push_back(point);
             }
@@ -414,5 +444,54 @@ void Tomography::publishTomographyResults() {
         RCLCPP_INFO(this->get_logger(), "Successfully saved to %s", pcd_path.c_str());
     } else {
         RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file!");
+    }
+}
+
+void Tomography::publishCostmapAndGradients() {
+    // 发布所有层的代价和梯度
+    for (size_t layer = 0; layer < layers_g_simp_.size(); ++layer) {
+        // 1. 发布当前层的代价地图
+        nav_msgs::msg::OccupancyGrid costmap_msg;
+        costmap_msg.header.frame_id = "map";
+        costmap_msg.header.stamp = this->now();
+        costmap_msg.info.resolution = cfg_.resolution;
+        costmap_msg.info.width = map_dim_x_;
+        costmap_msg.info.height = map_dim_y_;
+        costmap_msg.info.origin.position.x = center_[0] - (map_dim_x_ / 2) * cfg_.resolution;
+        costmap_msg.info.origin.position.y = center_[1] - (map_dim_y_ / 2) * cfg_.resolution;
+        costmap_msg.info.origin.orientation.w = 1.0;
+
+        costmap_msg.data.resize(map_dim_x_ * map_dim_y_);
+        for (int i = 0; i < map_dim_x_; ++i) {
+            for (int j = 0; j < map_dim_y_; ++j) {
+                costmap_msg.data[j * map_dim_x_ + i] =
+                    static_cast<int8_t>(inflated_cost_[layer][i][j] * 100 / cfg_.cost_barrier);
+            }
+        }
+        pub_costmap_->publish(costmap_msg);
+
+        // 2. 发布当前层的梯度
+        geometry_msgs::msg::PoseArray gradients_msg;
+        gradients_msg.header = costmap_msg.header;
+
+        for (int i = 1; i < map_dim_x_ - 1; ++i) {
+            for (int j = 1; j < map_dim_y_ - 1; ++j) {
+                geometry_msgs::msg::Pose pose;
+                pose.position.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
+                pose.position.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
+                pose.position.z = layers_g_simp_[layer][i][j];
+
+                pose.orientation.x = trav_grad_x_[layer][i][j];
+                pose.orientation.y = trav_grad_y_[layer][i][j];
+                pose.orientation.z = 0;
+                pose.orientation.w = 1.0;
+
+                gradients_msg.poses.push_back(pose);
+            }
+        }
+        pub_gradients_->publish(gradients_msg);
+
+        // 可选：添加延迟避免数据拥堵
+        rclcpp::sleep_for(std::chrono::milliseconds(10));
     }
 }
