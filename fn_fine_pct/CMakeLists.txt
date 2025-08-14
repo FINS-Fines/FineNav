@@ -13,47 +13,67 @@ find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common io)
 find_package(tf2_ros REQUIRED)
-find_package(geometry_msgs REQUIRED)    # 用于 TransformStamped 消息
+find_package(geometry_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(PCL REQUIRED COMPONENTS common io filters)
 
 # 包含目录
 include_directories(
         include
         ${rclcpp_INCLUDE_DIRS}
         ${PCL_INCLUDE_DIRS}
+        ${pcl_conversions_INCLUDE_DIRS}
+        ${tf2_ros_INCLUDE_DIRS}
 )
 
 # 添加所有可执行文件
-#add_executable(planner_node
-#        src/planner/planner_node.cpp
-#        src/planner/planner.cpp)
+add_executable(planner_node
+        src/planner/planner_node.cpp
+        src/planner/planner.cpp
+        src/tomography/tomography.cpp
+        include/fn_fine_pct/Planner.hpp
+        include/fn_fine_pct/Tomography.hpp
+        include/fn_fine_pct/TomographyConfig.hpp)
 
 add_executable(tomography_node
         src/tomography/tomography_node.cpp
         src/tomography/tomography.cpp
-        include/fn_fine_pct/Tomography.hpp)
+        include/fn_fine_pct/Tomography.hpp
+        include/fn_fine_pct/TomographyConfig.hpp)
 
 # 链接库
-#target_link_libraries(planner_node
-#        ${rclcpp_LIBRARIES}
-#        ${PCL_LIBRARIES}
-#)
+target_link_libraries(planner_node
+        ${rclcpp_LIBRARIES}
+        ${PCL_LIBRARIES}
+        ${pcl_conversions_LIBRARIES}
+        ${nav_msgs_LIBRARIES}
+        ${visualization_msgs_LIBRARIES}
+        ${tf2_ros_LIBRARIES}
+        pcl_common
+)
 
 target_link_libraries(tomography_node
         ${rclcpp_LIBRARIES}
+        ${pcl_conversions_LIBRARIES}
         ${sensor_msgs_LIBRARIES}
         ${PCL_LIBRARIES}
+        ${tf2_ros_LIBRARIES}
         ${nav_msgs_LIBRARIES}
         ${visualization_msgs_LIBRARIES}
         ${tf2_ros_LIBRARIES}
         ${geometry_msgs_LIBRARIES}
         pcl_common
         pcl_io
+        Eigen3::Eigen
 )
 
-#ament_target_dependencies(planner_node
-#        rclcpp
-#        PCL
-#)
+ament_target_dependencies(planner_node
+        rclcpp
+        PCL
+        nav_msgs
+        Eigen3
+        visualization_msgs
+)
 
 ament_target_dependencies(tomography_node
         rclcpp
@@ -69,9 +89,10 @@ ament_target_dependencies(tomography_node
 # 安装目标
 install(TARGETS
         tomography_node
+        planner_node
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
-        RUNTIME DESTINATION bin
+        RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 # 安装头文件
@@ -93,6 +114,9 @@ ament_export_dependencies(
         tf2_ros
         geometry_msgs
         PCL
+        Eigen3
 )
+
+ament_export_include_directories(include)
 
 ament_package()

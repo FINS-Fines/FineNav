@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "TomographyConfig.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "Config.hpp"
 #include "pcl/point_cloud.h"
@@ -21,25 +22,20 @@ class Tomography : public rclcpp::Node {
 public:
     Tomography() ;
 
+    // communicate to planner
+    float getGroundHeight(int layer, int x, int y) const;
+    int getMapDimX() const { return map_dim_x_; }
+    int getMapDimY() const { return map_dim_y_; }
+    const std::vector<float>& getCenter() const { return center_; }
+    float getResolution() const { return cfg_.resolution; }
+    float getInflatedCost(int layer, int x, int y) const;
+    const TomographyConfig::Params& getConfig() const { return cfg_; }
+    bool isProcessingComplete() const { return processing_complete_;  /* 需要在处理完成后设置此标志 */ }
+    int getNumLayers() const { return layers_g_simp_.size(); }
+
 private:
     void loadPCD();
     void processPointCloud();
-
-    // Configuration parameters
-    struct Config {
-        float resolution = 0.1f;       // Map resolution in meters
-        float slice_dh = 0.2f;         // Height interval between slices
-        float ground_h = 0.0f;         // Ground height
-        int half_kernel_size = 2;      // Half size of traversal kernel
-        float interval_min = 0.1f;     // Minimum traversable interval
-        float interval_free = 0.5f;    // Free space interval
-        float slope_max = 30.0f;       // Maximum traversable slope (degrees)
-        float step_max = 0.3f;         // Maximum step height
-        float standable_ratio = 0.5f;  // Ratio of standable points required
-        float cost_barrier = 1000.0f;  // Cost for non-traversable areas
-        float safe_margin = 0.2f;      // Safe margin around obstacles
-        float inflation = 0.3f;        // Inflation radius
-    };
 
     // Algorithm functions
     void initMappingEnv();
@@ -51,6 +47,9 @@ private:
     void simplifyLayers();
     void publishStaticTransform();
     void publishCostmapAndGradients();
+
+    // PCD文件路径
+    std::string pcd_file_path_;
 
     // Map data
     std::vector<float> center_;
@@ -78,11 +77,7 @@ private:
     // Inflation table
     std::vector<std::vector<float>> inf_table_;
 
-    // Configuration
-    Config cfg_;
-
     // point_cloud_config
-    std::string pcd_file_path_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 
     // 发布
@@ -94,8 +89,11 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_gradients_;
 
     // 添加发布方法
+    TomographyConfig::Params cfg_;  // Configuration parameters
     void publishTomographyResults();
 
     // ROS 2组件
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
+
+    bool processing_complete_ = false ;
 };

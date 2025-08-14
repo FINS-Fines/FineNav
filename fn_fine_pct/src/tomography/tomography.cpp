@@ -1,5 +1,6 @@
 #include "fn_fine_pct/Tomography.hpp"
 #include "fn_fine_pct/Config.hpp"
+#include "fn_fine_pct/TomographyConfig.hpp"
 #include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <Eigen/Dense>
@@ -14,9 +15,37 @@ Tomography::Tomography()
       pcd_file_path_("rsc/pcd/building.pcd"),
       cloud_(new pcl::PointCloud<pcl::PointXYZ>)
 {
-    // 参数初始化
+    // 文件路径参数
     this->declare_parameter("pcd_file_path", pcd_file_path_);
     pcd_file_path_ = this->get_parameter("pcd_file_path").as_string();
+
+    // 算法参数声明和获取
+    this->declare_parameter("resolution", cfg_.resolution);
+    this->declare_parameter("slice_dh", cfg_.slice_dh);
+    this->declare_parameter("ground_h", cfg_.ground_h);
+    this->declare_parameter("half_kernel_size", cfg_.half_kernel_size);
+    this->declare_parameter("interval_min", cfg_.interval_min);
+    this->declare_parameter("interval_free", cfg_.interval_free);
+    this->declare_parameter("slope_max", cfg_.slope_max);
+    this->declare_parameter("step_max", cfg_.step_max);
+    this->declare_parameter("standable_ratio", cfg_.standable_ratio);
+    this->declare_parameter("cost_barrier", cfg_.cost_barrier);
+    this->declare_parameter("safe_margin", cfg_.safe_margin);
+    this->declare_parameter("inflation", cfg_.inflation);
+
+    // 获取参数值
+    cfg_.resolution = this->get_parameter("resolution").as_double();
+    cfg_.slice_dh = this->get_parameter("slice_dh").as_double();
+    cfg_.ground_h = this->get_parameter("ground_h").as_double();
+    cfg_.half_kernel_size = this->get_parameter("half_kernel_size").as_int();
+    cfg_.interval_min = this->get_parameter("interval_min").as_double();
+    cfg_.interval_free = this->get_parameter("interval_free").as_double();
+    cfg_.slope_max = this->get_parameter("slope_max").as_double();
+    cfg_.step_max = this->get_parameter("step_max").as_double();
+    cfg_.standable_ratio = this->get_parameter("standable_ratio").as_double();
+    cfg_.cost_barrier = this->get_parameter("cost_barrier").as_double();
+    cfg_.safe_margin = this->get_parameter("safe_margin").as_double();
+    cfg_.inflation = this->get_parameter("inflation").as_double();
 
     // 初始化发布器
     pub_costmap_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("costmap", 10);
@@ -93,6 +122,7 @@ void Tomography::processPointCloud() {
                     e.what());
     }
 
+    processing_complete_ = true;
     RCLCPP_INFO(this->get_logger(), "END::Tomography Processing");
 }
 
@@ -494,4 +524,20 @@ void Tomography::publishCostmapAndGradients() {
         // 可选：添加延迟避免数据拥堵
         rclcpp::sleep_for(std::chrono::milliseconds(10));
     }
+}
+
+float Tomography::getGroundHeight(int layer, int x, int y) const {
+    if (layer >= 0 && layer < static_cast<int>(layers_g_simp_.size()) &&
+        x >= 0 && x < map_dim_x_ && y >= 0 && y < map_dim_y_) {
+        return layers_g_simp_[layer][x][y];
+        }
+    return NAN;
+}
+
+float Tomography::getInflatedCost(int layer, int x, int y) const {
+    if (layer >= 0 && layer < static_cast<int>(inflated_cost_.size()) &&
+        x >= 0 && x < map_dim_x_ && y >= 0 && y < map_dim_y_) {
+        return inflated_cost_[layer][x][y];
+        }
+    return std::numeric_limits<float>::max();
 }

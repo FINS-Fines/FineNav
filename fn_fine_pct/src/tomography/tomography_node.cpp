@@ -23,7 +23,9 @@ int main(int argc, char** argv) {
 
     auto tomography_node = std::make_shared<Tomography>();
 
-    rclcpp::spin(tomography_node);
+    // // 可选：短暂延迟确保消息发布完成
+    // rclcpp::sleep_for(std::chrono::seconds(1));
+
     rclcpp::shutdown();
 
     return 0;
