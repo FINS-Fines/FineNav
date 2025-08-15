@@ -17,11 +17,15 @@ LocalizationManager::LocalizationManager(const rclcpp::NodeOptions& options)
     map_frame_ = this->declare_parameter("map_frame", "map");
     odom_frame_ = this->declare_parameter("odom_frame", "odom");
     base_link_frame_ = this->declare_parameter("base_link_frame", "base_link");
+    lidar_odom_frame_ = this->declare_parameter("lidar_odom_frame", "lidar_odom");
 
+    // 初始化 TF Buffer 和 TransformListener
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
     tf_static_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(*this);
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
+
 
     // 处理坐标系
     switch (source_type_) {
@@ -63,18 +67,40 @@ LocalizationManager::LocalizationManager(const rclcpp::NodeOptions& options)
 void LocalizationManager::OdometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) const {
 
     geometry_msgs::msg::TransformStamped transform;
+    geometry_msgs::msg::TransformStamped lidar_odom_to_odom;
     transform.header.stamp = this->now();
     transform.header.frame_id = parent_frame_;
     transform.child_frame_id = child_frame_;
 
     // 处理不同的 source_type_
     if (source_type_ == kLocal) {
+        // 从消息中获取 odom 到 base_lidar 的变换
+        geometry_msgs::msg::TransformStamped lidar_odom_to_base_lidar;
+        lidar_odom_to_base_lidar.transform.translation.x = msg->pose.pose.position.x;
+        lidar_odom_to_base_lidar.transform.translation.y = msg->pose.pose.position.y;
+        lidar_odom_to_base_lidar.transform.translation.z = msg->pose.pose.position.z;
+        lidar_odom_to_base_lidar.transform.rotation = msg->pose.pose.orientation;
+
+        // 从tf树中获取从 base_lidar 到 base_link 的变换
+        try {
+            lidar_odom_to_odom = tf_buffer_->lookupTransform(lidar_odom_frame_, odom_frame_, tf2::TimePointZero);
+        } catch (tf2::TransformException& ex) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to get transform: %s", ex.what());
+            return;
+        }
+        // 解算 odom 到 base_link 的变换，转换为 tf2::transform 以便于计算
+        tf2::Transform tf_lidar_odom_to_base_lidar;
+        tf2::Transform tf_lidar_odom_to_odom;
+        tf2::Transform tf_odom_to_base_link;
+        tf2::Transform tf_lidar_odom_to_base_link;
+        tf2::fromMsg(lidar_odom_to_base_lidar.transform, tf_lidar_odom_to_base_lidar);
+        tf2::fromMsg(lidar_odom_to_odom.transform, tf_lidar_odom_to_odom);
+        tf_lidar_odom_to_base_link.mult(tf_lidar_odom_to_base_lidar, tf_lidar_odom_to_odom);
+        tf_odom_to_base_link.mult(tf_lidar_odom_to_odom.inverse(),tf_lidar_odom_to_base_link);
+
         transform.header.frame_id = odom_frame_;
         transform.child_frame_id = base_link_frame_;
-        transform.transform.translation.x = msg->pose.pose.position.x;
-        transform.transform.translation.y = msg->pose.pose.position.y;
-        transform.transform.translation.z = msg->pose.pose.position.z;
-        transform.transform.rotation = msg->pose.pose.orientation;
+        transform.transform = tf2::toMsg(tf_odom_to_base_link);
         tf_broadcaster_->sendTransform(transform);
 
     } else if (source_type_ == kGlobalWhenInitialize) {

@@ -1,0 +1,88 @@
+
+<!--
+  This Behavior Tree defines a navigation loop with dynamic goal generation and recovery strategies.
+  It continuously generates random goals within a specified area, checks their reachability,
+  and navigates to them while handling potential failures through recovery actions.
+-->
+
+<root main_tree_to_execute="MainTree">
+  <BehaviorTreeFactory>
+    <Plugin path="libfine_nav2d_behavior.so"/>
+  </BehaviorTreeFactory>
+
+  <BehaviorTree ID="MainTree">
+    <Sequence name="MainSequence">
+      <SetBlackboard output_key="nav_area" value="[(-3.0, -3.0), (3.0, -3.0), (3.0, 3.0), (-3.0, 3.0)]"/>
+      <!-- 可以根据实际情况修改导航区域 -->
+
+      <SequenceStar name="NavigateLoop">
+        <!-- 初始目标生成（带重试：生成目标 → 尝试规划路径 → 失败则重试） -->
+        <RetryUntilSuccessful num_attempts="-1" name="InitGoalWithRetry">
+          <Sequence name="InitGoalSequence">
+            <RandomGoalAction name="InitRandomGoal" area="{nav_area}" output_goal="{goal}"/>
+            <!-- 用路径规划检查可达性：若能生成路径，则目标可达 -->
+            <ComputePathToPose goal="{goal}" path="{temp_path}" planner_id="GridBased"/>
+          </Sequence>
+        </RetryUntilSuccessful>
+
+        <Repeat num_cycles="-1" name="InfiniteLoop">
+          <Sequence name="NavigationCycle">
+            <!-- 导航到当前目标（原有逻辑不变） -->
+
+            <!-- 外层 RecoveryNode：控制整体重试与最终恢复 -->
+            <RecoveryNode number_of_retries="-1" name="OuterRecovery">
+              <!-- 第一个节点（主任务）：原导航逻辑（含内部2次重试） -->
+              <RecoveryNode number_of_retries="2" name="NavigateToCurrentGoal">
+                <PipelineSequence name="NavigateWithReplanning">
+                  <RateController hz="1.0">
+                    <RecoveryNode number_of_retries="1" name="ComputePathToPose">
+                      <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+                      <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
+                    </RecoveryNode>
+                  </RateController>
+                  <RecoveryNode number_of_retries="1" name="FollowPath">
+                    <FollowPath path="{path}" controller_id="FollowPath"/>
+                    <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+                  </RecoveryNode>
+                </PipelineSequence>
+                <ReactiveFallback name="RecoveryFallback">
+                  <GoalUpdated/>
+                  <RoundRobin name="RecoveryActions">
+                    <Sequence name="ClearingActions">
+                      <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
+                      <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
+                    </Sequence>
+                    <Spin spin_dist="1.57"/>
+                    <Wait wait_duration="1"/> <!-- 等待1秒，如果需要等待动态障碍物离开可以修改为5s -->
+                    <BackUp backup_dist="0.30" backup_speed="0.05"/>
+                  </RoundRobin>
+                </ReactiveFallback>
+              </RecoveryNode>
+
+              <!-- 第二个节点（恢复策略）：当内部导航失败时，生成新目标 -->
+              <Sequence name="GenerateNewGoalAfterFailure">
+                <RetryUntilSuccessful num_attempts="-1" name="ForceValidGoal">
+                  <Sequence>
+                    <RandomGoalAction area="{nav_area}" output_goal="{goal}"/>
+                    <ComputePathToPose goal="{goal}" path="{temp_path}" planner_id="GridBased"/>
+                  </Sequence>
+                </RetryUntilSuccessful>
+              </Sequence>
+            </RecoveryNode>
+
+            <!-- 生成新目标（带重试：生成 → 检查路径 → 失败则重试） -->
+            <RetryUntilSuccessful num_attempts="-1" name="GenerateValidGoal">
+              <Sequence name="GenerateAndCheckGoal">
+                <RandomGoalAction name="GenerateNextRandomGoal" area="{nav_area}" output_goal="{goal}"/>
+                <!-- 用路径规划检查可达性 -->
+                <ComputePathToPose goal="{goal}" path="{temp_path}" planner_id="GridBased"/>
+              </Sequence>
+            </RetryUntilSuccessful>
+
+            <Wait wait_duration="1"/>
+          </Sequence>
+        </Repeat>
+      </SequenceStar>
+    </Sequence>
+  </BehaviorTree>
+</root>

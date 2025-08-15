@@ -35,9 +35,22 @@ sudo ifconfig <interface> <ip>
 # Launch FineNav2D
 ros2 launch fine_nav2d_bringup bringup_nav2_real.launch.py \
 lidar_type:=livox \
-enable_recorder:=false \
 lio_type:=fast_lio \
 enable_rviz:=true
 ```
+
+Example: Bring up FineNav2D with Virtual gazebo and Fast-LIO
+```shell
+ros2 launch fine_nav2d_bringup bringup_gazebo_sim.launch.py \
+lidar_type:=virtual \
+lio_type:=fast_lio \
+enable_rviz:=true \
+use_sim_time:=true
+```
+# gazebo 模拟下的键盘操作
+* 一档速度 箭头键 0.5m/s 0.5rad/s
+* 二挡速度 WASD  1.5m/s 1.0m/s
+* 暂停键 Q
+
 If everything goes well, you will see the following result:
 ![expected_result.png](asset/expected_result.png)
