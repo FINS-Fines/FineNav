@@ -96,6 +96,15 @@ void Tomography::processPointCloud() {
     inflateCosts();            // 代价膨胀
     simplifyLayers();          // 图层简化
 
+    costmap_layers_.clear();
+    for (size_t k = 0; k < idx_simp_.size(); ++k) {
+        CostmapLayer layer;
+        layer.costs = layers_t_simp_[k];
+        layer.min_height = slice_h0_ + idx_simp_[k] * cfg_.slice_dh;
+        layer.max_height = layer.min_height + cfg_.slice_dh;
+        costmap_layers_.push_back(layer);
+    }
+
     // 2. 核心发布操作
     auto start_time = std::chrono::steady_clock::now();
 
@@ -478,9 +487,8 @@ void Tomography::publishTomographyResults() {
 }
 
 void Tomography::publishCostmapAndGradients() {
-    // 发布所有层的代价和梯度
     for (size_t layer = 0; layer < layers_g_simp_.size(); ++layer) {
-        // 1. 发布当前层的代价地图
+        // 1. 发布代价地图
         nav_msgs::msg::OccupancyGrid costmap_msg;
         costmap_msg.header.frame_id = "map";
         costmap_msg.header.stamp = this->now();
@@ -492,36 +500,62 @@ void Tomography::publishCostmapAndGradients() {
         costmap_msg.info.origin.orientation.w = 1.0;
 
         costmap_msg.data.resize(map_dim_x_ * map_dim_y_);
+
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                costmap_msg.data[j * map_dim_x_ + i] =
-                    static_cast<int8_t>(inflated_cost_[layer][i][j] * 100 / cfg_.cost_barrier);
+                // 检查是否为无效点
+                if (std::isnan(layers_g_simp_[layer][i][j])) {
+                    costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
+                }
+                // 检查是否为无穷大代价（完全障碍）
+                else if (inflated_cost_[layer][i][j] >= FLOAT_INFINITY) {
+                    costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
+                }
+                // 自由空间
+                else if (inflated_cost_[layer][i][j] <= 0.0f) {
+                    costmap_msg.data[j * map_dim_x_ + i] = FREE;
+                }
+                // 正常代价范围
+                else {
+                    costmap_msg.data[j * map_dim_x_ + i] = static_cast<int8_t>(
+                        std::min(100.0f,
+                                inflated_cost_[layer][i][j] * 100 / cfg_.cost_barrier)
+                    );
+                }
             }
         }
         pub_costmap_->publish(costmap_msg);
 
-        // 2. 发布当前层的梯度
+        // 2. 发布梯度（仅处理有效点）
         geometry_msgs::msg::PoseArray gradients_msg;
         gradients_msg.header = costmap_msg.header;
 
         for (int i = 1; i < map_dim_x_ - 1; ++i) {
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                geometry_msgs::msg::Pose pose;
-                pose.position.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
-                pose.position.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
-                pose.position.z = layers_g_simp_[layer][i][j];
+                // 跳过无效点和无穷大代价点
+                if (std::isnan(layers_g_simp_[layer][i][j])) {
+                    continue;
+                }
 
-                pose.orientation.x = trav_grad_x_[layer][i][j];
-                pose.orientation.y = trav_grad_y_[layer][i][j];
-                pose.orientation.z = 0;
-                pose.orientation.w = 1.0;
+                // 检查是否为可通行区域
+                if (inflated_cost_[layer][i][j] < cfg_.cost_barrier * 0.5f) {
+                    geometry_msgs::msg::Pose pose;
+                    pose.position.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
+                    pose.position.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
+                    pose.position.z = layers_g_simp_[layer][i][j];
 
-                gradients_msg.poses.push_back(pose);
+                    pose.orientation.x = trav_grad_x_[layer][i][j];
+                    pose.orientation.y = trav_grad_y_[layer][i][j];
+                    pose.orientation.z = 0;
+                    pose.orientation.w = 1.0;
+
+                    gradients_msg.poses.push_back(pose);
+                }
             }
         }
         pub_gradients_->publish(gradients_msg);
 
-        // 可选：添加延迟避免数据拥堵
+        // 添加延迟避免数据拥堵
         rclcpp::sleep_for(std::chrono::milliseconds(10));
     }
 }

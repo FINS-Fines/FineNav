@@ -18,6 +18,12 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
+struct CostmapLayer {
+    std::vector<std::vector<float>> costs;
+    float min_height;
+    float max_height;
+};
+
 class Tomography : public rclcpp::Node {
 public:
     Tomography() ;
@@ -44,6 +50,14 @@ public:
         return idx_simp_.size();
     }
 
+    // 添加常量定义
+    static constexpr inline float FLOAT_INFINITY = std::numeric_limits<float>::infinity();
+    static constexpr int8_t OCCUPIED = 100; // 完全障碍的整数值
+    static constexpr int8_t FREE = 0;       // 自由空间的整数值
+
+    const std::vector<CostmapLayer>& getAllCostmapLayers() const {
+        return costmap_layers_;
+    }
 private:
     void loadPCD();
     void processPointCloud();
@@ -90,6 +104,8 @@ private:
 
     // point_cloud_config
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
+
+    std::vector<CostmapLayer> costmap_layers_;
 
     // 发布
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_tomography_;

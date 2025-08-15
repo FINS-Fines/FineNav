@@ -31,8 +31,17 @@ public:
             RCLCPP_INFO(this->get_logger(), "Waiting for tomography processing...");
         }
 
+        // Initialize planner configuration
+        PlannerConfig::Params planner_cfg;
+        planner_cfg.max_traversable_cost = this->declare_parameter("max_traversable_cost", 2.5f);
+        planner_cfg.height_change_weight = this->declare_parameter("height_change_weight", 2.0f);
+        planner_cfg.layer_change_penalty = this->declare_parameter("layer_change_penalty", 1.0f);
+        planner_cfg.max_step_height = this->declare_parameter("max_step_height", 0.3f);
+        planner_cfg.max_slope = this->declare_parameter("max_slope", 30.0f);
+        planner_cfg.traversal_cost_threshold = this->declare_parameter("traversal_cost_threshold", 2.5f);
+
         // 初始化 planner
-        planner_ = std::make_unique<Planner>(tomography_);
+        planner_ = std::make_unique<Planner>(tomography_,planner_cfg);
 
         // 创建路径发布器
         path_pub_ = this->create_publisher<nav_msgs::msg::Path>("pct_path", 10);

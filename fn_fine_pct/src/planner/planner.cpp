@@ -2,10 +2,11 @@
 #include <queue>
 #include <unordered_map>
 #include <cmath>
+#include "fn_fine_pct/PlannerConfig.hpp"
 #include <algorithm>
 
-Planner::Planner(std::shared_ptr<Tomography> tomography)
-    : tomography_(tomography) {}
+Planner::Planner(std::shared_ptr<Tomography> tomography, const PlannerConfig::Params& cfg)
+    : tomography_(tomography), cfg_(cfg) {}
 
 nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const std::array<float, 2>& end) {
     nav_msgs::msg::Path path;
@@ -28,8 +29,8 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
     std::unordered_map<int, std::unordered_map<int, std::unordered_map<int, bool>>> closed_set;
     std::unordered_map<int, std::unordered_map<int, std::unordered_map<int, float>>> g_score;
 
-    // 初始化
-    open_set.push({start_x, start_y, start_layer, 0.0f, heuristic(start_x, start_y, end_x, end_y)});
+    // 初始化 +++++++++++ NOTE Z
+    open_set.push({start_x, start_y, start_layer, 0.0f, heuristic(start_x, start_y, 0 ,end_x, end_y,0)});
     g_score[start_layer][start_x][start_y] = 0.0f;
     came_from_.clear();
 
@@ -37,41 +38,14 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
         path_node current = open_set.top();
         open_set.pop();
 
-        // 检查是否到达目标
+        // Check if we've reached the goal
         if (current.x == end_x && current.y == end_y && current.layer == end_layer) {
-            // 重建路径
-            std::vector<path_node> path_nodes;
-            path_nodes.push_back(current);
-
-            while (came_from_.count(current.layer) &&
-                   came_from_[current.layer].count(current.x) &&
-                   came_from_[current.layer][current.x].count(current.y)) {
-                current = came_from_[current.layer][current.x][current.y];
-                path_nodes.push_back(current);
-            }
-
-            // 转换为世界坐标
-            for (auto it = path_nodes.rbegin(); it != path_nodes.rend(); ++it) {
-                auto [wx, wy] = gridToWorld(it->x, it->y);
-                float wz = tomography_->getSimplifiedHeightLayers()[it->layer][it->x][it->y];
-
-                geometry_msgs::msg::PoseStamped pose;
-                pose.header = path.header;
-                pose.pose.position.x = wx;
-                pose.pose.position.y = wy;
-                pose.pose.position.z = wz;
-                pose.pose.orientation.w = 1.0;
-                path.poses.push_back(pose);
-            }
-
-            RCLCPP_INFO(rclcpp::get_logger("planner"),
-                       "Found path with %zu points", path.poses.size());
-            return path;
+            // Reconstruct path...
         }
 
         closed_set[current.layer][current.x][current.y] = true;
 
-        // 检查8邻域
+        // Check 8-connected neighborhood
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dy = -1; dy <= 1; ++dy) {
                 if (dx == 0 && dy == 0) continue;
@@ -79,48 +53,67 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
                 int nx = current.x + dx;
                 int ny = current.y + dy;
 
-                // 边界检查
+                // Boundary checks
                 if (nx < 0 || nx >= tomography_->getMapDimX() ||
                     ny < 0 || ny >= tomography_->getMapDimY()) {
                     continue;
                 }
 
-                // 尝试当前层和相邻层
+                // Check possible layer transitions
                 for (int layer_offset = -1; layer_offset <= 1; ++layer_offset) {
                     int nl = current.layer + layer_offset;
                     if (nl < 0 || nl >= tomography_->getNumSimplifiedLayers()) {
                         continue;
                     }
 
-                    // 检查可通行性
+                    // Skip if not traversable
                     if (!isTraversable(nx, ny, nl)) {
                         continue;
                     }
 
-                    // 计算代价
-                    float movement_cost = sqrt(dx*dx + dy*dy);
-                    float layer_change_cost = (layer_offset != 0) ? 1.0f : 0.0f;
-                    float tentative_g = g_score[current.layer][current.x][current.y] +
-                                      movement_cost + layer_change_cost;
+                    // Calculate movement cost
+                    float movement_cost = sqrt(dx*dx + dy*dy) * tomography_->getResolution();
 
-                    // 如果节点已关闭或已有更低代价，跳过
+                    // Calculate height change cost
+                    float height_diff = std::abs(
+                        tomography_->getSimplifiedHeightLayers()[nl][nx][ny] -
+                        current.height);
+                    float height_cost = height_diff * cfg_.height_change_weight;
+
+                    // Additional cost for layer changes
+                    float layer_change_cost = (layer_offset != 0) ? cfg_.layer_change_penalty : 0.0f;
+
+                    // Get terrain cost from tomography
+                    float terrain_cost = tomography_->getSimplifiedCostLayers()[nl][nx][ny];
+
+                    // Total cost
+                    float tentative_g = current.g + movement_cost + height_cost +
+                                      layer_change_cost + terrain_cost;
+
+                    // Skip if we already have a better path
                     if (closed_set[nl].count(nx) && closed_set[nl][nx].count(ny)) {
+                        continue;
+                    }
+
+                    if (!isValidTransition(current, nx, ny, nl)) {
                         continue;
                     }
 
                     if (!g_score[nl].count(nx) || !g_score[nl][nx].count(ny) ||
                         tentative_g < g_score[nl][nx][ny]) {
 
-                        // 记录路径
+                        // Create new node
+                        path_node neighbor{
+                            nx, ny, nl,
+                            tomography_->getSimplifiedHeightLayers()[nl][nx][ny],
+                            tentative_g,
+                            heuristic(nx, ny, nl, end_x, end_y, end_layer)
+                        };
+
+                        // Update path tracking
                         came_from_[nl][nx][ny] = current;
                         g_score[nl][nx][ny] = tentative_g;
-
-                        float h = heuristic(nx, ny, end_x, end_y);
-                        open_set.push({nx, ny, nl, tentative_g, h});
-
-                        RCLCPP_DEBUG(rclcpp::get_logger("planner"),
-                                   "Adding path_node (%d,%d)@%d, g=%.2f, h=%.2f",
-                                   nx, ny, nl, tentative_g, h);
+                        open_set.push(neighbor);
                     }
                 }
             }
@@ -184,24 +177,61 @@ std::pair<float, float> Planner::gridToWorld(int i, int j) const {
     return {x, y};
 }
 
-float Planner::heuristic(int x1, int y1, int x2, int y2) const {
-    // Euclidean distance
-    return std::sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+float Planner::heuristic(int x1, int y1, int z1, int x2, int y2, int z2) const {
+    // 3D Euclidean distance
+    float dx = (x1-x2) * tomography_->getResolution();
+    float dy = (y1-y2) * tomography_->getResolution();
+    float dz = (z1-z2) * tomography_->getConfig().slice_dh;
+    return std::sqrt(dx*dx + dy*dy + dz*dz);
 }
 
 bool Planner::isTraversable(int x, int y, int layer) const {
-    // 检查层和坐标是否有效
     if (layer < 0 || layer >= tomography_->getNumSimplifiedLayers() ||
         x < 0 || x >= tomography_->getMapDimX() ||
         y < 0 || y >= tomography_->getMapDimY()) {
         return false;
+    }
+
+    const auto& cost_layer = tomography_->getSimplifiedCostLayers()[layer];
+
+    // Check if the point is invalid (NaN) or has infinite cost
+    if (std::isnan(cost_layer[x][y]) ||
+        cost_layer[x][y] >= tomography_->FLOAT_INFINITY) {
+        return false;
+    }
+
+    // Additional checks for physical constraints
+    return cost_layer[x][y] < this->cfg_.traversal_cost_threshold ;
+}
+
+// 为四足设置的物理检查 未做代码适配
+bool Planner::isValidHeightChange(float from_height, float to_height, float horizontal_dist) const {
+    float height_diff = std::abs(to_height - from_height);
+
+    // Changed to use this->cfg_
+    if (height_diff > this->cfg_.max_step_height) {
+        return false;
+    }
+
+    if (horizontal_dist > 0) {
+        float slope = std::atan2(height_diff, horizontal_dist) * 180.0f / M_PI;
+        if (slope > this->cfg_.max_slope) {
+            return false;
         }
+    }
 
-    // 获取该位置的代价
-    float cost = tomography_->getSimplifiedCostLayers()[layer][x][y];
+    return true;
+}
 
-    // 定义可通行的代价阈值
-    const float TRAVERSABLE_THRESHOLD = 50.0f; // 根据实际情况调整
+bool Planner::isValidTransition(const path_node& from, int to_x, int to_y, int to_layer) const {
+    // Get heights
+    float from_height = from.height;
+    float to_height = tomography_->getSimplifiedHeightLayers()[to_layer][to_x][to_y];
 
-    return cost < TRAVERSABLE_THRESHOLD;
+    // Calculate horizontal distance
+    float dx = (to_x - from.x) * tomography_->getResolution();
+    float dy = (to_y - from.y) * tomography_->getResolution();
+    float horizontal_dist = std::sqrt(dx*dx + dy*dy);
+
+    return isValidHeightChange(from_height, to_height, horizontal_dist);
 }
