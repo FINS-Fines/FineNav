@@ -33,6 +33,17 @@ public:
     bool isProcessingComplete() const { return processing_complete_;  /* 需要在处理完成后设置此标志 */ }
     int getNumLayers() const { return layers_g_simp_.size(); }
 
+    // 添加获取简化层数据的方法
+    const std::vector<std::vector<std::vector<float>>>& getSimplifiedCostLayers() const {
+        return layers_t_simp_;
+    }
+    const std::vector<std::vector<std::vector<float>>>& getSimplifiedHeightLayers() const {
+        return layers_g_simp_;
+    }
+    int getNumSimplifiedLayers() const {
+        return idx_simp_.size();
+    }
+
 private:
     void loadPCD();
     void processPointCloud();

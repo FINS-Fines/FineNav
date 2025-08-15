@@ -57,7 +57,7 @@ public:
         std::array<float, 2> start = {5.0f, 5.0f};  // 示例起点
         std::array<float, 2> end = {-6.0f, -1.0f};  // 示例终点
 
-        // 规划路径
+        // path planning --------------------------
         auto path = planner_->planPath(start, end);
 
         // 发布路径
@@ -134,5 +134,6 @@ int main(int argc, char** argv) {
     auto node = std::make_shared<PlannerNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
+
     return 0;
 }
