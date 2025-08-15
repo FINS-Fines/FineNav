@@ -123,4 +123,6 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
 
     bool processing_complete_ = false ;
+
+    bool hasGroundBelow(int layer, int x, int y) const;
 };

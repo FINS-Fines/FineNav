@@ -41,7 +41,13 @@ public:
         planner_cfg.traversal_cost_threshold = this->declare_parameter("traversal_cost_threshold", 2.5f);
 
         // 初始化 planner
-        planner_ = std::make_unique<Planner>(tomography_,planner_cfg);
+        // 初始化planner时直接传递所需组件
+        planner_ = std::make_unique<Planner>(
+            tomography_,
+            planner_cfg,
+            this->get_logger(),    // 传递logger
+            this->get_clock()      // 传递clock
+        );
 
         // 创建路径发布器
         path_pub_ = this->create_publisher<nav_msgs::msg::Path>("pct_path", 10);
@@ -64,7 +70,7 @@ public:
     void planAndPublishPath() {
         // 设置起点和终点
         std::array<float, 2> start = {5.0f, 5.0f};  // 示例起点
-        std::array<float, 2> end = {-6.0f, -1.0f};  // 示例终点
+        std::array<float, 2> end = {7.0f, 10.0f};  // 示例终点
 
         // path planning --------------------------
         auto path = planner_->planPath(start, end);

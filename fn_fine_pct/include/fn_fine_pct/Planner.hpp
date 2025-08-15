@@ -13,7 +13,10 @@ struct NodeCost {
 
 class Planner {
 public:
-    explicit Planner(std::shared_ptr<Tomography> tomography,const PlannerConfig::Params& cfg);
+    explicit Planner(std::shared_ptr<Tomography> tomography,
+                        const PlannerConfig::Params& cfg,
+                        rclcpp::Logger logger,
+                        rclcpp::Clock::SharedPtr clock);
     nav_msgs::msg::Path planPath(const std::array<float, 2>& start, const std::array<float, 2>& end);
 
 private:
@@ -53,4 +56,7 @@ private:
     bool isValidTransition(const path_node& from, int to_x, int to_y, int to_layer) const;
 
     std::pair<int, int> findBestStartEndLayers(int start_x, int start_y, int end_x, int end_y) const;
+
+    rclcpp::Logger logger_;
+    rclcpp::Clock::SharedPtr clock_;
 };

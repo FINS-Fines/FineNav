@@ -5,13 +5,20 @@
 #include "fn_fine_pct/PlannerConfig.hpp"
 #include <algorithm>
 
-Planner::Planner(std::shared_ptr<Tomography> tomography, const PlannerConfig::Params& cfg)
-    : tomography_(tomography), cfg_(cfg) {}
+Planner::Planner(std::shared_ptr<Tomography> tomography,
+                        const PlannerConfig::Params& cfg,
+                        rclcpp::Logger logger,
+                        rclcpp::Clock::SharedPtr clock)
+: tomography_(tomography), cfg_(cfg) , logger_(logger),
+      clock_(clock) {
+    RCLCPP_INFO(logger_, "Planner initialized with clock type: %d",
+                   clock_->get_clock_type());
+}
 
 nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const std::array<float, 2>& end) {
     nav_msgs::msg::Path path;
     path.header.frame_id = "map";
-    path.header.stamp = rclcpp::Clock().now();
+    path.header.stamp = clock_->now();
 
     // 转换坐标
     auto [start_x, start_y] = worldToGrid(start[0], start[1]);
@@ -40,7 +47,62 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
 
         // Check if we've reached the goal
         if (current.x == end_x && current.y == end_y && current.layer == end_layer) {
-            // Reconstruct path...
+            std::vector<path_node> path_nodes;
+            path_node node = current;
+            while (true) {
+                // 检查节点有效性
+                float height = tomography_->getSimplifiedHeightLayers()[node.layer][node.x][node.y];
+                if (std::isnan(height)) {
+                    RCLCPP_ERROR(rclcpp::get_logger("planner"),
+                                "NaN height at (%d,%d)@%d", node.x, node.y, node.layer);
+                    break;
+                }
+
+                path_nodes.push_back(node);
+                if (node.x == start_x && node.y == start_y && node.layer == start_layer) break;
+
+                // 防止无限循环
+                if (!came_from_[node.layer].count(node.x) || !came_from_[node.layer][node.x].count(node.y)) {
+                    RCLCPP_WARN(rclcpp::get_logger("planner"),
+                               "Path broken at (%d,%d)@%d", node.x, node.y, node.layer);
+                    break;
+                }
+                node = came_from_[node.layer][node.x][node.y];
+            }
+            // 转换为ROS Path
+            nav_msgs::msg::Path valid_path;
+            valid_path.header.frame_id = "map";
+            valid_path.header.stamp = clock_->now(); // 必须设置有效时间戳
+
+            for (const auto& n : path_nodes) {
+                auto [x, y] = gridToWorld(n.x, n.y);
+
+                // 校验坐标有效性
+                if (std::isnan(x) || std::isnan(y)) {
+                    RCLCPP_ERROR(rclcpp::get_logger("planner"),
+                                "Invalid gridToWorld conversion: (%d,%d)->(%.2f,%.2f)",
+                                n.x, n.y, x, y);
+                    continue;
+                }
+
+                geometry_msgs::msg::PoseStamped pose;
+                pose.header = valid_path.header;
+
+                // 确保高度有效
+                float z = tomography_->getSimplifiedHeightLayers()[n.layer][n.x][n.y];
+                if (std::isnan(z)) z = 0.0; // 安全回退
+
+                pose.pose.position.x = x;
+                pose.pose.position.y = y;
+                pose.pose.position.z = z;
+                pose.pose.orientation.w = 1.0; // 必须设置有效四元数
+
+                valid_path.poses.push_back(pose);
+            }
+
+            RCLCPP_INFO(rclcpp::get_logger("planner"),
+                       "Published VALID path with %zu points", valid_path.poses.size());
+            return valid_path;
         }
 
         closed_set[current.layer][current.x][current.y] = true;
@@ -174,6 +236,7 @@ std::pair<float, float> Planner::gridToWorld(int i, int j) const {
     float x = center[0] + (i - map_dim_x/2) * resolution;
     float y = center[1] + (j - map_dim_y/2) * resolution;
 
+    RCLCPP_DEBUG(logger_, "Grid(%d,%d) -> World(%.2f,%.2f)", i, j, x, y);
     return {x, y};
 }
 
