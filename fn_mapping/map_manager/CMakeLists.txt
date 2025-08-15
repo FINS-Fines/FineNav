@@ -10,10 +10,12 @@ endif ()
 find_package(ament_cmake_auto REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(fn_grid_map REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 ament_auto_find_build_dependencies()
 
 ament_auto_add_executable(${PROJECT_NAME}_node
+    src/map_manager_node.cpp
     src/map_manager.cpp
 )
 
