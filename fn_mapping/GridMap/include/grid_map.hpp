@@ -90,7 +90,7 @@ public:
      * @return 如果地图实际发生移动返回true，否则返回false
      * @note 当再次调用moveTo()时，之前返回的indices没有意义
      */
-    bool moveTo(const Position& position, bool keep_removed, std::vector<Index>& indices);
+    bool moveTo(const Position& position, const bool keep_removed, std::vector<Index>& indices);
 
     /**
      * @brief 光线投射

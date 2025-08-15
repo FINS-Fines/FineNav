@@ -61,27 +61,30 @@ bool GridMap<T>::moveTo(const Position& position) {
 }
 
 template <typename T>
-bool GridMap<T>::moveTo(const Position& position, bool keep_removed, std::vector<Index>& indices) {
+bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<Index>& indices) {
 
+    // 计算移动了的栅格数
+    const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_);
+    if (index_shift.isZero()) {
+        return false; // 没有移动
+    }
 
-    // // 计算移动了的栅格数
-    // const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_);
-    // if (index_shift.isZero()) {
-    //     return false; // 没有移动
-    // }
-    //
-    // // 更新地图状态
-    // const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_);
-    // origin_ += aligned_position_shift;
-    // start_index_ = wrapIndexToRange(start_index_ + index_shift, size_); // 限制循环缓冲区起始索引在缓冲区范围内
-    //
-    // // 最复杂的是，要返回唯一的被删掉的grid，和新增的grid
-    // // 如果只在一个维度上移动，那还算简单
-    // // 如果在两个维度上移动，要考虑重合区域
-    // // 如果在三个维度上移动，要考虑重合区域
-    //
-    // // 如果没有设置keep_remove，删除删掉栅格的数据
-    //
+    // 更新移动后的地图状态
+    const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_);
+    origin_ += aligned_position_shift;
+    start_index_ = wrapIndexToRange(start_index_ + index_shift, size_); // 限制循环缓冲区起始索引在缓冲区范围内
+
+    // 以移动后的地图作为固定坐标系，获取受移动影响的栅格
+    getDifferenceSet(-index_shift, size_, indices);
+
+    if (!keep_removed) {
+        for (const auto& index : indices) {
+            if (checkIfIndexValid(index, size_)) {
+                data_[getBufferIndex(index, size_, start_index_)] = T{}; // 清空数据
+            }
+        }
+    }
+
     return true;
 }
 
