@@ -123,7 +123,7 @@ void Tomography::processPointCloud() {
     }
 
     processing_complete_ = true;
-    RCLCPP_INFO(this->get_logger(), "END::Tomography Processing");
+    RCLCPP_INFO(this->get_logger(), "END::Tomography Processing======================================");
 }
 
 void Tomography::initMappingEnv() {

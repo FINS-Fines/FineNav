@@ -40,9 +40,9 @@ public:
         // 创建可视化标记发布器
         marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("path_markers", 10);
 
-        // 定时器触发路径规划（2秒后执行）
+        // 定时器触发路径规划（1秒后执行）
         timer_ = this->create_wall_timer(
-            std::chrono::seconds(2),
+            std::chrono::seconds(1),
             [this]() {
                 planAndPublishPath();
                 // 单次执行后取消定时器
@@ -53,7 +53,7 @@ public:
     }
 
     void planAndPublishPath() {
-        // 设置起点和终点（根据你的场景调整）
+        // 设置起点和终点
         std::array<float, 2> start = {5.0f, 5.0f};  // 示例起点
         std::array<float, 2> end = {-6.0f, -1.0f};  // 示例终点
 
@@ -66,9 +66,17 @@ public:
 
         // 发布可视化标记
         publishPathMarkers(path);
+
+        RCLCPP_INFO(this->get_logger(), "END::Planner Path through A* ============================================");
     }
 
     void publishPathMarkers(const nav_msgs::msg::Path& path) {
+        // 检查路径是否为空
+        if (path.poses.empty()) {
+            RCLCPP_WARN(this->get_logger(), "Cannot publish markers for empty path");
+            return;
+        }
+
         // 起点标记
         visualization_msgs::msg::Marker start_marker;
         start_marker.header = path.header;
