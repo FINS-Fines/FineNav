@@ -12,7 +12,7 @@
 Tomography::Tomography()
     : Node("pointcloud_tomography"),
       tf_broadcaster_(std::make_shared<tf2_ros::StaticTransformBroadcaster>(this)),
-      pcd_file_path_("rsc/pcd/building.pcd"),
+      pcd_file_path_("../rsc/pcd/building.pcd"),
       cloud_(new pcl::PointCloud<pcl::PointXYZ>)
 {
     // 文件路径参数
@@ -135,6 +135,10 @@ void Tomography::processPointCloud() {
     RCLCPP_INFO(this->get_logger(), "END::Tomography Processing======================================");
 }
 
+/**
+ * @brief 初始化地图
+ * @details
+ */
 void Tomography::initMappingEnv() {
     // Find min and max points
     pcl::PointXYZ min_pt, max_pt;
@@ -147,13 +151,15 @@ void Tomography::initMappingEnv() {
     center_ = { (max_pt.x + min_pt.x) / 2.0f, (max_pt.y + min_pt.y) / 2.0f };
     map_dim_x_ = static_cast<int>(std::ceil((max_pt.x - min_pt.x) / cfg_.resolution) + 4);
     map_dim_y_ = static_cast<int>(std::ceil((max_pt.y - min_pt.y) / cfg_.resolution) + 4);
-    n_slice_init_ = static_cast<int>(std::ceil((max_pt.z - min_pt.z) / cfg_.slice_dh));
-    slice_h0_ = min_pt.z + cfg_.slice_dh;
+    n_slice_init_ = static_cast<int>(std::ceil((max_pt.z - min_pt.z) / cfg_.slice_dh)); // 初始化时候，切片为n_slice_init_
+    slice_h0_ = min_pt.z + cfg_.slice_dh; // 第一个切片h0的高度
 
     // Initialize buffers
+    // 初始化底涂层
     clearMap();
 
     // Initialize inflation table
+    // 预先构建代价膨胀查找表
     int half_inf_k_size = static_cast<int>((cfg_.safe_margin + cfg_.inflation) / cfg_.resolution);
     inf_table_.resize(2 * half_inf_k_size + 1, std::vector<float>(2 * half_inf_k_size + 1, 0.0f));
 
@@ -194,6 +200,14 @@ void Tomography::clearMap() {
             std::vector<float>(map_dim_y_, 0.0f)));
 }
 
+/**
+ * @brief 输入点云加载到tomography地图
+ * @param cloud 输入点云
+ * @details 将原始点云中的每个点按照高度分配到对应的地图层，并更新每层的地面高度和天花板高度
+ * @details tomography地图本质上就是grid_map_，只是在存储时用z-axis-aligned的mulit-layered方式来存储
+ * @details layers_g_ 在该层高度范围内，找到"最高的可站立表面"
+ * @details layers_c_ 大于该层高度，找到“最矮的顶部”
+ */
 void Tomography::point2map(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud) {
     for (const auto& point : *cloud) {
         if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
@@ -221,6 +235,10 @@ void Tomography::point2map(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud) {
     }
 }
 
+/**
+ * @brief 计算每个slice的梯度
+ * @note 双向差分后取最大的坡度
+ */
 void Tomography::computeGradients() {
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 1; i < map_dim_x_ - 1; ++i) {
@@ -243,6 +261,14 @@ void Tomography::computeGradients() {
     }
 }
 
+/**
+ * @brief 遍历每一个栅格，地形分析
+ * @details 维度1：检查机器人是否能通过高度，惩罚过小的interval
+ * @details 维度2：检查斜坡坡度是否能上
+ * @details 维度3：检查障碍物是否可以跨越，这里需要检查支撑面是否足够
+ *
+ *
+ */
 void Tomography::computeTraversability() {
     float step_stand = 1.2f * cfg_.resolution * std::tan(cfg_.slope_max * M_PI / 180.0f);
     float step_stand_sq = step_stand * step_stand;
@@ -253,11 +279,13 @@ void Tomography::computeTraversability() {
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                // 检查下方是否有地面
-                if (s > 0 && hasGroundBelow(s, i, j)) {
-                    trav_cost_[s][i][j] = 0.0f; // 设置为自由空间
-                    continue;
-                }
+
+                // 检查下方是否有地面，有的话就能踩
+                // TODO: szl自己加的，可以删
+                // if (s > 0 && hasGroundBelow(s, i, j)) {
+                //     trav_cost_[s][i][j] = 0.0f; // 设置为自由空间
+                //     continue;
+                // }
 
                 float interval = layers_c_[s][i][j] - layers_g_[s][i][j];
 
@@ -309,6 +337,9 @@ void Tomography::computeTraversability() {
     }
 }
 
+/**
+ * @brief 计算膨胀代价
+ */
 void Tomography::inflateCosts() {
     int half_inf_k_size = static_cast<int>((cfg_.safe_margin + cfg_.inflation) / cfg_.resolution);
 
@@ -336,6 +367,10 @@ void Tomography::inflateCosts() {
     }
 }
 
+/**
+ * @brief 根据一定的逻辑，挑选出对于规划器关键的层（提前剪枝）
+ * @todo 我实在不懂为什么在这里还更改了如此多的属性
+ */
 void Tomography::simplifyLayers() {
     idx_simp_.clear();
     idx_simp_.push_back(0);
@@ -346,12 +381,14 @@ void Tomography::simplifyLayers() {
         while (m_idx < n_slice_init_ - 2) {
             bool has_unique = false;
 
+            // 从最底层开始
             for (int i = 0; i < map_dim_x_; ++i) {
                 for (int j = 0; j < map_dim_y_; ++j) {
-                    bool mask_l_g = layers_g_[m_idx][i][j] - layers_g_[l_idx][i][j] > 0;
-                    bool mask_l_t = inflated_cost_[l_idx][i][j] > inflated_cost_[m_idx][i][j];
-                    bool mask_u_g = (layers_g_[m_idx+1][i][j] - layers_g_[m_idx][i][j]) > 0;
-                    bool mask_t = inflated_cost_[m_idx][i][j] < cfg_.cost_barrier;
+                    // 四个独特性条件检查
+                    bool mask_l_g = layers_g_[m_idx][i][j] - layers_g_[l_idx][i][j] > 0; // 当前层相比上一个保留层有更高的地面
+                    bool mask_l_t = inflated_cost_[l_idx][i][j] > inflated_cost_[m_idx][i][j]; // 当前层的通行代价比上一个保留层更低
+                    bool mask_u_g = (layers_g_[m_idx+1][i][j] - layers_g_[m_idx][i][j]) > 0; // 当前层与上一层之间有明显的高度差异
+                    bool mask_t = inflated_cost_[m_idx][i][j] < cfg_.cost_barrier; // 当前层不是完全的障碍区域
 
                     if ((mask_l_g || mask_l_t) && mask_u_g && mask_t) {
                         has_unique = true;
@@ -372,6 +409,7 @@ void Tomography::simplifyLayers() {
     }
 
     // Prepare simplified layers
+    // TODO: 实在不懂为什么这里要出现这些东西，原算法里似乎根本没有用到？？？
     layers_t_simp_.resize(idx_simp_.size(),
         std::vector<std::vector<float>>(map_dim_x_,
             std::vector<float>(map_dim_y_, 0.0f)));
@@ -389,6 +427,7 @@ void Tomography::simplifyLayers() {
             std::vector<float>(map_dim_y_, 0.0f)));
 
     // Copy data to simplified layers
+    // TODO: 原本的版本似乎没有copy
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
         int s = idx_simp_[k];
         layers_t_simp_[k] = inflated_cost_[s];
@@ -401,38 +440,40 @@ void Tomography::simplifyLayers() {
         }
     }
 
+    // TODO:szl自己加的，可以删除
     // Compute gradients for simplified layers
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
         for (int i = 1; i < map_dim_x_ - 1; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                // 检查当前点是否有下方支撑
-                bool has_support_below = (k > 0) && !std::isnan(layers_g_simp_[k-1][i][j]);
-
-                // 如果当前点是跨楼层连接点，则梯度设为0（平坦）
-                if (has_support_below) {
-                    trav_grad_x_[k][i][j] = 0.0f;
-                } else {
-                    // 否则正常计算x方向梯度
+                // // 检查当前点是否有下方支撑
+                // bool has_support_below = (k > 0) && !std::isnan(layers_g_simp_[k-1][i][j]);
+                //
+                // // 如果当前点是跨楼层连接点，则梯度设为0（平坦）
+                // if (has_support_below) {
+                //     trav_grad_x_[k][i][j] = 0.0f;
+                // } else {
+                //     // 否则正常计算x方向梯度
                     trav_grad_x_[k][i][j] = layers_t_simp_[k][i+1][j] - layers_t_simp_[k][i-1][j];
-                }
+                // }
             }
         }
 
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                // 检查当前点是否有下方支撑
-                bool has_support_below = (k > 0) && !std::isnan(layers_g_simp_[k-1][i][j]);
-
-                // 如果当前点是跨楼层连接点，则梯度设为0（平坦）
-                if (has_support_below) {
-                    trav_grad_y_[k][i][j] = 0.0f;
-                } else {
-                    // 否则正常计算y方向梯度
+                // // 检查当前点是否有下方支撑
+                // bool has_support_below = (k > 0) && !std::isnan(layers_g_simp_[k-1][i][j]);
+                //
+                // // 如果当前点是跨楼层连接点，则梯度设为0（平坦）
+                // if (has_support_below) {
+                //     trav_grad_y_[k][i][j] = 0.0f;
+                // } else {
+                //     // 否则正常计算y方向梯度
                     trav_grad_y_[k][i][j] = layers_t_simp_[k][i][j+1] - layers_t_simp_[k][i][j-1];
-                }
+                // }
             }
         }
     }
+
 
     RCLCPP_INFO(this->get_logger(), "Simplified to %zu layers", idx_simp_.size());
 }

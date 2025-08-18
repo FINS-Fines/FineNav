@@ -16,6 +16,7 @@ Planner::Planner(std::shared_ptr<Tomography> tomography,
 }
 
 nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const std::array<float, 2>& end) {
+    /********* 初始化 *********/
     nav_msgs::msg::Path path;
     path.header.frame_id = "map";
     path.header.stamp = clock_->now();
@@ -31,7 +32,7 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
                "Planning from (%d,%d)@%d to (%d,%d)@%d",
                start_x, start_y, start_layer, end_x, end_y, end_layer);
 
-    // A*算法实现
+    /********* A*算法实现 *********/
     std::priority_queue<path_node> open_set;
     std::unordered_map<int, std::unordered_map<int, std::unordered_map<int, bool>>> closed_set;
     std::unordered_map<int, std::unordered_map<int, std::unordered_map<int, float>>> g_score;
@@ -45,7 +46,7 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
         path_node current = open_set.top();
         open_set.pop();
 
-        // Check if we've reached the goal
+        // 情况1：找到目标 → 直接return，函数结束
         if (current.x == end_x && current.y == end_y && current.layer == end_layer) {
             std::vector<path_node> path_nodes;
             path_node node = current;
@@ -69,7 +70,7 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
                 }
                 node = came_from_[node.layer][node.x][node.y];
             }
-            // 转换为ROS Path
+            /********* 检查path的有效性 *********/
             nav_msgs::msg::Path valid_path;
             valid_path.header.frame_id = "map";
             valid_path.header.stamp = clock_->now(); // 必须设置有效时间戳
@@ -105,10 +106,9 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
             return valid_path;
         }
 
-        closed_set[current.layer][current.x][current.y] = true;
-
-        // Check 8-connected neighborhood
-        for (int dx = -1; dx <= 1; ++dx) {
+        // 情况2：继续搜索,Check 8-connected neighborhood
+        closed_set[current.layer][current.x][current.y] = true; // 标记已访问
+        for (int dx = -1; dx <= 1; ++dx) { // 水平方向遍历8邻域
             for (int dy = -1; dy <= 1; ++dy) {
                 if (dx == 0 && dy == 0) continue;
 
@@ -121,7 +121,7 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
                     continue;
                 }
 
-                // Check possible layer transitions
+                // Check possible layer transitions // 垂直方向遍历层级，允许上下跳一层
                 for (int layer_offset = -1; layer_offset <= 1; ++layer_offset) {
                     int nl = current.layer + layer_offset;
                     if (nl < 0 || nl >= tomography_->getNumSimplifiedLayers()) {
@@ -153,10 +153,12 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
                                       layer_change_cost + terrain_cost;
 
                     // Skip if we already have a better path
+                    // 检查这个邻居节点是否已经被完全处理过
                     if (closed_set[nl].count(nx) && closed_set[nl][nx].count(ny)) {
                         continue;
                     }
 
+                    // 验证从当前节点到邻居节点的移动是否符合机器人的物理限制
                     if (!isValidTransition(current, nx, ny, nl)) {
                         continue;
                     }
@@ -182,10 +184,15 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
         }
     }
 
+    // 情况3：搜索失败
     RCLCPP_WARN(rclcpp::get_logger("planner"), "No valid path found");
     return path;
 }
 
+/**
+ * @brief 根据二维的起始点和终点，找到所有层中start和end点代价最小的层
+ * @note 这种设计非常不合理，应当由机器人所在位置的高度决定起始层，由用户指定的目标高度决定终点层
+ */
 std::pair<int, int> Planner::findBestStartEndLayers(int start_x, int start_y, int end_x, int end_y) const {
     int best_start_layer = 0;
     int best_end_layer = 0;
@@ -202,7 +209,7 @@ std::pair<int, int> Planner::findBestStartEndLayers(int start_x, int start_y, in
             best_start_layer = l;
         }
 
-        if (end_cost < min_end_cost && isTraversable(end_x, end_y, l)) {
+        if (end_cost < min_end_cos  t && isTraversable(end_x, end_y, l)) {
             min_end_cost = end_cost;
             best_end_layer = l;
         }
@@ -248,6 +255,7 @@ float Planner::heuristic(int x1, int y1, int z1, int x2, int y2, int z2) const {
     return std::sqrt(dx*dx + dy*dy + dz*dz);
 }
 
+// 未测试
 bool Planner::isTraversable(int x, int y, int layer) const {
     if (layer < 0 || layer >= tomography_->getNumSimplifiedLayers() ||
         x < 0 || x >= tomography_->getMapDimX() ||
@@ -267,6 +275,7 @@ bool Planner::isTraversable(int x, int y, int layer) const {
     return cost_layer[x][y] < this->cfg_.traversal_cost_threshold ;
 }
 
+// 自己加的
 // 为四足设置的物理检查 未做代码适配
 bool Planner::isValidHeightChange(float from_height, float to_height, float horizontal_dist) const {
     float height_diff = std::abs(to_height - from_height);

@@ -84,6 +84,7 @@ private:
     float slice_h0_;
 
     // Map layers
+    // 三个维度，[层索引][X坐标][Y坐标]
     std::vector<std::vector<std::vector<float>>> layers_g_;  // Ground layers
     std::vector<std::vector<std::vector<float>>> layers_c_;  // Ceiling layers
     std::vector<std::vector<std::vector<float>>> grad_mag_sq_;  // Gradient magnitude squared
@@ -96,8 +97,8 @@ private:
     std::vector<std::vector<std::vector<float>>> layers_t_simp_;
     std::vector<std::vector<std::vector<float>>> layers_g_simp_;
     std::vector<std::vector<std::vector<float>>> layers_c_simp_;
-    std::vector<std::vector<std::vector<float>>> trav_grad_x_;
-    std::vector<std::vector<std::vector<float>>> trav_grad_y_;
+    std::vector<std::vector<std::vector<float>>> trav_grad_x_; // 简化后地图的代价变化梯度
+    std::vector<std::vector<std::vector<float>>> trav_grad_y_; // 简化后地图的代价变化梯度
 
     // Inflation table
     std::vector<std::vector<float>> inf_table_;
