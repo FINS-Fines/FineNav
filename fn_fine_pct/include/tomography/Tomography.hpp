@@ -17,11 +17,6 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <rclcpp/rclcpp.hpp>
-#include <tf2_ros/static_transform_broadcaster.h>
-
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <nav_msgs/msg/occupancy_grid.hpp>
-#include <geometry_msgs/msg/pose_array.hpp>
 
 #include "type_defs.hpp"
 
@@ -33,11 +28,6 @@ public:
     int getMapDimY() const { return map_dim_y_; }
     float getResolution() const { return config_.resolution; }
     const std::vector<float>& getCenter() const { return center_; }
-
-    // 添加常量定义
-    static constexpr inline float FLOAT_INFINITY = std::numeric_limits<float>::infinity();
-    static constexpr int8_t OCCUPIED = 100; // 完全障碍的整数值
-    static constexpr int8_t FREE = 0;       // 自由空间的整数值
 
 private:
     void loadPCD();
@@ -51,7 +41,7 @@ private:
     void computeTraversability();
     void inflateCosts();
     void simplifyLayers();
-    void publishStaticTransform();
+
     void publishCostmapAndGradients();
 
     TomographyConfig config_;  // Configuration parameters
@@ -77,20 +67,6 @@ private:
     std::string pcd_file_path_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 
-    // 发布
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_tomography_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_ground_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_ceiling_;
-    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_broadcaster_;
-    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr pub_costmap_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_gradients_;
-
-    // 添加发布方法
-
-    void publishTomographyResults();
-
-    // ROS 2组件
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

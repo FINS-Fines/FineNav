@@ -2,7 +2,6 @@
 
 Tomography::Tomography()
     : Node("pointcloud_tomography"),
-      tf_broadcaster_(std::make_shared<tf2_ros::StaticTransformBroadcaster>(this)),
       pcd_file_path_("../rsc/pcd/building.pcd"),
       cloud_(new pcl::PointCloud<pcl::PointXYZ>)
 {
@@ -38,32 +37,11 @@ Tomography::Tomography()
     config_.safe_margin = this->get_parameter("safe_margin").as_double();
     config_.inflation = this->get_parameter("inflation").as_double();
 
-    // 初始化发布器
-    pub_costmap_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("costmap", 10);
-    pub_gradients_ = this->create_publisher<geometry_msgs::msg::PoseArray>("gradients", 10);
-    pub_tomography_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        "tomography_results",
-        rclcpp::SensorDataQoS().reliable());
-
-    // 发布静态TF
-    publishStaticTransform();
-
     // 加载和处理数据
-    rclcpp::sleep_for(std::chrono::milliseconds(500));
     loadPCD();
     processPointCloud();
 }
 
-void Tomography::publishStaticTransform() {
-    geometry_msgs::msg::TransformStamped transform;
-    transform.header.stamp = this->now();
-    transform.header.frame_id = "map";
-    transform.child_frame_id = "base_link";
-    transform.transform.translation.z = 0.0;
-    transform.transform.rotation.w = 1.0;  // 有效的四元数
-    tf_broadcaster_->sendTransform(transform);
-    RCLCPP_INFO(this->get_logger(), "Static TF published: map → base_link");
-}
 
 void Tomography::loadPCD() {
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud_) == -1) {
@@ -77,43 +55,16 @@ void Tomography::loadPCD() {
 }
 
 void Tomography::processPointCloud() {
-    RCLCPP_INFO(this->get_logger(), "START::Tomography Processing");
+    RCLCPP_INFO(this->get_logger(), "START::Tomography Processing======================================");
 
-    // 1. 执行必要的数据处理流程
     initMappingEnv();          // 初始化地图环境
     point2map(cloud_);         // 点云投影到地图
     computeGradients();        // 计算梯度
     computeTraversability();   // 计算可通行性
     inflateCosts();            // 代价膨胀
     simplifyLayers();          // 图层简化
-
-    // // 2. 核心发布操作
-    // auto start_time = std::chrono::steady_clock::now();
-    //
-    // // 确保在发布前数据有效
-    // if (layers_g_simp_.empty() || map_dim_x_ <= 0 || map_dim_y_ <= 0) {
-    //     RCLCPP_ERROR(this->get_logger(), "Invalid data dimensions for publishing");
-    //     return;
-    // }
-    //
-    // // 执行发布
-    // try {
-    //     publishTomographyResults();
-    //     publishCostmapAndGradients();
-    //
-    //     auto end_time = std::chrono::steady_clock::now();
-    //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-    //
-    //     RCLCPP_DEBUG(this->get_logger(),
-    //                 "Publishing completed in %ld ms",
-    //                 duration.count());
-    // } catch (const std::exception& e) {
-    //     RCLCPP_ERROR(this->get_logger(),
-    //                 "Publishing failed: %s",
-    //                 e.what());
-    // }
-    //
-    // RCLCPP_INFO(this->get_logger(), "END::Tomography Processing======================================");
+    
+    RCLCPP_INFO(this->get_logger(), "END::Tomography Processing======================================");
 }
 
 /**
@@ -139,6 +90,7 @@ void Tomography::initMappingEnv() {
     // 初始化底涂层
     clearMap();
 
+    // TODO: 为什么膨胀查找表在这里？
     // Initialize inflation table
     // 预先构建代价膨胀查找表
     int half_inf_k_size = static_cast<int>((config_.safe_margin + config_.inflation) / config_.resolution);
@@ -160,7 +112,6 @@ void Tomography::initMappingEnv() {
 }
 
 void Tomography::clearMap() {
-    // 初始化主层数据
     layers_.clear();
     for (int s = 0; s < n_slice_init_; ++s) {
         TomographyLayer layer;
@@ -172,7 +123,6 @@ void Tomography::clearMap() {
         layers_.push_back(layer);
     }
 
-    // 初始化梯度和代价层
     grad_mag_sq_.clear();
     grad_mag_max_.clear();
     trav_cost_.clear();
@@ -402,150 +352,3 @@ void Tomography::simplifyLayers() {
     }
     RCLCPP_INFO(this->get_logger(), "Simplified to %zu layers", idx_simp_.size());
 }
-
-// void Tomography::publishTomographyResults() {
-//     // 1. 创建带颜色的点云
-//     pcl::PointCloud<pcl::PointXYZRGB> colored_cloud;
-//     colored_cloud.reserve(map_dim_x_ * map_dim_y_ * layers_g_simp_.size());
-//
-//     // 2. 填充点云数据（按高度着色）
-//     for (size_t k = 0; k < layers_g_simp_.size(); ++k) {
-//         // 分层着色
-//         float hue = static_cast<float>(k) / layers_g_simp_.size() * 360.0f;
-//
-//         // 将HSV转换为RGB (H:0-360, S:1.0, V:1.0)
-//         float c = 1.0f;
-//         float x = c * (1.0f - fabs(fmod(hue / 60.0f, 2.0f) - 1.0f));
-//         float m = 0.0f;
-//
-//         float r, g, b;
-//         if (hue < 60) {
-//             r = c; g = x; b = 0;
-//         } else if (hue < 120) {
-//             r = x; g = c; b = 0;
-//         } else if (hue < 180) {
-//             r = 0; g = c; b = x;
-//         } else if (hue < 240) {
-//             r = 0; g = x; b = c;
-//         } else if (hue < 300) {
-//             r = x; g = 0; b = c;
-//         } else {
-//             r = c; g = 0; b = x;
-//         }
-//
-//         // 转换为0-255范围
-//         uint8_t R = static_cast<uint8_t>((r + m) * 255);
-//         uint8_t G = static_cast<uint8_t>((g + m) * 255);
-//         uint8_t B = static_cast<uint8_t>((b + m) * 255);
-//
-//         for (int i = 0; i < map_dim_x_; ++i) {
-//             for (int j = 0; j < map_dim_y_; ++j) {
-//                 if (std::isnan(layers_g_simp_[k][i][j])) continue;
-//
-//                 pcl::PointXYZRGB point;
-//                 // 坐标转换
-//                 point.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
-//                 point.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
-//                 point.z = layers_g_simp_[k][i][j];
-//
-//                 // set color option
-//                 point.r = R;
-//                 point.g = G;
-//                 point.b = B;
-//
-//                 colored_cloud.push_back(point);
-//             }
-//         }
-//     }
-//
-//     // 3. 转换并发布点云
-//     sensor_msgs::msg::PointCloud2 output;
-//     pcl::toROSMsg(colored_cloud, output);
-//     output.header.frame_id = "map";  // 必须与TF一致
-//     output.header.stamp = this->now();
-//     pub_tomography_->publish(output);
-//
-//     RCLCPP_INFO(this->get_logger(), "Published %zu points to /tomography_results",
-//                colored_cloud.size());
-//
-//     const std::string pcd_path = "tomography_results.pcd";
-//     if (pcl::io::savePCDFileBinary(pcd_path, colored_cloud) == 0) {
-//         RCLCPP_INFO(this->get_logger(), "Successfully saved to %s", pcd_path.c_str());
-//     } else {
-//         RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file!");
-//     }
-// }
-//
-// void Tomography::publishCostmapAndGradients() {
-//     for (size_t layer = 0; layer < layers_g_simp_.size(); ++layer) {
-//         // 1. 发布代价地图
-//         nav_msgs::msg::OccupancyGrid costmap_msg;
-//         costmap_msg.header.frame_id = "map";
-//         costmap_msg.header.stamp = this->now();
-//         costmap_msg.info.resolution = cfg_.resolution;
-//         costmap_msg.info.width = map_dim_x_;
-//         costmap_msg.info.height = map_dim_y_;
-//         costmap_msg.info.origin.position.x = center_[0] - (map_dim_x_ / 2) * cfg_.resolution;
-//         costmap_msg.info.origin.position.y = center_[1] - (map_dim_y_ / 2) * cfg_.resolution;
-//         costmap_msg.info.origin.orientation.w = 1.0;
-//
-//         costmap_msg.data.resize(map_dim_x_ * map_dim_y_);
-//
-//         for (int i = 0; i < map_dim_x_; ++i) {
-//             for (int j = 0; j < map_dim_y_; ++j) {
-//                 // 检查是否为无效点
-//                 if (std::isnan(layers_g_simp_[layer][i][j])) {
-//                     costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
-//                 }
-//                 // 检查是否为无穷大代价（完全障碍）
-//                 else if (inflated_cost_[layer][i][j] >= FLOAT_INFINITY) {
-//                     costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
-//                 }
-//                 // 自由空间
-//                 else if (inflated_cost_[layer][i][j] <= 0.0f) {
-//                     costmap_msg.data[j * map_dim_x_ + i] = FREE;
-//                 }
-//                 // 正常代价范围
-//                 else {
-//                     costmap_msg.data[j * map_dim_x_ + i] = static_cast<int8_t>(
-//                         std::min(100.0f,
-//                                 inflated_cost_[layer][i][j] * 100 / cfg_.cost_barrier)
-//                     );
-//                 }
-//             }
-//         }
-//         pub_costmap_->publish(costmap_msg);
-//
-//         // 2. 发布梯度（仅处理有效点）
-//         geometry_msgs::msg::PoseArray gradients_msg;
-//         gradients_msg.header = costmap_msg.header;
-//
-//         for (int i = 1; i < map_dim_x_ - 1; ++i) {
-//             for (int j = 1; j < map_dim_y_ - 1; ++j) {
-//                 // 跳过无效点和无穷大代价点
-//                 if (std::isnan(layers_g_simp_[layer][i][j])) {
-//                     continue;
-//                 }
-//
-//                 // 检查是否为可通行区域
-//                 if (inflated_cost_[layer][i][j] < cfg_.cost_barrier * 0.5f) {
-//                     geometry_msgs::msg::Pose pose;
-//                     pose.position.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
-//                     pose.position.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
-//                     pose.position.z = layers_g_simp_[layer][i][j];
-//
-//                     pose.orientation.x = trav_grad_x_[layer][i][j];
-//                     pose.orientation.y = trav_grad_y_[layer][i][j];
-//                     pose.orientation.z = 0;
-//                     pose.orientation.w = 1.0;
-//
-//                     gradients_msg.poses.push_back(pose);
-//                 }
-//             }
-//         }
-//         pub_gradients_->publish(gradients_msg);
-//
-//         // 添加延迟避免数据拥堵
-//         rclcpp::sleep_for(std::chrono::milliseconds(10));
-//     }
-// }
