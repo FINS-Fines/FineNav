@@ -553,18 +553,4 @@ void Tomography::simplifyLayers() {
 //     }
 // }
 
-float Tomography::getGroundHeight(int layer, int x, int y) const {
-    if (layer >= 0 && layer < static_cast<int>(layers_g_simp_.size()) &&
-        x >= 0 && x < map_dim_x_ && y >= 0 && y < map_dim_y_) {
-        return layers_g_simp_[layer][x][y];
-        }
-    return NAN;
-}
 
-float Tomography::getInflatedCost(int layer, int x, int y) const {
-    if (layer >= 0 && layer < static_cast<int>(inflated_cost_.size()) &&
-        x >= 0 && x < map_dim_x_ && y >= 0 && y < map_dim_y_) {
-        return inflated_cost_[layer][x][y];
-        }
-    return std::numeric_limits<float>::max();
-}

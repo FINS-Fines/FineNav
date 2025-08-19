@@ -57,25 +57,10 @@ class Tomography : public rclcpp::Node {
 public:
     Tomography() ;
 
-    float getGroundHeight(int layer, int x, int y) const;
     int getMapDimX() const { return map_dim_x_; }
     int getMapDimY() const { return map_dim_y_; }
-    const std::vector<float>& getCenter() const { return center_; }
     float getResolution() const { return cfg_.resolution; }
-    float getInflatedCost(int layer, int x, int y) const;
-    const TomographyConfig& getConfig() const { return cfg_; }
-    int getNumLayers() const { return layers_g_simp_.size(); }
-
-    // 添加获取简化层数据的方法
-    const std::vector<std::vector<std::vector<float>>>& getSimplifiedCostLayers() const {
-        return layers_t_simp_;
-    }
-    const std::vector<std::vector<std::vector<float>>>& getSimplifiedHeightLayers() const {
-        return layers_g_simp_;
-    }
-    int getNumSimplifiedLayers() const {
-        return idx_simp_.size();
-    }
+    const std::vector<float>& getCenter() const { return center_; }
 
     // 添加常量定义
     static constexpr inline float FLOAT_INFINITY = std::numeric_limits<float>::infinity();
@@ -108,11 +93,10 @@ private:
     float slice_h0_;
 
     // Map layers
-    // 三个维度，[层索引][X坐标][Y坐标]
-    // std::vector<std::vector<std::vector<float>>> layers_g_;  // Ground layers
-    // std::vector<std::vector<std::vector<float>>> layers_c_;  // Ceiling layers
+    // 输出的东西
     std::vector<TomographyLayer> layers_;
 
+    // 内部暂存的东西
     std::vector<Layer> grad_mag_sq_;  // Gradient magnitude squared
     std::vector<Layer> grad_mag_max_;  // Max gradient component
     std::vector<Layer>  trav_cost_;     // Traversability cost
@@ -123,8 +107,6 @@ private:
     std::vector<Layer>  layers_t_simp_;
     std::vector<Layer> layers_g_simp_;
     std::vector<Layer> layers_c_simp_;
-    // std::vector<std::vector<std::vector<float>>> trav_grad_x_; // 简化后地图的代价变化梯度
-    // std::vector<std::vector<std::vector<float>>> trav_grad_y_; // 简化后地图的代价变化梯度
 
     // Inflation table
     std::vector<std::vector<float>> inf_table_; // 离线存储的膨胀表
