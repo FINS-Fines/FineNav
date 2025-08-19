@@ -2,7 +2,9 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
-#pragma once
+#ifndef FINENAV2D_TOMOGRAPHY_HPP
+#define FINENAV2D_TOMOGRAPHY_HPP
+
 #include <string>
 #include <vector>
 #include <limits>
@@ -21,38 +23,7 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 
-/**
- *  @brief tomography算法参数配置
- *  @details 在Tomography初始化时从ROS2参数服务器读取
- */
-struct TomographyConfig {
-    float resolution = 0.1f;       // Map resolution (meters)
-    float slice_dh = 0.5f;         // Height interval between slices // TODO: 它是如何影响的
-    float ground_h = 0.0f;         // Ground height
-    int half_kernel_size = 7;      // Traversal kernel half-size
-    float interval_min = 0.50f;     // Minimum traversable interval
-    float interval_free = 0.65f;    // Free space interval
-    float slope_max = 0.36f;      // Maximum traversable slope (degrees)
-    float step_max = 0.17f;         // Maximum step height
-    float standable_ratio = 0.2f;  // Ratio of standable points required
-    float cost_barrier = 50.0f;  // Cost for non-traversable areas
-    float safe_margin = 0.4f;      // Safe margin around obstacles // TODO:硬安全边界?
-    float inflation = 0.2f;        // Inflation radius // TODO:膨胀层？
-};
-
-using Layer = Eigen::MatrixXf;
-
-/**
- *  @brief tomography算法输出的数据结构
- */
-struct TomographyLayer {
-    Layer trav_cost; // Traversability cost layer
-    Layer trav_grad_x; // Traversability gradient in x direction
-    Layer trav_grad_y; // Traversability gradient in y direction
-    Layer ground; // ground layer
-    Layer ceiling; // ceiling layer
-};
-
+#include "type_defs.hpp"
 
 class Tomography : public rclcpp::Node {
 public:
@@ -130,3 +101,5 @@ private:
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+#endif // FINENAV2D_TOMOGRAPHY_HPP
