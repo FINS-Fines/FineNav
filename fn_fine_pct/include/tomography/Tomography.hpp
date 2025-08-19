@@ -128,6 +128,4 @@ private:
 
     // ROS 2组件
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
-
-    bool hasGroundBelow(int layer, int x, int y) const;
 };
