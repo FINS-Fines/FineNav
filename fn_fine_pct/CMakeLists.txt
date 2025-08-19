@@ -36,6 +36,10 @@ ament_auto_add_executable(planner_node
         src/planner/Planner_cp.cpp
 )
 
+ament_auto_add_executable(fn_global_planner_node
+        src/planner/pct_planner.cpp
+)
+
 target_include_directories(planner_node PRIVATE include/planner)
 target_link_libraries(planner_node lib_tomography)
 
