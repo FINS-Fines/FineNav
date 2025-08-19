@@ -21,13 +21,6 @@
 #include <geometry_msgs/msg/pose_array.hpp>
 
 
-struct CostmapLayer {
-    std::vector<std::vector<float>> costs;
-    float min_height;
-    float max_height;
-};
-
-
 struct TomographyConfig {
     float resolution = 0.1f;       // Map resolution (meters)
     float slice_dh = 0.5f;         // Height interval between slices // TODO: 它是如何影响的
@@ -47,7 +40,7 @@ class Tomography : public rclcpp::Node {
 public:
     Tomography() ;
 
-    // communicate to planner
+
     float getGroundHeight(int layer, int x, int y) const;
     int getMapDimX() const { return map_dim_x_; }
     int getMapDimY() const { return map_dim_y_; }
@@ -74,9 +67,6 @@ public:
     static constexpr int8_t OCCUPIED = 100; // 完全障碍的整数值
     static constexpr int8_t FREE = 0;       // 自由空间的整数值
 
-    const std::vector<CostmapLayer>& getAllCostmapLayers() const {
-        return costmap_layers_;
-    }
 private:
     void loadPCD();
     void processPointCloud();
@@ -124,8 +114,6 @@ private:
 
     // point_cloud_config
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
-
-    std::vector<CostmapLayer> costmap_layers_;
 
     // 发布
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_tomography_;

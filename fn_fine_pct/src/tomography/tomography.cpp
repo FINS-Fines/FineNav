@@ -87,15 +87,6 @@ void Tomography::processPointCloud() {
     inflateCosts();            // 代价膨胀
     simplifyLayers();          // 图层简化
 
-    costmap_layers_.clear();
-    for (size_t k = 0; k < idx_simp_.size(); ++k) {
-        CostmapLayer layer;
-        layer.costs = layers_t_simp_[k];
-        layer.min_height = slice_h0_ + idx_simp_[k] * cfg_.slice_dh;
-        layer.max_height = layer.min_height + cfg_.slice_dh;
-        costmap_layers_.push_back(layer);
-    }
-
     // 2. 核心发布操作
     auto start_time = std::chrono::steady_clock::now();
 
