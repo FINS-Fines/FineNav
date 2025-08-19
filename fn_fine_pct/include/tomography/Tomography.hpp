@@ -46,6 +46,7 @@ using Layer = Eigen::MatrixXf;
  *  @brief tomography算法输出的数据结构
  */
 struct TomographyLayer {
+    Layer trav_cost; // Traversability cost layer
     Layer trav_grad_x; // Traversability gradient in x direction
     Layer trav_grad_y; // Traversability gradient in y direction
     Layer ground; // ground layer
@@ -104,9 +105,6 @@ private:
 
     // Simplified layers
     std::vector<int> idx_simp_;
-    std::vector<Layer>  layers_t_simp_;
-    std::vector<Layer> layers_g_simp_;
-    std::vector<Layer> layers_c_simp_;
 
     // Inflation table
     std::vector<std::vector<float>> inf_table_; // 离线存储的膨胀表

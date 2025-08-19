@@ -87,33 +87,33 @@ void Tomography::processPointCloud() {
     inflateCosts();            // 代价膨胀
     simplifyLayers();          // 图层简化
 
-    // 2. 核心发布操作
-    auto start_time = std::chrono::steady_clock::now();
-
-    // 确保在发布前数据有效
-    if (layers_g_simp_.empty() || map_dim_x_ <= 0 || map_dim_y_ <= 0) {
-        RCLCPP_ERROR(this->get_logger(), "Invalid data dimensions for publishing");
-        return;
-    }
-
-    // 执行发布
-    try {
-        publishTomographyResults();
-        publishCostmapAndGradients();
-
-        auto end_time = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-
-        RCLCPP_DEBUG(this->get_logger(),
-                    "Publishing completed in %ld ms",
-                    duration.count());
-    } catch (const std::exception& e) {
-        RCLCPP_ERROR(this->get_logger(),
-                    "Publishing failed: %s",
-                    e.what());
-    }
-
-    RCLCPP_INFO(this->get_logger(), "END::Tomography Processing======================================");
+    // // 2. 核心发布操作
+    // auto start_time = std::chrono::steady_clock::now();
+    //
+    // // 确保在发布前数据有效
+    // if (layers_g_simp_.empty() || map_dim_x_ <= 0 || map_dim_y_ <= 0) {
+    //     RCLCPP_ERROR(this->get_logger(), "Invalid data dimensions for publishing");
+    //     return;
+    // }
+    //
+    // // 执行发布
+    // try {
+    //     publishTomographyResults();
+    //     publishCostmapAndGradients();
+    //
+    //     auto end_time = std::chrono::steady_clock::now();
+    //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    //
+    //     RCLCPP_DEBUG(this->get_logger(),
+    //                 "Publishing completed in %ld ms",
+    //                 duration.count());
+    // } catch (const std::exception& e) {
+    //     RCLCPP_ERROR(this->get_logger(),
+    //                 "Publishing failed: %s",
+    //                 e.what());
+    // }
+    //
+    // RCLCPP_INFO(this->get_logger(), "END::Tomography Processing======================================");
 }
 
 /**
@@ -164,6 +164,7 @@ void Tomography::clearMap() {
     layers_.clear();
     for (int s = 0; s < n_slice_init_; ++s) {
         TomographyLayer layer;
+        layer.trav_cost = Layer::Zero(map_dim_x_, map_dim_y_);
         layer.trav_grad_x = Layer::Zero(map_dim_x_, map_dim_y_);
         layer.trav_grad_y = Layer::Zero(map_dim_x_, map_dim_y_);
         layer.ground = Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::lowest());
@@ -182,11 +183,6 @@ void Tomography::clearMap() {
         trav_cost_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
         inflated_cost_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
     }
-
-    // 清空简化层，后续由 simplifyLayers() 重新分配
-    layers_g_simp_.clear();
-    layers_t_simp_.clear();
-    layers_c_simp_.clear();
 }
 
 /**
@@ -216,7 +212,7 @@ void Tomography::point2map(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud) {
         for (int s_idx = 0; s_idx < n_slice_init_; ++s_idx) {
             float slice = slice_h0_ + s_idx * cfg_.slice_dh;
             if (point.z <= slice) {
-                layers_[s_idx].ground(idx_x,idx_y) = std::max(layers_[s_idx].ground(idx_x,idx_y) point.z);
+                layers_[s_idx].ground(idx_x,idx_y) = std::max(layers_[s_idx].ground(idx_x,idx_y), point.z);
             } else {
                 layers_[s_idx].ceiling(idx_x,idx_y) = std::min(layers_[s_idx].ceiling(idx_x,idx_y), point.z);
             }
@@ -371,35 +367,36 @@ void Tomography::simplifyLayers() {
         idx_simp_.push_back(m_idx);
     }
 
-    // 分配简化层
+    // 直接在原有layers_中更新简化层数据
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
-        int s = idx_simp_[k];
-        layers_t_simp_.emplace_back(inflated_cost_[s]);
-        Layer g_layer(map_dim_x_, map_dim_y_);
-        Layer c_layer(map_dim_x_, map_dim_y_);
+        int s = idx_simp_[k];   // unique layer index
+
+        // 更新 trav_cost
+        layers_[k].trav_cost = inflated_cost_[s];
+
+        // 更新 ground 和 ceiling，处理无效值
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
                 float g_val = layers_[s].ground(i, j);
                 float c_val = layers_[s].ceiling(i, j);
-                g_layer(i, j) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
-                c_layer(i, j) = (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
+                layers_[k].ground(i, j) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
+                layers_[k].ceiling(i, j) = (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
             }
         }
-        layers_g_simp_.emplace_back(g_layer);
-        layers_c_simp_.emplace_back(c_layer);
     }
+    // 移除多余的层，只保留简化后的层
+    layers_.resize(idx_simp_.size());
 
     // Compute gradients for simplified layers
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
-        for (int i = 1; i < map_dim_x_ - 1; ++i) {
+        for (int i = 1; i < map_dim_x_ - 1; ++i) { // x方向梯度
             for (int j = 0; j < map_dim_y_; ++j) {
-                    layers_[k].trav_grad_x(i, j) = layers_t_simp_[k](i+1, j) - layers_t_simp_[k](i-1,j);
+                    layers_[k].trav_grad_x(i, j) =  layers_[k].trav_cost(i+1, j) -  layers_[k].trav_cost(i-1,j);
             }
         }
-
-        for (int i = 0; i < map_dim_x_; ++i) {
+        for (int i = 0; i < map_dim_x_; ++i) { // y方向梯度
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                     layers_[k].trav_grad_x(i, j) = layers_t_simp_[k](i,j+1) - layers_t_simp_[k](i,j-1);
+                     layers_[k].trav_grad_x(i, j) =  layers_[k].trav_cost(i,j+1) -  layers_[k].trav_cost(i,j-1);
             }
         }
     }
@@ -552,5 +549,3 @@ void Tomography::simplifyLayers() {
 //         rclcpp::sleep_for(std::chrono::milliseconds(10));
 //     }
 // }
-
-
