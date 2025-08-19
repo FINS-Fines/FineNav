@@ -1,22 +1,27 @@
+// Copyright (c) 2025.
+// IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
+// All rights reserved.
+
 #pragma once
+#include <string>
+#include <vector>
+
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
+
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/static_transform_broadcaster.h>
+
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
+#include <geometry_msgs/msg/pose_array.hpp>
+
+#include "TomographyConfig.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <string>
-#include <vector>
-#include "nav_msgs/msg/occupancy_grid.hpp"
-#include "TomographyConfig.hpp"
-#include "geometry_msgs/msg/pose_array.hpp"
-#include "Config.hpp"
-#include "pcl/point_cloud.h"
-#include "pcl/point_types.h"
-#include <tf2_ros/static_transform_broadcaster.h>
-#include "rclcpp/rclcpp.hpp"
-#include "sensor_msgs/msg/point_cloud2.hpp"
 
 struct CostmapLayer {
     std::vector<std::vector<float>> costs;

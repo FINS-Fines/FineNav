@@ -1,9 +1,11 @@
-#include "fn_fine_pct/Planner.hpp"
 #include <queue>
 #include <unordered_map>
 #include <cmath>
-#include "fn_fine_pct/PlannerConfig.hpp"
 #include <algorithm>
+
+#include "PlannerConfig.hpp"
+#include "Planner.hpp"
+
 
 Planner::Planner(std::shared_ptr<Tomography> tomography,
                         const PlannerConfig::Params& cfg,
@@ -209,7 +211,7 @@ std::pair<int, int> Planner::findBestStartEndLayers(int start_x, int start_y, in
             best_start_layer = l;
         }
 
-        if (end_cost < min_end_cos  t && isTraversable(end_x, end_y, l)) {
+        if (end_cost < min_end_cost && isTraversable(end_x, end_y, l)) {
             min_end_cost = end_cost;
             best_end_layer = l;
         }

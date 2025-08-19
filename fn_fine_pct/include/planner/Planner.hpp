@@ -1,9 +1,15 @@
+// Copyright (c) 2025.
+// IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
+// All rights reserved.
+
 #pragma once
-#include "Tomography.hpp"
-#include <nav_msgs/msg/path.hpp>
-#include "PlannerConfig.hpp"
+
 #include <vector>
 #include <utility>
+#include <nav_msgs/msg/path.hpp>
+#include "Tomography.hpp"
+
+#include "PlannerConfig.hpp"
 
 struct NodeCost {
     float traversal_cost;
