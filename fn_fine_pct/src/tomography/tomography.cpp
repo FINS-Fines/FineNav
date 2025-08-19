@@ -280,13 +280,6 @@ void Tomography::computeTraversability() {
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
 
-                // 检查下方是否有地面，有的话就能踩
-                // TODO: szl自己加的，可以删
-                // if (s > 0 && hasGroundBelow(s, i, j)) {
-                //     trav_cost_[s][i][j] = 0.0f; // 设置为自由空间
-                //     continue;
-                // }
-
                 float interval = layers_c_[s][i][j] - layers_g_[s][i][j];
 
                 // Check minimum interval
@@ -409,7 +402,6 @@ void Tomography::simplifyLayers() {
     }
 
     // Prepare simplified layers
-    // TODO: 实在不懂为什么这里要出现这些东西，原算法里似乎根本没有用到？？？
     layers_t_simp_.resize(idx_simp_.size(),
         std::vector<std::vector<float>>(map_dim_x_,
             std::vector<float>(map_dim_y_, 0.0f)));
@@ -440,36 +432,17 @@ void Tomography::simplifyLayers() {
         }
     }
 
-    // TODO:szl自己加的，可以删除
     // Compute gradients for simplified layers
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
         for (int i = 1; i < map_dim_x_ - 1; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                // // 检查当前点是否有下方支撑
-                // bool has_support_below = (k > 0) && !std::isnan(layers_g_simp_[k-1][i][j]);
-                //
-                // // 如果当前点是跨楼层连接点，则梯度设为0（平坦）
-                // if (has_support_below) {
-                //     trav_grad_x_[k][i][j] = 0.0f;
-                // } else {
-                //     // 否则正常计算x方向梯度
                     trav_grad_x_[k][i][j] = layers_t_simp_[k][i+1][j] - layers_t_simp_[k][i-1][j];
-                // }
             }
         }
 
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                // // 检查当前点是否有下方支撑
-                // bool has_support_below = (k > 0) && !std::isnan(layers_g_simp_[k-1][i][j]);
-                //
-                // // 如果当前点是跨楼层连接点，则梯度设为0（平坦）
-                // if (has_support_below) {
-                //     trav_grad_y_[k][i][j] = 0.0f;
-                // } else {
-                //     // 否则正常计算y方向梯度
                     trav_grad_y_[k][i][j] = layers_t_simp_[k][i][j+1] - layers_t_simp_[k][i][j-1];
-                // }
             }
         }
     }
@@ -639,11 +612,4 @@ float Tomography::getInflatedCost(int layer, int x, int y) const {
         return inflated_cost_[layer][x][y];
         }
     return std::numeric_limits<float>::max();
-}
-
-bool Tomography::hasGroundBelow(int layer, int x, int y) const {
-    if (layer <= 0) return false; // 最底层没有下方楼层
-
-    // 检查下方楼层对应位置是否有有效地面
-    return !std::isnan(layers_g_[layer-1][x][y]);
 }
