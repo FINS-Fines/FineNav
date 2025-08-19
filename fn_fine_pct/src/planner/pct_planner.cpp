@@ -59,23 +59,23 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
 
 void PctPlanner::initPlanner() const {
     // 加载PCD文件
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud_) == -1) {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
         RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
         rclcpp::shutdown();
         return;
     }
-    RCLCPP_INFO_STREAM(this->get_logger(), "Loaded PCD file: " << pcd_file_path_ << " with " << cloud_->size() << " points");
+    RCLCPP_INFO_STREAM(this->get_logger(), "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
 
     // voxel滤波
     pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
-    voxel_filter.setInputCloud(cloud_);
+    voxel_filter.setInputCloud(cloud);
     voxel_filter.setLeafSize(0.1f, 0.1f, 0.1f); // 设置体素大小
-    voxel_filter.filter(*cloud_);
-    RCLCPP_INFO_STREAM(this->get_logger(), "Filtered cloud has " << cloud_->size() << " points");
+    voxel_filter.filter(*cloud);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Filtered cloud has " << cloud->size() << " points");
 
     // 执行tomography流程
-    tomography_->setInputCloud(cloud_);
+    tomography_->setInputCloud(cloud);
     tomography_->startAlgorithm();
     // auto tomography_layers = tomography_->getOutputLayers();
 
