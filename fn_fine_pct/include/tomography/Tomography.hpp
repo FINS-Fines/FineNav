@@ -16,13 +16,11 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-#include <rclcpp/rclcpp.hpp>
-
 #include "type_defs.hpp"
 
-class Tomography : public rclcpp::Node {
+class Tomography{
 public:
-    Tomography() ;
+    Tomography(const TomographyConfig &config = TomographyConfig());
 
     int getMapDimX() const { return map_dim_x_; }
     int getMapDimY() const { return map_dim_y_; }

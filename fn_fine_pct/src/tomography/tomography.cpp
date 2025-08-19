@@ -1,41 +1,12 @@
+#include <iostream>
 #include "Tomography.hpp"
 
-Tomography::Tomography()
-    : Node("pointcloud_tomography"),
-      pcd_file_path_("../rsc/pcd/building.pcd"),
-      cloud_(new pcl::PointCloud<pcl::PointXYZ>)
+Tomography::Tomography(const TomographyConfig &config)
+      // pcd_file_path_("../rsc/pcd/building.pcd"),
+      // cloud_(new pcl::PointCloud<pcl::PointXYZ>)
 {
-    // 文件路径参数
-    this->declare_parameter("pcd_file_path", pcd_file_path_);
-    pcd_file_path_ = this->get_parameter("pcd_file_path").as_string();
-
-    // 算法参数声明和获取
-    this->declare_parameter("resolution", config_.resolution);
-    this->declare_parameter("slice_dh", config_.slice_dh);
-    this->declare_parameter("ground_h", config_.ground_h);
-    this->declare_parameter("half_kernel_size", config_.half_kernel_size);
-    this->declare_parameter("interval_min", config_.interval_min);
-    this->declare_parameter("interval_free", config_.interval_free);
-    this->declare_parameter("slope_max", config_.slope_max);
-    this->declare_parameter("step_max", config_.step_max);
-    this->declare_parameter("standable_ratio", config_.standable_ratio);
-    this->declare_parameter("cost_barrier", config_.cost_barrier);
-    this->declare_parameter("safe_margin", config_.safe_margin);
-    this->declare_parameter("inflation", config_.inflation);
-
-    // 获取参数值
-    config_.resolution = this->get_parameter("resolution").as_double();
-    config_.slice_dh = this->get_parameter("slice_dh").as_double();
-    config_.ground_h = this->get_parameter("ground_h").as_double();
-    config_.half_kernel_size = this->get_parameter("half_kernel_size").as_int();
-    config_.interval_min = this->get_parameter("interval_min").as_double();
-    config_.interval_free = this->get_parameter("interval_free").as_double();
-    config_.slope_max = this->get_parameter("slope_max").as_double();
-    config_.step_max = this->get_parameter("step_max").as_double();
-    config_.standable_ratio = this->get_parameter("standable_ratio").as_double();
-    config_.cost_barrier = this->get_parameter("cost_barrier").as_double();
-    config_.safe_margin = this->get_parameter("safe_margin").as_double();
-    config_.inflation = this->get_parameter("inflation").as_double();
+    // 初始化配置
+    config_ = config;
 
     // 加载和处理数据
     loadPCD();
@@ -45,17 +16,15 @@ Tomography::Tomography()
 
 void Tomography::loadPCD() {
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud_) == -1) {
-        RCLCPP_ERROR(this->get_logger(), "Couldn't read PCD file: %s",
-                    pcd_file_path_.c_str());
-        rclcpp::shutdown();
+        std::cerr << "Couldn't read PCD file: " << pcd_file_path_ << std::endl;
         return;
     }
-    RCLCPP_INFO(this->get_logger(), "Loaded PCD file: %s with %ld points",
-               pcd_file_path_.c_str(), cloud_->size());
+    std::cout << "Loaded PCD file: " << pcd_file_path_ << std::endl;
+    // TODO: 应该提前根据分辨率voxel滤波
 }
 
 void Tomography::processPointCloud() {
-    RCLCPP_INFO(this->get_logger(), "START::Tomography Processing======================================");
+    std::cout << "[Tomography] Process Start." << std::endl;
 
     initMappingEnv();          // 初始化地图环境
     point2map(cloud_);         // 点云投影到地图
@@ -64,7 +33,7 @@ void Tomography::processPointCloud() {
     inflateCosts();            // 代价膨胀
     simplifyLayers();          // 图层简化
     
-    RCLCPP_INFO(this->get_logger(), "END::Tomography Processing======================================");
+   std::cout << "[Tomography] Process Finished." << std::endl;
 }
 
 /**
@@ -107,8 +76,10 @@ void Tomography::initMappingEnv() {
         }
     }
 
-    RCLCPP_INFO(this->get_logger(), "Map initialized. Dim_x: %d, Dim_y: %d, Slices: %d",
-        map_dim_x_, map_dim_y_, n_slice_init_);
+    std::cout << "[Tomography] Map initialized."
+            << " Dim_x: " << map_dim_x_
+            << ", Dim_y: " << map_dim_y_
+            << ", Slices: " << n_slice_init_ << std::endl;
 }
 
 void Tomography::clearMap() {
@@ -350,5 +321,5 @@ void Tomography::simplifyLayers() {
             }
         }
     }
-    RCLCPP_INFO(this->get_logger(), "Simplified to %zu layers", idx_simp_.size());
+    std::cout << "[Tomography] Simplified layers num: " << idx_simp_.size() << std::endl;
 }
