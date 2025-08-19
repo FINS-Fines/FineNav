@@ -31,7 +31,7 @@ public:
 
     int getMapDimX() const { return map_dim_x_; }
     int getMapDimY() const { return map_dim_y_; }
-    float getResolution() const { return cfg_.resolution; }
+    float getResolution() const { return config_.resolution; }
     const std::vector<float>& getCenter() const { return center_; }
 
     // 添加常量定义
@@ -54,10 +54,9 @@ private:
     void publishStaticTransform();
     void publishCostmapAndGradients();
 
-    // PCD文件路径
-    std::string pcd_file_path_;
+    TomographyConfig config_;  // Configuration parameters
 
-    // Map data
+    // Map metadata
     std::vector<float> center_;
     int map_dim_x_;
     int map_dim_y_;
@@ -65,22 +64,17 @@ private:
     float slice_h0_;
 
     // Map layers
-    // 输出的东西
     std::vector<TomographyLayer> layers_;
 
     // 内部暂存的东西
     std::vector<Layer> grad_mag_sq_;  // Gradient magnitude squared
     std::vector<Layer> grad_mag_max_;  // Max gradient component
-    std::vector<Layer>  trav_cost_;     // Traversability cost
+    std::vector<Layer> trav_cost_;     // Traversability cost
     std::vector<Layer> inflated_cost_; // Inflated cost
-
-    // Simplified layers
-    std::vector<int> idx_simp_;
-
-    // Inflation table
     std::vector<std::vector<float>> inf_table_; // 离线存储的膨胀表
 
-    // point_cloud_config
+    // PCD文件路径
+    std::string pcd_file_path_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 
     // 发布
@@ -92,7 +86,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_gradients_;
 
     // 添加发布方法
-    TomographyConfig cfg_;  // Configuration parameters
+
     void publishTomographyResults();
 
     // ROS 2组件

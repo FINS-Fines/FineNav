@@ -11,32 +11,32 @@ Tomography::Tomography()
     pcd_file_path_ = this->get_parameter("pcd_file_path").as_string();
 
     // 算法参数声明和获取
-    this->declare_parameter("resolution", cfg_.resolution);
-    this->declare_parameter("slice_dh", cfg_.slice_dh);
-    this->declare_parameter("ground_h", cfg_.ground_h);
-    this->declare_parameter("half_kernel_size", cfg_.half_kernel_size);
-    this->declare_parameter("interval_min", cfg_.interval_min);
-    this->declare_parameter("interval_free", cfg_.interval_free);
-    this->declare_parameter("slope_max", cfg_.slope_max);
-    this->declare_parameter("step_max", cfg_.step_max);
-    this->declare_parameter("standable_ratio", cfg_.standable_ratio);
-    this->declare_parameter("cost_barrier", cfg_.cost_barrier);
-    this->declare_parameter("safe_margin", cfg_.safe_margin);
-    this->declare_parameter("inflation", cfg_.inflation);
+    this->declare_parameter("resolution", config_.resolution);
+    this->declare_parameter("slice_dh", config_.slice_dh);
+    this->declare_parameter("ground_h", config_.ground_h);
+    this->declare_parameter("half_kernel_size", config_.half_kernel_size);
+    this->declare_parameter("interval_min", config_.interval_min);
+    this->declare_parameter("interval_free", config_.interval_free);
+    this->declare_parameter("slope_max", config_.slope_max);
+    this->declare_parameter("step_max", config_.step_max);
+    this->declare_parameter("standable_ratio", config_.standable_ratio);
+    this->declare_parameter("cost_barrier", config_.cost_barrier);
+    this->declare_parameter("safe_margin", config_.safe_margin);
+    this->declare_parameter("inflation", config_.inflation);
 
     // 获取参数值
-    cfg_.resolution = this->get_parameter("resolution").as_double();
-    cfg_.slice_dh = this->get_parameter("slice_dh").as_double();
-    cfg_.ground_h = this->get_parameter("ground_h").as_double();
-    cfg_.half_kernel_size = this->get_parameter("half_kernel_size").as_int();
-    cfg_.interval_min = this->get_parameter("interval_min").as_double();
-    cfg_.interval_free = this->get_parameter("interval_free").as_double();
-    cfg_.slope_max = this->get_parameter("slope_max").as_double();
-    cfg_.step_max = this->get_parameter("step_max").as_double();
-    cfg_.standable_ratio = this->get_parameter("standable_ratio").as_double();
-    cfg_.cost_barrier = this->get_parameter("cost_barrier").as_double();
-    cfg_.safe_margin = this->get_parameter("safe_margin").as_double();
-    cfg_.inflation = this->get_parameter("inflation").as_double();
+    config_.resolution = this->get_parameter("resolution").as_double();
+    config_.slice_dh = this->get_parameter("slice_dh").as_double();
+    config_.ground_h = this->get_parameter("ground_h").as_double();
+    config_.half_kernel_size = this->get_parameter("half_kernel_size").as_int();
+    config_.interval_min = this->get_parameter("interval_min").as_double();
+    config_.interval_free = this->get_parameter("interval_free").as_double();
+    config_.slope_max = this->get_parameter("slope_max").as_double();
+    config_.step_max = this->get_parameter("step_max").as_double();
+    config_.standable_ratio = this->get_parameter("standable_ratio").as_double();
+    config_.cost_barrier = this->get_parameter("cost_barrier").as_double();
+    config_.safe_margin = this->get_parameter("safe_margin").as_double();
+    config_.inflation = this->get_parameter("inflation").as_double();
 
     // 初始化发布器
     pub_costmap_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("costmap", 10);
@@ -126,14 +126,14 @@ void Tomography::initMappingEnv() {
     pcl::getMinMax3D(*cloud_, min_pt, max_pt);
 
     // Set ground height
-    min_pt.z = cfg_.ground_h;
+    min_pt.z = config_.ground_h;
 
     // Calculate map dimensions
     center_ = { (max_pt.x + min_pt.x) / 2.0f, (max_pt.y + min_pt.y) / 2.0f };
-    map_dim_x_ = static_cast<int>(std::ceil((max_pt.x - min_pt.x) / cfg_.resolution) + 4);
-    map_dim_y_ = static_cast<int>(std::ceil((max_pt.y - min_pt.y) / cfg_.resolution) + 4);
-    n_slice_init_ = static_cast<int>(std::ceil((max_pt.z - min_pt.z) / cfg_.slice_dh)); // 初始化时候，切片为n_slice_init_
-    slice_h0_ = min_pt.z + cfg_.slice_dh; // 第一个切片h0的高度
+    map_dim_x_ = static_cast<int>(std::ceil((max_pt.x - min_pt.x) / config_.resolution) + 4);
+    map_dim_y_ = static_cast<int>(std::ceil((max_pt.y - min_pt.y) / config_.resolution) + 4);
+    n_slice_init_ = static_cast<int>(std::ceil((max_pt.z - min_pt.z) / config_.slice_dh)); // 初始化时候，切片为n_slice_init_
+    slice_h0_ = min_pt.z + config_.slice_dh; // 第一个切片h0的高度
 
     // Initialize buffers
     // 初始化底涂层
@@ -141,16 +141,16 @@ void Tomography::initMappingEnv() {
 
     // Initialize inflation table
     // 预先构建代价膨胀查找表
-    int half_inf_k_size = static_cast<int>((cfg_.safe_margin + cfg_.inflation) / cfg_.resolution);
+    int half_inf_k_size = static_cast<int>((config_.safe_margin + config_.inflation) / config_.resolution);
     inf_table_.resize(2 * half_inf_k_size + 1, std::vector<float>(2 * half_inf_k_size + 1, 0.0f));
 
     for (int i = 0; i < inf_table_.size(); ++i) {
         for (int j = 0; j < inf_table_[0].size(); ++j) {
             float dist = std::sqrt(
-                std::pow(cfg_.resolution * (i - half_inf_k_size), 2) +
-                std::pow(cfg_.resolution * (j - half_inf_k_size), 2));
+                std::pow(config_.resolution * (i - half_inf_k_size), 2) +
+                std::pow(config_.resolution * (j - half_inf_k_size), 2));
             inf_table_[i][j] = std::clamp(
-                1.0f - (dist - cfg_.inflation) / (cfg_.safe_margin + cfg_.resolution),
+                1.0f - (dist - config_.inflation) / (config_.safe_margin + config_.resolution),
                 0.0f, 1.0f);
         }
     }
@@ -200,8 +200,8 @@ void Tomography::point2map(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud) {
         }
 
         // Calculate indices
-        int idx_x = static_cast<int>(std::round((point.x - center_[0]) / cfg_.resolution)) + map_dim_x_ / 2;
-        int idx_y = static_cast<int>(std::round((point.y - center_[1]) / cfg_.resolution)) + map_dim_y_ / 2;
+        int idx_x = static_cast<int>(std::round((point.x - center_[0]) / config_.resolution)) + map_dim_x_ / 2;
+        int idx_y = static_cast<int>(std::round((point.y - center_[1]) / config_.resolution)) + map_dim_y_ / 2;
 
         // Check bounds
         if (idx_x < 0 || idx_x >= map_dim_x_ || idx_y < 0 || idx_y >= map_dim_y_) {
@@ -210,7 +210,7 @@ void Tomography::point2map(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud) {
 
         // Update layers
         for (int s_idx = 0; s_idx < n_slice_init_; ++s_idx) {
-            float slice = slice_h0_ + s_idx * cfg_.slice_dh;
+            float slice = slice_h0_ + s_idx * config_.slice_dh;
             if (point.z <= slice) {
                 layers_[s_idx].ground(idx_x,idx_y) = std::max(layers_[s_idx].ground(idx_x,idx_y), point.z);
             } else {
@@ -255,11 +255,11 @@ void Tomography::computeGradients() {
  *
  */
 void Tomography::computeTraversability() {
-    float step_stand = 1.2f * cfg_.resolution * std::tan(cfg_.slope_max * M_PI / 180.0f);
+    float step_stand = 1.2f * config_.resolution * std::tan(config_.slope_max * M_PI / 180.0f);
     float step_stand_sq = step_stand * step_stand;
-    float step_cross_sq = cfg_.step_max * cfg_.step_max;
-    int standable_th = static_cast<int>(cfg_.standable_ratio *
-        (2 * cfg_.half_kernel_size + 1) * (2 * cfg_.half_kernel_size + 1)) - 1;
+    float step_cross_sq = config_.step_max * config_.step_max;
+    int standable_th = static_cast<int>(config_.standable_ratio *
+        (2 * config_.half_kernel_size + 1) * (2 * config_.half_kernel_size + 1)) - 1;
 
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
@@ -267,13 +267,13 @@ void Tomography::computeTraversability() {
                 float interval = layers_[s].ceiling(i, j) - layers_[s].ground(i, j);
 
                 // Check minimum interval
-                if (interval < cfg_.interval_min) {
-                    trav_cost_[s](i, j) = cfg_.cost_barrier;
+                if (interval < config_.interval_min) {
+                    trav_cost_[s](i, j) = config_.cost_barrier;
                     continue;
                 }
 
                 // Add cost based on interval
-                trav_cost_[s](i, j) += std::max(0.0f, 20.0f * (cfg_.interval_free - interval));
+                trav_cost_[s](i, j) += std::max(0.0f, 20.0f * (config_.interval_free - interval));
 
                 // Check standable condition
                 if (grad_mag_sq_[s](i, j) <= step_stand_sq) {
@@ -284,8 +284,8 @@ void Tomography::computeTraversability() {
                 // Check crossable condition
                 if (grad_mag_max_[s](i, j) <= step_cross_sq) {
                     int standable_grids = 0;
-                    for (int dy = -cfg_.half_kernel_size; dy <= cfg_.half_kernel_size; ++dy) {
-                        for (int dx = -cfg_.half_kernel_size; dx <= cfg_.half_kernel_size; ++dx) {
+                    for (int dy = -config_.half_kernel_size; dy <= config_.half_kernel_size; ++dy) {
+                        for (int dx = -config_.half_kernel_size; dx <= config_.half_kernel_size; ++dx) {
                             int ni = i + dx;
                             int nj = j + dy;
                             if (ni < 0 || ni >= map_dim_x_ || nj < 0 || nj >= map_dim_y_) {
@@ -297,12 +297,12 @@ void Tomography::computeTraversability() {
                         }
                     }
                     if (standable_grids < standable_th) {
-                        trav_cost_[s](i, j) = cfg_.cost_barrier;
+                        trav_cost_[s](i, j) = config_.cost_barrier;
                     } else {
                         trav_cost_[s](i, j) += 20.0f * grad_mag_max_[s](i, j) / step_cross_sq;
                     }
                 } else {
-                    trav_cost_[s](i, j) = cfg_.cost_barrier;
+                    trav_cost_[s](i, j) = config_.cost_barrier;
                 }
             }
         }
@@ -313,7 +313,7 @@ void Tomography::computeTraversability() {
  * @brief 计算膨胀层代价
  */
 void Tomography::inflateCosts() {
-    int half_inf_k_size = static_cast<int>((cfg_.safe_margin + cfg_.inflation) / cfg_.resolution);
+    int half_inf_k_size = static_cast<int>((config_.safe_margin + config_.inflation) / config_.resolution);
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
@@ -337,7 +337,7 @@ void Tomography::inflateCosts() {
  * @brief 根据一定的逻辑，挑选出对于规划器关键的层（提前剪枝）
  */
 void Tomography::simplifyLayers() {
-    idx_simp_.clear();
+    std::vector<int> idx_simp_; // 存储简化后的层索引
     idx_simp_.push_back(0);
 
     if (n_slice_init_ > 1) {
@@ -350,7 +350,7 @@ void Tomography::simplifyLayers() {
                     bool mask_l_g = layers_[m_idx].ground(i, j) - layers_[l_idx].ground(i, j) > 0;
                     bool mask_l_t = inflated_cost_[l_idx](i, j) > inflated_cost_[m_idx](i, j);
                     bool mask_u_g = (layers_[m_idx+1].ground(i, j) - layers_[m_idx].ground(i, j)) > 0;
-                    bool mask_t = inflated_cost_[m_idx](i, j) < cfg_.cost_barrier;
+                    bool mask_t = inflated_cost_[m_idx](i, j) < config_.cost_barrier;
                     if ((mask_l_g || mask_l_t) && mask_u_g && mask_t) {
                         has_unique = true;
                         break;
