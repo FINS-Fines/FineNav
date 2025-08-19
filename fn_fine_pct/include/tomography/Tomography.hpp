@@ -18,6 +18,7 @@
 
 #include "type_defs.hpp"
 
+namespace finenav_2d {
 class Tomography{
 public:
     Tomography(const TomographyConfig &config = TomographyConfig());
@@ -69,5 +70,7 @@ private:
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+} // namespace finenav_2d
 
 #endif // FINENAV2D_TOMOGRAPHY_HPP

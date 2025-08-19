@@ -1,6 +1,8 @@
 #include <iostream>
 #include "Tomography.hpp"
 
+namespace finenav_2d {
+
 Tomography::Tomography(const TomographyConfig &config)
       // pcd_file_path_("../rsc/pcd/building.pcd"),
       // cloud_(new pcl::PointCloud<pcl::PointXYZ>)
@@ -323,3 +325,5 @@ void Tomography::simplifyLayers() {
     }
     std::cout << "[Tomography] Simplified layers num: " << idx_simp_.size() << std::endl;
 }
+
+} // namespace finenav_2d
