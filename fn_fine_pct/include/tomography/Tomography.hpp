@@ -26,10 +26,12 @@ public:
     void setInputCloud(const PointCloud::Ptr& cloud);
     void startAlgorithm();
 
+    const std::vector<TomographyLayer>& getOutputLayers() const { return layers_; }
     int getMapDimX() const { return map_dim_x_; }
     int getMapDimY() const { return map_dim_y_; }
     float getResolution() const { return config_.resolution; }
     const std::vector<float>& getCenter() const { return center_; }
+
 
 private:
     // Algorithm functions
