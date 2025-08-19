@@ -5,7 +5,10 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <limits>
 
+#include <pcl/io/pcd_io.h>
+#include <pcl/common/common.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -17,16 +20,27 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 
-#include "TomographyConfig.hpp"
-
-#include <algorithm>
-#include <cmath>
-#include <limits>
 
 struct CostmapLayer {
     std::vector<std::vector<float>> costs;
     float min_height;
     float max_height;
+};
+
+
+struct TomographyConfig {
+    float resolution = 0.1f;       // Map resolution (meters)
+    float slice_dh = 0.5f;         // Height interval between slices // TODO: 它是如何影响的
+    float ground_h = 0.0f;         // Ground height
+    int half_kernel_size = 7;      // Traversal kernel half-size
+    float interval_min = 0.50f;     // Minimum traversable interval
+    float interval_free = 0.65f;    // Free space interval
+    float slope_max = 0.36f;      // Maximum traversable slope (degrees)
+    float step_max = 0.17f;         // Maximum step height
+    float standable_ratio = 0.2f;  // Ratio of standable points required
+    float cost_barrier = 50.0f;  // Cost for non-traversable areas
+    float safe_margin = 0.4f;      // Safe margin around obstacles // TODO:硬安全边界?
+    float inflation = 0.2f;        // Inflation radius // TODO:膨胀层？
 };
 
 class Tomography : public rclcpp::Node {
@@ -40,7 +54,7 @@ public:
     const std::vector<float>& getCenter() const { return center_; }
     float getResolution() const { return cfg_.resolution; }
     float getInflatedCost(int layer, int x, int y) const;
-    const TomographyConfig::Params& getConfig() const { return cfg_; }
+    const TomographyConfig& getConfig() const { return cfg_; }
     bool isProcessingComplete() const { return processing_complete_;  /* 需要在处理完成后设置此标志 */ }
     int getNumLayers() const { return layers_g_simp_.size(); }
 
@@ -122,7 +136,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_gradients_;
 
     // 添加发布方法
-    TomographyConfig::Params cfg_;  // Configuration parameters
+    TomographyConfig cfg_;  // Configuration parameters
     void publishTomographyResults();
 
     // ROS 2组件

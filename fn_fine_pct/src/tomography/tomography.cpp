@@ -1,14 +1,4 @@
-#include <Eigen/Dense>
-#include <rclcpp/logging.hpp>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-
-#include <pcl/io/pcd_io.h>
-#include <pcl/conversions.h>
-#include <pcl/common/common.h>
-#include <pcl_conversions/pcl_conversions.h>
-
 #include "Tomography.hpp"
-#include "TomographyConfig.hpp"
 
 Tomography::Tomography()
     : Node("pointcloud_tomography"),

@@ -22,7 +22,7 @@ ament_auto_add_library(lib_tomography SHARED
         src/tomography/tomography.cpp
 )
 target_include_directories(lib_tomography PUBLIC include/tomography)
-target_link_libraries(lib_tomography Eigen3::Eigen)
+target_link_libraries(lib_tomography)
 
 # A star 库
 ament_auto_add_library(a_star_search SHARED
