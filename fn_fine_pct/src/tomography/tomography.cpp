@@ -160,25 +160,33 @@ void Tomography::initMappingEnv() {
 }
 
 void Tomography::clearMap() {
-    // Initialize layers with default values
-    layers_g_.assign(n_slice_init_,
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, -1e6f)));
-    layers_c_.assign(n_slice_init_,
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 1e6f)));
-    grad_mag_sq_.assign(n_slice_init_,
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-    grad_mag_max_.assign(n_slice_init_,
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-    trav_cost_.assign(n_slice_init_,
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-    inflated_cost_.assign(n_slice_init_,
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
+    // 初始化主层数据
+    layers_.clear();
+    for (int s = 0; s < n_slice_init_; ++s) {
+        TomographyLayer layer;
+        layer.trav_grad_x = Layer::Zero(map_dim_x_, map_dim_y_);
+        layer.trav_grad_y = Layer::Zero(map_dim_x_, map_dim_y_);
+        layer.ground = Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::lowest());
+        layer.ceiling = Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::max());
+        layers_.push_back(layer);
+    }
+
+    // 初始化梯度和代价层
+    grad_mag_sq_.clear();
+    grad_mag_max_.clear();
+    trav_cost_.clear();
+    inflated_cost_.clear();
+    for (int s = 0; s < n_slice_init_; ++s) {
+        grad_mag_sq_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        grad_mag_max_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        trav_cost_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        inflated_cost_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+    }
+
+    // 清空简化层，后续由 simplifyLayers() 重新分配
+    layers_g_simp_.clear();
+    layers_t_simp_.clear();
+    layers_c_simp_.clear();
 }
 
 /**
@@ -208,9 +216,9 @@ void Tomography::point2map(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud) {
         for (int s_idx = 0; s_idx < n_slice_init_; ++s_idx) {
             float slice = slice_h0_ + s_idx * cfg_.slice_dh;
             if (point.z <= slice) {
-                layers_g_[s_idx][idx_x][idx_y] = std::max(layers_g_[s_idx][idx_x][idx_y], point.z);
+                layers_[s_idx].ground(idx_x,idx_y) = std::max(layers_[s_idx].ground(idx_x,idx_y) point.z);
             } else {
-                layers_c_[s_idx][idx_x][idx_y] = std::min(layers_c_[s_idx][idx_x][idx_y], point.z);
+                layers_[s_idx].ceiling(idx_x,idx_y) = std::min(layers_[s_idx].ceiling(idx_x,idx_y), point.z);
             }
         }
     }
@@ -225,18 +233,18 @@ void Tomography::computeGradients() {
         for (int i = 1; i < map_dim_x_ - 1; ++i) {
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
                 // Compute x gradient
-                float diff_x1 = layers_g_[s][i][j] - layers_g_[s][i-1][j];
-                float diff_x2 = layers_g_[s][i+1][j] - layers_g_[s][i][j];
+                float diff_x1 = layers_[s].ground(i, j) - layers_[s].ground(i - 1, j);
+                float diff_x2 = layers_[s].ground(i + 1, j) - layers_[s].ground(i, j);
                 float diff_x_sq = std::max(diff_x1 * diff_x1, diff_x2 * diff_x2);
 
                 // Compute y gradient
-                float diff_y1 = layers_g_[s][i][j] - layers_g_[s][i][j-1];
-                float diff_y2 = layers_g_[s][i][j+1] - layers_g_[s][i][j];
+                float diff_y1 = layers_[s].ground(i, j) - layers_[s].ground(i, j - 1);
+                float diff_y2 = layers_[s].ground(i, j + 1) - layers_[s].ground(i, j);
                 float diff_y_sq = std::max(diff_y1 * diff_y1, diff_y2 * diff_y2);
 
                 // Store results
-                grad_mag_sq_[s][i][j] = diff_x_sq + diff_y_sq;
-                grad_mag_max_[s][i][j] = std::max(diff_x_sq, diff_y_sq);
+                grad_mag_sq_[s](i, j) = diff_x_sq + diff_y_sq;
+                grad_mag_max_[s](i, j) = std::max(diff_x_sq, diff_y_sq);
             }
         }
     }
@@ -260,51 +268,45 @@ void Tomography::computeTraversability() {
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-
-                float interval = layers_c_[s][i][j] - layers_g_[s][i][j];
+                float interval = layers_[s].ceiling(i, j) - layers_[s].ground(i, j);
 
                 // Check minimum interval
                 if (interval < cfg_.interval_min) {
-                    trav_cost_[s][i][j] = cfg_.cost_barrier;
+                    trav_cost_[s](i, j) = cfg_.cost_barrier;
                     continue;
                 }
 
                 // Add cost based on interval
-                trav_cost_[s][i][j] += std::max(0.0f, 20.0f * (cfg_.interval_free - interval));
+                trav_cost_[s](i, j) += std::max(0.0f, 20.0f * (cfg_.interval_free - interval));
 
                 // Check standable condition
-                if (grad_mag_sq_[s][i][j] <= step_stand_sq) {
-                    trav_cost_[s][i][j] += 15.0f * grad_mag_sq_[s][i][j] / step_stand_sq;
+                if (grad_mag_sq_[s](i, j) <= step_stand_sq) {
+                    trav_cost_[s](i, j) += 15.0f * grad_mag_sq_[s](i, j) / step_stand_sq;
                     continue;
                 }
 
                 // Check crossable condition
-                if (grad_mag_max_[s][i][j] <= step_cross_sq) {
+                if (grad_mag_max_[s](i, j) <= step_cross_sq) {
                     int standable_grids = 0;
-
-                    // Count standable grids in neighborhood
                     for (int dy = -cfg_.half_kernel_size; dy <= cfg_.half_kernel_size; ++dy) {
                         for (int dx = -cfg_.half_kernel_size; dx <= cfg_.half_kernel_size; ++dx) {
                             int ni = i + dx;
                             int nj = j + dy;
-
                             if (ni < 0 || ni >= map_dim_x_ || nj < 0 || nj >= map_dim_y_) {
                                 continue;
                             }
-
-                            if (grad_mag_sq_[s][ni][nj] < step_stand_sq) {
+                            if (grad_mag_sq_[s](ni, nj) < step_stand_sq) {
                                 standable_grids++;
                             }
                         }
                     }
-
                     if (standable_grids < standable_th) {
-                        trav_cost_[s][i][j] = cfg_.cost_barrier;
+                        trav_cost_[s](i, j) = cfg_.cost_barrier;
                     } else {
-                        trav_cost_[s][i][j] += 20.0f * grad_mag_max_[s][i][j] / step_cross_sq;
+                        trav_cost_[s](i, j) += 20.0f * grad_mag_max_[s](i, j) / step_cross_sq;
                     }
                 } else {
-                    trav_cost_[s][i][j] = cfg_.cost_barrier;
+                    trav_cost_[s](i, j) = cfg_.cost_barrier;
                 }
             }
         }
@@ -312,30 +314,24 @@ void Tomography::computeTraversability() {
 }
 
 /**
- * @brief 计算膨胀代价
+ * @brief 计算膨胀层代价
  */
 void Tomography::inflateCosts() {
     int half_inf_k_size = static_cast<int>((cfg_.safe_margin + cfg_.inflation) / cfg_.resolution);
-
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                int counter = 0;
                 float max_cost = 0.0f;
-
                 for (int dy = -half_inf_k_size; dy <= half_inf_k_size; ++dy) {
                     for (int dx = -half_inf_k_size; dx <= half_inf_k_size; ++dx) {
                         int ni = i + dx;
                         int nj = j + dy;
-
                         if (ni >= 0 && ni < map_dim_x_ && nj >= 0 && nj < map_dim_y_) {
-                            max_cost = std::max(max_cost, trav_cost_[s][ni][nj] * inf_table_[dy + half_inf_k_size][dx + half_inf_k_size]);
+                            max_cost = std::max(max_cost, trav_cost_[s](ni, nj) * inf_table_[dy + half_inf_k_size][dx + half_inf_k_size]);
                         }
-                        counter++;
                     }
                 }
-
-                inflated_cost_[s][i][j] = max_cost;
+                inflated_cost_[s](i, j) = max_cost;
             }
         }
     }
@@ -343,7 +339,6 @@ void Tomography::inflateCosts() {
 
 /**
  * @brief 根据一定的逻辑，挑选出对于规划器关键的层（提前剪枝）
- * @todo 我实在不懂为什么在这里还更改了如此多的属性
  */
 void Tomography::simplifyLayers() {
     idx_simp_.clear();
@@ -351,19 +346,15 @@ void Tomography::simplifyLayers() {
 
     if (n_slice_init_ > 1) {
         int l_idx = 0, m_idx = 1;
-
         while (m_idx < n_slice_init_ - 2) {
             bool has_unique = false;
-
-            // 从最底层开始
             for (int i = 0; i < map_dim_x_; ++i) {
                 for (int j = 0; j < map_dim_y_; ++j) {
                     // 四个独特性条件检查
-                    bool mask_l_g = layers_g_[m_idx][i][j] - layers_g_[l_idx][i][j] > 0; // 当前层相比上一个保留层有更高的地面
-                    bool mask_l_t = inflated_cost_[l_idx][i][j] > inflated_cost_[m_idx][i][j]; // 当前层的通行代价比上一个保留层更低
-                    bool mask_u_g = (layers_g_[m_idx+1][i][j] - layers_g_[m_idx][i][j]) > 0; // 当前层与上一层之间有明显的高度差异
-                    bool mask_t = inflated_cost_[m_idx][i][j] < cfg_.cost_barrier; // 当前层不是完全的障碍区域
-
+                    bool mask_l_g = layers_[m_idx].ground(i, j) - layers_[l_idx].ground(i, j) > 0;
+                    bool mask_l_t = inflated_cost_[l_idx](i, j) > inflated_cost_[m_idx](i, j);
+                    bool mask_u_g = (layers_[m_idx+1].ground(i, j) - layers_[m_idx].ground(i, j)) > 0;
+                    bool mask_t = inflated_cost_[m_idx](i, j) < cfg_.cost_barrier;
                     if ((mask_l_g || mask_l_t) && mask_u_g && mask_t) {
                         has_unique = true;
                         break;
@@ -371,213 +362,196 @@ void Tomography::simplifyLayers() {
                 }
                 if (has_unique) break;
             }
-
             if (has_unique) {
                 idx_simp_.push_back(m_idx);
                 l_idx = m_idx;
             }
             m_idx++;
         }
-
         idx_simp_.push_back(m_idx);
     }
 
-    // Prepare simplified layers
-    layers_t_simp_.resize(idx_simp_.size(),
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-    layers_g_simp_.resize(idx_simp_.size(),
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-    layers_c_simp_.resize(idx_simp_.size(),
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-    trav_grad_x_.resize(idx_simp_.size(),
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-    trav_grad_y_.resize(idx_simp_.size(),
-        std::vector<std::vector<float>>(map_dim_x_,
-            std::vector<float>(map_dim_y_, 0.0f)));
-
-    // Copy data to simplified layers
-    // TODO: 原本的版本似乎没有copy
+    // 分配简化层
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
         int s = idx_simp_[k];
-        layers_t_simp_[k] = inflated_cost_[s];
-
+        layers_t_simp_.emplace_back(inflated_cost_[s]);
+        Layer g_layer(map_dim_x_, map_dim_y_);
+        Layer c_layer(map_dim_x_, map_dim_y_);
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                layers_g_simp_[k][i][j] = layers_g_[s][i][j] > -1e6f ? layers_g_[s][i][j] : NAN;
-                layers_c_simp_[k][i][j] = layers_c_[s][i][j] < 1e6f ? layers_c_[s][i][j] : NAN;
+                float g_val = layers_[s].ground(i, j);
+                float c_val = layers_[s].ceiling(i, j);
+                g_layer(i, j) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
+                c_layer(i, j) = (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
             }
         }
+        layers_g_simp_.emplace_back(g_layer);
+        layers_c_simp_.emplace_back(c_layer);
     }
 
     // Compute gradients for simplified layers
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
         for (int i = 1; i < map_dim_x_ - 1; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                    trav_grad_x_[k][i][j] = layers_t_simp_[k][i+1][j] - layers_t_simp_[k][i-1][j];
+                    layers_[k].trav_grad_x(i, j) = layers_t_simp_[k](i+1, j) - layers_t_simp_[k](i-1,j);
             }
         }
 
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                    trav_grad_y_[k][i][j] = layers_t_simp_[k][i][j+1] - layers_t_simp_[k][i][j-1];
+                     layers_[k].trav_grad_x(i, j) = layers_t_simp_[k](i,j+1) - layers_t_simp_[k](i,j-1);
             }
         }
     }
-
-
     RCLCPP_INFO(this->get_logger(), "Simplified to %zu layers", idx_simp_.size());
 }
 
-void Tomography::publishTomographyResults() {
-    // 1. 创建带颜色的点云
-    pcl::PointCloud<pcl::PointXYZRGB> colored_cloud;
-    colored_cloud.reserve(map_dim_x_ * map_dim_y_ * layers_g_simp_.size());
-
-    // 2. 填充点云数据（按高度着色）
-    for (size_t k = 0; k < layers_g_simp_.size(); ++k) {
-        // 分层着色
-        float hue = static_cast<float>(k) / layers_g_simp_.size() * 360.0f;
-
-        // 将HSV转换为RGB (H:0-360, S:1.0, V:1.0)
-        float c = 1.0f;
-        float x = c * (1.0f - fabs(fmod(hue / 60.0f, 2.0f) - 1.0f));
-        float m = 0.0f;
-
-        float r, g, b;
-        if (hue < 60) {
-            r = c; g = x; b = 0;
-        } else if (hue < 120) {
-            r = x; g = c; b = 0;
-        } else if (hue < 180) {
-            r = 0; g = c; b = x;
-        } else if (hue < 240) {
-            r = 0; g = x; b = c;
-        } else if (hue < 300) {
-            r = x; g = 0; b = c;
-        } else {
-            r = c; g = 0; b = x;
-        }
-
-        // 转换为0-255范围
-        uint8_t R = static_cast<uint8_t>((r + m) * 255);
-        uint8_t G = static_cast<uint8_t>((g + m) * 255);
-        uint8_t B = static_cast<uint8_t>((b + m) * 255);
-
-        for (int i = 0; i < map_dim_x_; ++i) {
-            for (int j = 0; j < map_dim_y_; ++j) {
-                if (std::isnan(layers_g_simp_[k][i][j])) continue;
-
-                pcl::PointXYZRGB point;
-                // 坐标转换
-                point.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
-                point.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
-                point.z = layers_g_simp_[k][i][j];
-
-                // set color option
-                point.r = R;
-                point.g = G;
-                point.b = B;
-
-                colored_cloud.push_back(point);
-            }
-        }
-    }
-
-    // 3. 转换并发布点云
-    sensor_msgs::msg::PointCloud2 output;
-    pcl::toROSMsg(colored_cloud, output);
-    output.header.frame_id = "map";  // 必须与TF一致
-    output.header.stamp = this->now();
-    pub_tomography_->publish(output);
-
-    RCLCPP_INFO(this->get_logger(), "Published %zu points to /tomography_results",
-               colored_cloud.size());
-
-    const std::string pcd_path = "tomography_results.pcd";
-    if (pcl::io::savePCDFileBinary(pcd_path, colored_cloud) == 0) {
-        RCLCPP_INFO(this->get_logger(), "Successfully saved to %s", pcd_path.c_str());
-    } else {
-        RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file!");
-    }
-}
-
-void Tomography::publishCostmapAndGradients() {
-    for (size_t layer = 0; layer < layers_g_simp_.size(); ++layer) {
-        // 1. 发布代价地图
-        nav_msgs::msg::OccupancyGrid costmap_msg;
-        costmap_msg.header.frame_id = "map";
-        costmap_msg.header.stamp = this->now();
-        costmap_msg.info.resolution = cfg_.resolution;
-        costmap_msg.info.width = map_dim_x_;
-        costmap_msg.info.height = map_dim_y_;
-        costmap_msg.info.origin.position.x = center_[0] - (map_dim_x_ / 2) * cfg_.resolution;
-        costmap_msg.info.origin.position.y = center_[1] - (map_dim_y_ / 2) * cfg_.resolution;
-        costmap_msg.info.origin.orientation.w = 1.0;
-
-        costmap_msg.data.resize(map_dim_x_ * map_dim_y_);
-
-        for (int i = 0; i < map_dim_x_; ++i) {
-            for (int j = 0; j < map_dim_y_; ++j) {
-                // 检查是否为无效点
-                if (std::isnan(layers_g_simp_[layer][i][j])) {
-                    costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
-                }
-                // 检查是否为无穷大代价（完全障碍）
-                else if (inflated_cost_[layer][i][j] >= FLOAT_INFINITY) {
-                    costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
-                }
-                // 自由空间
-                else if (inflated_cost_[layer][i][j] <= 0.0f) {
-                    costmap_msg.data[j * map_dim_x_ + i] = FREE;
-                }
-                // 正常代价范围
-                else {
-                    costmap_msg.data[j * map_dim_x_ + i] = static_cast<int8_t>(
-                        std::min(100.0f,
-                                inflated_cost_[layer][i][j] * 100 / cfg_.cost_barrier)
-                    );
-                }
-            }
-        }
-        pub_costmap_->publish(costmap_msg);
-
-        // 2. 发布梯度（仅处理有效点）
-        geometry_msgs::msg::PoseArray gradients_msg;
-        gradients_msg.header = costmap_msg.header;
-
-        for (int i = 1; i < map_dim_x_ - 1; ++i) {
-            for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                // 跳过无效点和无穷大代价点
-                if (std::isnan(layers_g_simp_[layer][i][j])) {
-                    continue;
-                }
-
-                // 检查是否为可通行区域
-                if (inflated_cost_[layer][i][j] < cfg_.cost_barrier * 0.5f) {
-                    geometry_msgs::msg::Pose pose;
-                    pose.position.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
-                    pose.position.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
-                    pose.position.z = layers_g_simp_[layer][i][j];
-
-                    pose.orientation.x = trav_grad_x_[layer][i][j];
-                    pose.orientation.y = trav_grad_y_[layer][i][j];
-                    pose.orientation.z = 0;
-                    pose.orientation.w = 1.0;
-
-                    gradients_msg.poses.push_back(pose);
-                }
-            }
-        }
-        pub_gradients_->publish(gradients_msg);
-
-        // 添加延迟避免数据拥堵
-        rclcpp::sleep_for(std::chrono::milliseconds(10));
-    }
-}
+// void Tomography::publishTomographyResults() {
+//     // 1. 创建带颜色的点云
+//     pcl::PointCloud<pcl::PointXYZRGB> colored_cloud;
+//     colored_cloud.reserve(map_dim_x_ * map_dim_y_ * layers_g_simp_.size());
+//
+//     // 2. 填充点云数据（按高度着色）
+//     for (size_t k = 0; k < layers_g_simp_.size(); ++k) {
+//         // 分层着色
+//         float hue = static_cast<float>(k) / layers_g_simp_.size() * 360.0f;
+//
+//         // 将HSV转换为RGB (H:0-360, S:1.0, V:1.0)
+//         float c = 1.0f;
+//         float x = c * (1.0f - fabs(fmod(hue / 60.0f, 2.0f) - 1.0f));
+//         float m = 0.0f;
+//
+//         float r, g, b;
+//         if (hue < 60) {
+//             r = c; g = x; b = 0;
+//         } else if (hue < 120) {
+//             r = x; g = c; b = 0;
+//         } else if (hue < 180) {
+//             r = 0; g = c; b = x;
+//         } else if (hue < 240) {
+//             r = 0; g = x; b = c;
+//         } else if (hue < 300) {
+//             r = x; g = 0; b = c;
+//         } else {
+//             r = c; g = 0; b = x;
+//         }
+//
+//         // 转换为0-255范围
+//         uint8_t R = static_cast<uint8_t>((r + m) * 255);
+//         uint8_t G = static_cast<uint8_t>((g + m) * 255);
+//         uint8_t B = static_cast<uint8_t>((b + m) * 255);
+//
+//         for (int i = 0; i < map_dim_x_; ++i) {
+//             for (int j = 0; j < map_dim_y_; ++j) {
+//                 if (std::isnan(layers_g_simp_[k][i][j])) continue;
+//
+//                 pcl::PointXYZRGB point;
+//                 // 坐标转换
+//                 point.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
+//                 point.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
+//                 point.z = layers_g_simp_[k][i][j];
+//
+//                 // set color option
+//                 point.r = R;
+//                 point.g = G;
+//                 point.b = B;
+//
+//                 colored_cloud.push_back(point);
+//             }
+//         }
+//     }
+//
+//     // 3. 转换并发布点云
+//     sensor_msgs::msg::PointCloud2 output;
+//     pcl::toROSMsg(colored_cloud, output);
+//     output.header.frame_id = "map";  // 必须与TF一致
+//     output.header.stamp = this->now();
+//     pub_tomography_->publish(output);
+//
+//     RCLCPP_INFO(this->get_logger(), "Published %zu points to /tomography_results",
+//                colored_cloud.size());
+//
+//     const std::string pcd_path = "tomography_results.pcd";
+//     if (pcl::io::savePCDFileBinary(pcd_path, colored_cloud) == 0) {
+//         RCLCPP_INFO(this->get_logger(), "Successfully saved to %s", pcd_path.c_str());
+//     } else {
+//         RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file!");
+//     }
+// }
+//
+// void Tomography::publishCostmapAndGradients() {
+//     for (size_t layer = 0; layer < layers_g_simp_.size(); ++layer) {
+//         // 1. 发布代价地图
+//         nav_msgs::msg::OccupancyGrid costmap_msg;
+//         costmap_msg.header.frame_id = "map";
+//         costmap_msg.header.stamp = this->now();
+//         costmap_msg.info.resolution = cfg_.resolution;
+//         costmap_msg.info.width = map_dim_x_;
+//         costmap_msg.info.height = map_dim_y_;
+//         costmap_msg.info.origin.position.x = center_[0] - (map_dim_x_ / 2) * cfg_.resolution;
+//         costmap_msg.info.origin.position.y = center_[1] - (map_dim_y_ / 2) * cfg_.resolution;
+//         costmap_msg.info.origin.orientation.w = 1.0;
+//
+//         costmap_msg.data.resize(map_dim_x_ * map_dim_y_);
+//
+//         for (int i = 0; i < map_dim_x_; ++i) {
+//             for (int j = 0; j < map_dim_y_; ++j) {
+//                 // 检查是否为无效点
+//                 if (std::isnan(layers_g_simp_[layer][i][j])) {
+//                     costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
+//                 }
+//                 // 检查是否为无穷大代价（完全障碍）
+//                 else if (inflated_cost_[layer][i][j] >= FLOAT_INFINITY) {
+//                     costmap_msg.data[j * map_dim_x_ + i] = OCCUPIED;
+//                 }
+//                 // 自由空间
+//                 else if (inflated_cost_[layer][i][j] <= 0.0f) {
+//                     costmap_msg.data[j * map_dim_x_ + i] = FREE;
+//                 }
+//                 // 正常代价范围
+//                 else {
+//                     costmap_msg.data[j * map_dim_x_ + i] = static_cast<int8_t>(
+//                         std::min(100.0f,
+//                                 inflated_cost_[layer][i][j] * 100 / cfg_.cost_barrier)
+//                     );
+//                 }
+//             }
+//         }
+//         pub_costmap_->publish(costmap_msg);
+//
+//         // 2. 发布梯度（仅处理有效点）
+//         geometry_msgs::msg::PoseArray gradients_msg;
+//         gradients_msg.header = costmap_msg.header;
+//
+//         for (int i = 1; i < map_dim_x_ - 1; ++i) {
+//             for (int j = 1; j < map_dim_y_ - 1; ++j) {
+//                 // 跳过无效点和无穷大代价点
+//                 if (std::isnan(layers_g_simp_[layer][i][j])) {
+//                     continue;
+//                 }
+//
+//                 // 检查是否为可通行区域
+//                 if (inflated_cost_[layer][i][j] < cfg_.cost_barrier * 0.5f) {
+//                     geometry_msgs::msg::Pose pose;
+//                     pose.position.x = center_[0] + (i - map_dim_x_/2) * cfg_.resolution;
+//                     pose.position.y = center_[1] + (j - map_dim_y_/2) * cfg_.resolution;
+//                     pose.position.z = layers_g_simp_[layer][i][j];
+//
+//                     pose.orientation.x = trav_grad_x_[layer][i][j];
+//                     pose.orientation.y = trav_grad_y_[layer][i][j];
+//                     pose.orientation.z = 0;
+//                     pose.orientation.w = 1.0;
+//
+//                     gradients_msg.poses.push_back(pose);
+//                 }
+//             }
+//         }
+//         pub_gradients_->publish(gradients_msg);
+//
+//         // 添加延迟避免数据拥堵
+//         rclcpp::sleep_for(std::chrono::milliseconds(10));
+//     }
+// }
 
 float Tomography::getGroundHeight(int layer, int x, int y) const {
     if (layer >= 0 && layer < static_cast<int>(layers_g_simp_.size()) &&

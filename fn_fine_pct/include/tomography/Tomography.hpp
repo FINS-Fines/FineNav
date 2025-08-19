@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <limits>
+#include <Eigen/Core>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/common.h>
@@ -20,7 +21,10 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 
-
+/**
+ *  @brief tomography算法参数配置
+ *  @details 在Tomography初始化时从ROS2参数服务器读取
+ */
 struct TomographyConfig {
     float resolution = 0.1f;       // Map resolution (meters)
     float slice_dh = 0.5f;         // Height interval between slices // TODO: 它是如何影响的
@@ -36,10 +40,22 @@ struct TomographyConfig {
     float inflation = 0.2f;        // Inflation radius // TODO:膨胀层？
 };
 
+using Layer = Eigen::MatrixXf;
+
+/**
+ *  @brief tomography算法输出的数据结构
+ */
+struct TomographyLayer {
+    Layer trav_grad_x; // Traversability gradient in x direction
+    Layer trav_grad_y; // Traversability gradient in y direction
+    Layer ground; // ground layer
+    Layer ceiling; // ceiling layer
+};
+
+
 class Tomography : public rclcpp::Node {
 public:
     Tomography() ;
-
 
     float getGroundHeight(int layer, int x, int y) const;
     int getMapDimX() const { return map_dim_x_; }
@@ -93,23 +109,25 @@ private:
 
     // Map layers
     // 三个维度，[层索引][X坐标][Y坐标]
-    std::vector<std::vector<std::vector<float>>> layers_g_;  // Ground layers
-    std::vector<std::vector<std::vector<float>>> layers_c_;  // Ceiling layers
-    std::vector<std::vector<std::vector<float>>> grad_mag_sq_;  // Gradient magnitude squared
-    std::vector<std::vector<std::vector<float>>> grad_mag_max_;  // Max gradient component
-    std::vector<std::vector<std::vector<float>>> trav_cost_;     // Traversability cost
-    std::vector<std::vector<std::vector<float>>> inflated_cost_; // Inflated cost
+    // std::vector<std::vector<std::vector<float>>> layers_g_;  // Ground layers
+    // std::vector<std::vector<std::vector<float>>> layers_c_;  // Ceiling layers
+    std::vector<TomographyLayer> layers_;
+
+    std::vector<Layer> grad_mag_sq_;  // Gradient magnitude squared
+    std::vector<Layer> grad_mag_max_;  // Max gradient component
+    std::vector<Layer>  trav_cost_;     // Traversability cost
+    std::vector<Layer> inflated_cost_; // Inflated cost
 
     // Simplified layers
     std::vector<int> idx_simp_;
-    std::vector<std::vector<std::vector<float>>> layers_t_simp_;
-    std::vector<std::vector<std::vector<float>>> layers_g_simp_;
-    std::vector<std::vector<std::vector<float>>> layers_c_simp_;
-    std::vector<std::vector<std::vector<float>>> trav_grad_x_; // 简化后地图的代价变化梯度
-    std::vector<std::vector<std::vector<float>>> trav_grad_y_; // 简化后地图的代价变化梯度
+    std::vector<Layer>  layers_t_simp_;
+    std::vector<Layer> layers_g_simp_;
+    std::vector<Layer> layers_c_simp_;
+    // std::vector<std::vector<std::vector<float>>> trav_grad_x_; // 简化后地图的代价变化梯度
+    // std::vector<std::vector<std::vector<float>>> trav_grad_y_; // 简化后地图的代价变化梯度
 
     // Inflation table
-    std::vector<std::vector<float>> inf_table_;
+    std::vector<std::vector<float>> inf_table_; // 离线存储的膨胀表
 
     // point_cloud_config
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
@@ -128,4 +146,7 @@ private:
 
     // ROS 2组件
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
