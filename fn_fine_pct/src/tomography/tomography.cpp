@@ -4,32 +4,23 @@
 namespace finenav_2d {
 
 Tomography::Tomography(const TomographyConfig &config)
-      // pcd_file_path_("../rsc/pcd/building.pcd"),
-      // cloud_(new pcl::PointCloud<pcl::PointXYZ>)
 {
-    // 初始化配置
     config_ = config;
-
-    // 加载和处理数据
-    loadPCD();
-    processPointCloud();
 }
 
-
-void Tomography::loadPCD() {
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud_) == -1) {
-        std::cerr << "Couldn't read PCD file: " << pcd_file_path_ << std::endl;
+void Tomography::setInputCloud(const PointCloud::Ptr& cloud) {
+    if (!cloud || cloud->empty()) {
+        std::cerr << "[Tomography] Input cloud is empty or invalid." << std::endl;
         return;
     }
-    std::cout << "Loaded PCD file: " << pcd_file_path_ << std::endl;
-    // TODO: 应该提前根据分辨率voxel滤波
+    cloud_ = cloud;
 }
 
-void Tomography::processPointCloud() {
+void Tomography::startAlgorithm() {
     std::cout << "[Tomography] Process Start." << std::endl;
 
     initMappingEnv();          // 初始化地图环境
-    point2map(cloud_);         // 点云投影到地图
+    point2map();         // 点云投影到地图
     computeGradients();        // 计算梯度
     computeTraversability();   // 计算可通行性
     inflateCosts();            // 代价膨胀
@@ -43,7 +34,7 @@ void Tomography::processPointCloud() {
  * @details
  */
 void Tomography::initMappingEnv() {
-    // Find min and max points
+
     pcl::PointXYZ min_pt, max_pt;
     pcl::getMinMax3D(*cloud_, min_pt, max_pt);
 
@@ -58,7 +49,6 @@ void Tomography::initMappingEnv() {
     slice_h0_ = min_pt.z + config_.slice_dh; // 第一个切片h0的高度
 
     // Initialize buffers
-    // 初始化底涂层
     clearMap();
 
     // TODO: 为什么膨胀查找表在这里？
@@ -116,8 +106,8 @@ void Tomography::clearMap() {
  * @details layers_g_ 在该层高度范围内，找到"最高的可站立表面"
  * @details layers_c_ 大于该层高度，找到“最矮的顶部”
  */
-void Tomography::point2map(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud) {
-    for (const auto& point : *cloud) {
+void Tomography::point2map() {
+    for (const auto& point : *cloud_) {
         if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
             continue;
         }

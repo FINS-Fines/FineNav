@@ -6,6 +6,8 @@
 #define FINENAV2D_TYPE_DEFS_HPP
 
 using Layer = Eigen::MatrixXf;
+using Point = pcl::PointXYZ;
+using PointCloud = pcl::PointCloud<Point>;
 
 /**
  *  @brief tomography算法参数配置
