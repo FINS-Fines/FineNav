@@ -17,9 +17,9 @@ struct NodeCost {
     float total_cost;
 };
 
-class Planner {
+class Planner_cp {
 public:
-    explicit Planner(std::shared_ptr<Tomography> tomography,
+    explicit Planner_cp(std::shared_ptr<Tomography> tomography,
                         const PlannerConfig::Params& cfg,
                         rclcpp::Logger logger,
                         rclcpp::Clock::SharedPtr clock);

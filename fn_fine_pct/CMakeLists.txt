@@ -24,12 +24,18 @@ ament_auto_add_library(lib_tomography SHARED
 target_include_directories(lib_tomography PUBLIC include/tomography)
 target_link_libraries(lib_tomography Eigen3::Eigen)
 
+# A star 库
+ament_auto_add_library(a_star_search SHARED
+        src/planner/a_star_search.cpp
+)
+target_include_directories(a_star_search PUBLIC include/planner)
+
 # 规划器节点
 ament_auto_add_executable(planner_node
         src/planner/planner_node.cpp
-        src/planner/planner.cpp
-        src/tomography/tomography.cpp
+        src/planner/Planner_cp.cpp
 )
+
 target_include_directories(planner_node PRIVATE include/planner)
 target_link_libraries(planner_node lib_tomography)
 

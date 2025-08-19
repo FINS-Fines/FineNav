@@ -4,10 +4,10 @@
 #include <algorithm>
 
 #include "PlannerConfig.hpp"
-#include "Planner.hpp"
+#include "Planner_cp.hpp"
 
 
-Planner::Planner(std::shared_ptr<Tomography> tomography,
+Planner_cp::Planner_cp(std::shared_ptr<Tomography> tomography,
                         const PlannerConfig::Params& cfg,
                         rclcpp::Logger logger,
                         rclcpp::Clock::SharedPtr clock)
@@ -17,7 +17,7 @@ Planner::Planner(std::shared_ptr<Tomography> tomography,
                    clock_->get_clock_type());
 }
 
-nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const std::array<float, 2>& end) {
+nav_msgs::msg::Path Planner_cp::planPath(const std::array<float, 2>& start, const std::array<float, 2>& end) {
     /********* 初始化 *********/
     nav_msgs::msg::Path path;
     path.header.frame_id = "map";
@@ -195,7 +195,7 @@ nav_msgs::msg::Path Planner::planPath(const std::array<float, 2>& start, const s
  * @brief 根据二维的起始点和终点，找到所有层中start和end点代价最小的层
  * @note 这种设计非常不合理，应当由机器人所在位置的高度决定起始层，由用户指定的目标高度决定终点层
  */
-std::pair<int, int> Planner::findBestStartEndLayers(int start_x, int start_y, int end_x, int end_y) const {
+std::pair<int, int> Planner_cp::findBestStartEndLayers(int start_x, int start_y, int end_x, int end_y) const {
     int best_start_layer = 0;
     int best_end_layer = 0;
     float min_start_cost = std::numeric_limits<float>::max();
@@ -220,7 +220,7 @@ std::pair<int, int> Planner::findBestStartEndLayers(int start_x, int start_y, in
     return {best_start_layer, best_end_layer};
 }
 
-std::pair<int, int> Planner::worldToGrid(float x, float y) const {
+std::pair<int, int> Planner_cp::worldToGrid(float x, float y) const {
     auto center = tomography_->getCenter();
     auto resolution = tomography_->getResolution();
     int map_dim_x = tomography_->getMapDimX();
@@ -236,7 +236,7 @@ std::pair<int, int> Planner::worldToGrid(float x, float y) const {
     return {i, j};
 }
 
-std::pair<float, float> Planner::gridToWorld(int i, int j) const {
+std::pair<float, float> Planner_cp::gridToWorld(int i, int j) const {
     auto center = tomography_->getCenter();
     auto resolution = tomography_->getResolution();
     int map_dim_x = tomography_->getMapDimX();
@@ -249,7 +249,7 @@ std::pair<float, float> Planner::gridToWorld(int i, int j) const {
     return {x, y};
 }
 
-float Planner::heuristic(int x1, int y1, int z1, int x2, int y2, int z2) const {
+float Planner_cp::heuristic(int x1, int y1, int z1, int x2, int y2, int z2) const {
     // 3D Euclidean distance
     float dx = (x1-x2) * tomography_->getResolution();
     float dy = (y1-y2) * tomography_->getResolution();
@@ -258,7 +258,7 @@ float Planner::heuristic(int x1, int y1, int z1, int x2, int y2, int z2) const {
 }
 
 // 未测试
-bool Planner::isTraversable(int x, int y, int layer) const {
+bool Planner_cp::isTraversable(int x, int y, int layer) const {
     if (layer < 0 || layer >= tomography_->getNumSimplifiedLayers() ||
         x < 0 || x >= tomography_->getMapDimX() ||
         y < 0 || y >= tomography_->getMapDimY()) {
@@ -279,7 +279,7 @@ bool Planner::isTraversable(int x, int y, int layer) const {
 
 // 自己加的
 // 为四足设置的物理检查 未做代码适配
-bool Planner::isValidHeightChange(float from_height, float to_height, float horizontal_dist) const {
+bool Planner_cp::isValidHeightChange(float from_height, float to_height, float horizontal_dist) const {
     float height_diff = std::abs(to_height - from_height);
 
     // Changed to use this->cfg_
@@ -297,7 +297,7 @@ bool Planner::isValidHeightChange(float from_height, float to_height, float hori
     return true;
 }
 
-bool Planner::isValidTransition(const path_node& from, int to_x, int to_y, int to_layer) const {
+bool Planner_cp::isValidTransition(const path_node& from, int to_x, int to_y, int to_layer) const {
     // Get heights
     float from_height = from.height;
     float to_height = tomography_->getSimplifiedHeightLayers()[to_layer][to_x][to_y];
