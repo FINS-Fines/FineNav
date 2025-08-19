@@ -48,7 +48,6 @@ public:
     float getResolution() const { return cfg_.resolution; }
     float getInflatedCost(int layer, int x, int y) const;
     const TomographyConfig& getConfig() const { return cfg_; }
-    bool isProcessingComplete() const { return processing_complete_;  /* 需要在处理完成后设置此标志 */ }
     int getNumLayers() const { return layers_g_simp_.size(); }
 
     // 添加获取简化层数据的方法
@@ -129,8 +128,6 @@ private:
 
     // ROS 2组件
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
-
-    bool processing_complete_ = false ;
 
     bool hasGroundBelow(int layer, int x, int y) const;
 };
