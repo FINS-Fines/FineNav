@@ -54,9 +54,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
 
     // 可视化tomography
     if (tomography_visualize_) {
-        // 需要设置qos为latched
-        rclcpp::QoS qos(rclcpp::KeepLast(1));
-        qos.transient_local();
+        auto qos = rclcpp::QoS(1).transient_local();
         tomography_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("tomography_layers", qos);
         publishTomography();
     }
