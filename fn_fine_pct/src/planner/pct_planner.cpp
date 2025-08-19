@@ -11,6 +11,10 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
     pcd_file_path_ = this->get_parameter("pcd_file_path").as_string();
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
+    //TODO: FOR DEBUG
+    pcd_file_path_ = "/home/huigg/Desktop/nav_ws/FineNav2D/pcd/building.pcd";
+    tomography_visualize_ = true;
+
     /********* Parameters for Tomography *********/
     TomographyConfig tomography_config;
     this->declare_parameter("resolution", tomography_config.resolution);
@@ -47,14 +51,15 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
     path_pub_ = this->create_publisher<nav_msgs::msg::Path>("planned_path", 10);
     goal_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
         "goal_pose_3d", 10, std::bind(&PctPlanner::goalCallback, this, std::placeholders::_1));
+
+    // 可视化tomography
     if (tomography_visualize_) {
         // 需要设置qos为latched
         rclcpp::QoS qos(rclcpp::KeepLast(1));
         qos.transient_local();
         tomography_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("tomography_layers", qos);
+        publishTomography();
     }
-
-
 }
 
 void PctPlanner::initPlanner() const {
@@ -78,20 +83,14 @@ void PctPlanner::initPlanner() const {
     tomography_->setInputCloud(cloud);
     tomography_->startAlgorithm();
     // auto tomography_layers = tomography_->getOutputLayers();
-
-    if (tomography_visualize_) { publishTomography(); }
 }
 
 void PctPlanner::publishTomography() const {
     auto layers = tomography_->getOutputLayers();
 
-    sensor_msgs::msg::PointCloud2 cloud_msg;
-    cloud_msg.header.frame_id = "map"; // 设置坐标系     // TODO: frame_id 参数
-    cloud_msg.header.stamp = this->now();
-
     // 1. 创建带颜色的点云
-    pcl::PointCloud<pcl::PointXYZRGB> colored_cloud;
-    colored_cloud.reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers.size());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    colored_cloud->reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers.size());
 
     // 2. 填充点云数据（按高度着色）
     for (size_t k = 0; k < layers.size(); ++k) {
@@ -138,18 +137,20 @@ void PctPlanner::publishTomography() const {
                 point.g = G;
                 point.b = B;
 
-                colored_cloud.push_back(point);
+                colored_cloud->push_back(point);
             }
         }
     }
 
     // 3. 转换并发布点云
-    sensor_msgs::msg::PointCloud2 output;
-    pcl::toROSMsg(colored_cloud, output);
+    sensor_msgs::msg::PointCloud2 cloud_msg;
+    pcl::toROSMsg(*colored_cloud, cloud_msg);
+    cloud_msg.header.frame_id = "map"; // 设置坐标系     // TODO: frame_id 参数
+    cloud_msg.header.stamp = this->now();
 
     // TODO: 专门设置存储results的pcd
     const std::string pcd_path = "tomography_results.pcd";
-    if (pcl::io::savePCDFileBinary(pcd_path, colored_cloud) == 0) {
+    if (pcl::io::savePCDFileBinary(pcd_path, *colored_cloud) == 0) {
         RCLCPP_INFO(this->get_logger(), "Successfully saved to %s", pcd_path.c_str());
     } else {
         RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file!");
