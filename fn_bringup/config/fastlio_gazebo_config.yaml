@@ -2,23 +2,23 @@
     ros__parameters:
         # 核心参数保持不变，根据场景需求调整
         feature_extract_enable: false
-        point_filter_num: 2  # 32线雷达点云较密，保持该值平衡性能
+        point_filter_num: 1  # 32线雷达点云较密，保持该值平衡性能
         max_iteration: 3
         filter_size_surf: 0.05  # 虚拟环境可适当增大，减少计算量
         filter_size_map: 0.05   # 与激光雷达最大范围(10m)匹配，避免地图过密
-        cube_side_length: 50.0  # 虚拟场景通常较小，缩小立方体范围节省内存
+        cube_side_length: 1000.0  # 虚拟场景通常较小，缩小立方体范围节省内存
         runtime_pos_log_enable: false
         map_file_path: "/home/fins/Desktop/pcd/test.pcd"  # 根据实际路径修改
 
         common:
             lid_topic:  "/lidar"  # 与SDF中激光雷达topic一致
             imu_topic:  "/imu"   # 与SDF中IMU的topic一致
-            time_sync_en: false  # Gazebo中传感器时间已同步，关闭
+            time_sync_en: true  # Gazebo中传感器时间已同步，关闭
             time_offset_lidar_to_imu: 0.0  # 虚拟环境时间对齐，无需偏移
 
         preprocess:
             lidar_type: 2  # 关键修改：32线激光雷达模拟Velodyne类型
-            scan_line: 32  # 关键修改：匹配SDF中vertical samples=32
+            scan_line: 128  # 关键修改：匹配SDF中vertical samples=32
             blind: 0.08    # 关键修改：与激光雷达min range=0.08一致，过滤盲区
             timestamp_unit: 2  # 保持默认，与虚拟传感器时间戳单位匹配
             scan_rate: 10   # 关键修改：与SDF中update_rate=10一致
@@ -32,8 +32,8 @@
             fov_degree: 360.0  # 匹配SDF中水平视场角0~2π(360度)
             det_range: 10.0    # 关键修改：与激光雷达max range=10.0一致
             extrinsic_est_en: false  # 关键修改：虚拟传感器外参固定，关闭在线估计
-            extrinsic_T: [0.0, 0.0, 0.0]  # 关键修改：SDF中pose为0，外参平移为0
-            extrinsic_R: [1., 0., 0.,     # 关键修改：SDF中无旋转，外参旋转为单位矩阵
+            extrinsic_T: [0.0, 0.0, -0.85]
+            extrinsic_R: [1., 0., 0.,
                            0., 1., 0.,
                            0., 0., 1.]
 

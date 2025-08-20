@@ -11,6 +11,9 @@
 
     <depend>rclcpp</depend>
     <depend>fn_grid_map</depend>
+    <depend>tf2_ros</depend>
+    <depend>tf2_eigen</depend>
+    <depend>message_filters</depend>
     <depend>sensor_msgs</depend>
 
     <test_depend>ament_cmake_gtest</test_depend>

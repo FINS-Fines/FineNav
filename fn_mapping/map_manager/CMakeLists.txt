@@ -11,6 +11,9 @@ find_package(ament_cmake_auto REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(fn_grid_map REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
+find_package(message_filters REQUIRED)
 
 ament_auto_find_build_dependencies()
 
