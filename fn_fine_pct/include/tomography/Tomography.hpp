@@ -26,7 +26,13 @@ public:
     void setInputCloud(const PointCloud::Ptr& cloud);
     void startAlgorithm();
 
+    /**
+     * @brief 获取输出的图层
+     * @note layers_.ground和layers_.ceiling中存在NAN，代表不存在ground或ceiling
+     */
     const std::vector<TomographyLayer>& getOutputLayers() const { return layers_; }
+
+
     int getMapDimX() const { return map_dim_x_; }
     int getMapDimY() const { return map_dim_y_; }
     float getResolution() const { return config_.resolution; }

@@ -50,13 +50,9 @@ void Astar::Init(const double cost_threshold, const double resolution, const dou
                 double ground_height = layers[i].ground(j, k);
                 double ceiling_height = layers[i].ceiling(j, k);
 
-                // 处理 NaN 值 // TODO：统一不需要NaN值
-                if (std::isnan(ground_height)) {
-                    ground_height = 0.0;
-                }
-                if (std::isnan(ceiling_height)) {
-                    ceiling_height = 1e9;
-                }
+                // 处理ground和ceiling中的 NaN 值
+                if (std::isnan(ground_height)) { ground_height = std::numeric_limits<float>::lowest(); }
+                if (std::isnan(ceiling_height)) { ceiling_height =  std::numeric_limits<float>::max(); }
 
                 // 计算离散化的高度索引
                 double z = static_cast<int>(ground_height / resolution);
