@@ -11,6 +11,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "type_defs.hpp"
+
 using std::cout;
 using std::endl;
 
@@ -24,51 +26,72 @@ static std::vector<Eigen::Vector2i> kNeighbors = std::vector<Eigen::Vector2i>{
 /**
  * @brief 初始化A*的地图
  */
-void Astar::Init(const double cost_threshold, const int num_layers,
-                 const double resolution,  const double step_cost_weight, const Eigen::MatrixXd& cost_map,
-                 const Eigen::MatrixXd& height_map,
-                 const Eigen::MatrixXd& ele_map) {
-  auto t0 = std::chrono::high_resolution_clock::now();
-  cost_threshold_ = cost_threshold;
-step_cost_weight_  = step_cost_weight;
+void Astar::Init(const double cost_threshold, const double resolution, const double step_cost_weight, const std::vector<TomographyLayer>& layers) {
+    auto t0 = std::chrono::high_resolution_clock::now();
 
-  max_x_ = cost_map.cols();
-  max_y_ = cost_map.rows() / num_layers;
-  max_layers_ = num_layers;
-  xy_size_ = max_x_ * max_y_;
+    cost_threshold_ = cost_threshold;
+    step_cost_weight_ = step_cost_weight;
+    resolution_ = resolution;
 
-  int row_offset = 0;
-  grid_map_.resize(max_layers_);
-  for (size_t i = 0; i < max_layers_; ++i) {
-    row_offset = i * max_y_;
-    grid_map_[i].resize(max_y_);
-    for (size_t j = 0; j < max_y_; ++j) {
-      grid_map_[i][j].resize(max_x_);
-      for (size_t k = 0; k < max_x_; ++k) {
-        double height = height_map(j + row_offset, k);
-        double z = static_cast<int>(height / resolution);
-        grid_map_[i][j][k] = Node(Eigen::Vector3i(z, j, k), nullptr);
-        grid_map_[i][j][k].cost = cost_map(j + row_offset, k);
-        grid_map_[i][j][k].height = height;
-        grid_map_[i][j][k].ele = ele_map(j + row_offset, k);
-        grid_map_[i][j][k].layer = i;
-      }
+    max_layers_ = layers.size();
+    max_x_ = layers[0].trav_cost.cols();
+    max_y_ = layers[0].trav_cost.rows();
+    xy_size_ = max_x_ * max_y_;
+
+    // 初始化 grid_map_
+    grid_map_.resize(max_layers_);
+    for (size_t i = 0; i < max_layers_; ++i) {
+        grid_map_[i].resize(max_y_);
+        for (size_t j = 0; j < max_y_; ++j) {
+            grid_map_[i][j].resize(max_x_);
+            for (size_t k = 0; k < max_x_; ++k) {
+                // 从 TomographyLayer 获取数据
+                double cost = layers[i].trav_cost(j, k);
+                double ground_height = layers[i].ground(j, k);
+                double ceiling_height = layers[i].ceiling(j, k);
+
+                // 处理 NaN 值 // TODO：统一不需要NaN值
+                if (std::isnan(ground_height)) {
+                    ground_height = 0.0;
+                }
+                if (std::isnan(ceiling_height)) {
+                    ceiling_height = 1e9;
+                }
+
+                // 计算离散化的高度索引
+                double z = static_cast<int>(ground_height / resolution);
+
+                // 创建节点
+                grid_map_[i][j][k] = Node(Eigen::Vector3i(z, j, k), nullptr);
+                grid_map_[i][j][k].cost = cost;
+                grid_map_[i][j][k].height = ground_height;
+                grid_map_[i][j][k].layer = i;
+
+                // 计算 ele (高程差信息)
+                // 使用天花板和地面的高度差作为 ele
+                double interval = ceiling_height - ground_height;
+                if (std::isfinite(interval) && interval > 0) {
+                    grid_map_[i][j][k].ele = interval;
+                } else {
+                    grid_map_[i][j][k].ele = 0.0;
+                }
+            }
+        }
     }
-  }
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-      std::chrono::high_resolution_clock::now() - t0);
 
-  search_layers_offset_.clear();
-  search_layers_offset_.emplace_back(0);
-  for (int i = 0; i < search_layer_depth_; ++i) {
-    search_layers_offset_.emplace_back(-(i + 1));
-    search_layers_offset_.emplace_back(i + 1);
-  }
 
-  printf(
-      "Astar initialized, max_x: %d, max_y: %d, max_layers: %d, time elapsed: "
-      "%f ms\n",
-      max_x_, max_y_, max_layers_, duration.count() / 1000.0);
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::high_resolution_clock::now() - t0);
+
+    search_layers_offset_.clear();
+    search_layers_offset_.emplace_back(0);
+    for (int i = 0; i < search_layer_depth_; ++i) {
+        search_layers_offset_.emplace_back(-(i + 1));
+        search_layers_offset_.emplace_back(i + 1);
+    }
+
+    printf("Astar initialized with TomographyLayers, max_x: %d, max_y: %d, max_layers: %d, time elapsed: %f ms\n",
+           max_x_, max_y_, max_layers_, duration.count() / 1000.0);
 }
 
 void Astar::Reset() {
@@ -161,7 +184,7 @@ bool Astar::Search(const Eigen::Vector3i& start, const Eigen::Vector3i& goal) {
 
       // TODO: 完全不明所以的配置逻辑
       if (neighbor_node->cost > cost_threshold_) { // 邻居节点的代价是否超过阈值
-        if (abs(neighbor_node->ele) < 0.5) { // 如果代价超过了，并且高度差0.5？？？？？
+        if (abs(neighbor_node->ele) < 0.5) { // 如果代价超过了，��且高度差0.5？？？？？
           continue;
         } else {
           if (std::abs(neighbor_node->height - current_node->height) > 0.3) {

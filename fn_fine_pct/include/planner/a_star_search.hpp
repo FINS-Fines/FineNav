@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "data_types.h"
+#include "Tomography.hpp"
 
 enum HeuristicType : int { kEuclidean = 0, kManhattan = 1, kDiagonal = 2 };
 
@@ -21,12 +22,12 @@ class Node {
     g = 1e9;
     parent = nullptr;
   }
-
+    // 每个node存储的data
   double f = 1e9;
   double g = 1e9;
-  double height = 0.0;
-  double ele = 0;
-  double cost = 0.0;
+  double height = 0.0; // 高度
+  double ele = 0; //
+  double cost = 0.0; // 代价
   int layer = 0;
   Eigen::Vector3i idx = Eigen::Vector3i(0, 0, 0);  // layer, row, col
   Node* parent = nullptr;
@@ -55,9 +56,8 @@ class Astar {
   }
   ~Astar() = default;
 
-  void Init(const double cost_threshold, const int num_layers,
-            const double resolution, const double step_cost_weight,  const Eigen::MatrixXd& cost_map,
-            const Eigen::MatrixXd& height_map, const Eigen::MatrixXd& ele_map);
+    void Init(const double cost_threshold, const double resolution, const double step_cost_weight,
+        const std::vector<TomographyLayer>& layers);
 
   void Reset();
 
