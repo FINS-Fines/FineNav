@@ -44,6 +44,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
     tomography_config.inflation = this->get_parameter("inflation").as_double();
 
     tomography_ = std::make_unique<Tomography>(tomography_config);
+    path_finder_ = std::make_unique<Astar>(HeuristicType::kDiagonal);
 
     initPlanner();
 
@@ -80,7 +81,17 @@ void PctPlanner::initPlanner() const {
     // 执行tomography流程
     tomography_->setInputCloud(cloud);
     tomography_->startAlgorithm();
-    // auto tomography_layers = tomography_->getOutputLayers();
+
+    // 创建Astar
+    auto layers = tomography_->getOutputLayers();
+    int a_star_cost_threshold = 20; // TODO: 参数
+    int safe_cost_margin = 15; // 用于轨迹后端优化 ，无用
+    double step_cost_weight = 0.2;
+
+
+    // TODO: 只需要三个参数，a_star_cost_threshold，layer, resolution
+    path_finder_->Init(a_star_cost_threshold, tomography_->getResolution(), step_cost_weight, layers);
+
 }
 
 void PctPlanner::publishTomography() const {

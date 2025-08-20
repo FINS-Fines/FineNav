@@ -18,6 +18,7 @@
 #include <pcl/filters/voxel_grid.h>
 
 #include "Tomography.hpp"
+#include "a_star_search.hpp"
 
 using namespace finenav_2d;
 
@@ -39,13 +40,15 @@ private:
     bool tomography_visualize_;
 
 
-    std::unique_ptr<Tomography> tomography_;
+    std::unique_ptr<Tomography> tomography_; // TODO：暂时设置，tomography完后销毁
+    std::unique_ptr<Astar> path_finder_;
 
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr tomography_pub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
 
     // 可视化地图
+
 
 };
 
