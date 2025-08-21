@@ -10,6 +10,7 @@
     <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
     <depend>rclcpp</depend>
+    <depend>pluginlib</depend>
     <depend>fn_map_interface</depend>
 
     <test_depend>ament_cmake_gtest</test_depend>
