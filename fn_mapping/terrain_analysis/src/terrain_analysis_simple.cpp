@@ -8,9 +8,6 @@
 
 namespace finenav_2d {
 
-TerrainAnalysisSimple::TerrainAnalysisSimple(MapInterface* map_interface)
-    : TerrainAnalysisBase(map_interface) {}
-
 void TerrainAnalysisSimple::analyzeTerrain(){
 
 }

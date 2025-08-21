@@ -13,9 +13,10 @@ namespace finenav_2d {
 class TerrainAnalysisBase
 {
 public:
-    explicit TerrainAnalysisBase(MapInterface* map_interface) : map_interface_(map_interface) {}
-
+    explicit TerrainAnalysisBase();
     virtual ~TerrainAnalysisBase() = default;
+
+    void configure(const MapInterface::Ptr &map_interface);
 
     inline bool isOccupied(const Index& index) const;
     inline float terrainAttribute(const std::string& attr_name, const Index& index) const;
