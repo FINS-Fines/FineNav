@@ -9,7 +9,13 @@
 namespace finenav_2d {
 
 class TerrainAnalysisSimple : public TerrainAnalysisBase {
-    TerrainAnalysisSimple(MapInterface* map_interface) : TerrainAnalysisBase(map_interface) {}
+public:
+    TerrainAnalysisSimple(MapInterface* map_interface);
+
+    ~TerrainAnalysisSimple() override = default;
+    void analyzeTerrain() override;
+
+private:
 
 
 };

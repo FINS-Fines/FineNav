@@ -2,10 +2,18 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
+#include <rclcpp/rclcpp.hpp>
 #include "terrain_analysis_simple.hpp"
 
 
 namespace finenav_2d {
+
+TerrainAnalysisSimple::TerrainAnalysisSimple(MapInterface* map_interface)
+    : TerrainAnalysisBase(map_interface) {}
+
+void TerrainAnalysisSimple::analyzeTerrain(){
+
+}
 
 
 
