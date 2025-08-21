@@ -12,6 +12,7 @@ namespace finenav_2d {
 
 class MapInterface {
 public:
+    using Ptr = std::shared_ptr<MapInterface>;
 
     virtual ~MapInterface() = default;
 
