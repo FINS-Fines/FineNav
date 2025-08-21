@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include "map_interface.hpp"
 
 namespace finenav_2d {
