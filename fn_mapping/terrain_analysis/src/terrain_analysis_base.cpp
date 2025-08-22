@@ -12,16 +12,12 @@ void TerrainAnalysisBase::configure(const MapInterface::Ptr &map_interface){
     map_interface_ = map_interface;
 }
 
-bool TerrainAnalysisBase::isOccupied(const Index& index) const {
-    return map_interface_->isOccupied(index);
-}
-
-float TerrainAnalysisBase::terrainAttribute(const std::string& attr_name, const Index& index) const {
+float TerrainAnalysisBase::getTerrainAttribute(const std::string& attr_name, const Index& index) const {
     return map_interface_->getAttributeFields().at(attr_name, index);
 }
 
-float& TerrainAnalysisBase::terrainAttribute(const std::string& attr_name, const Index& index) {
-    return map_interface_->getAttributeFields().at(attr_name, index);
+void TerrainAnalysisBase::setTerrainAttribute(const std::string& attr_name, const Index& index, const float& value) const {
+    map_interface_->getAttributeFields().at(attr_name, index) = value;
 }
 
 

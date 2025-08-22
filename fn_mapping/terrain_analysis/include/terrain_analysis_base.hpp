@@ -18,9 +18,8 @@ public:
 
     void configure(const MapInterface::Ptr &map_interface);
 
-    inline bool isOccupied(const Index& index) const;
-    inline float terrainAttribute(const std::string& attr_name, const Index& index) const;
-    inline float& terrainAttribute(const std::string& attr_name, const Index& index);
+    inline float getTerrainAttribute(const std::string& attr_name, const Index& index) const;
+    inline void setTerrainAttribute(const std::string& attr_name, const Index& index, const float& value) const;
 
     virtual void analyzeTerrain() = 0;
 
