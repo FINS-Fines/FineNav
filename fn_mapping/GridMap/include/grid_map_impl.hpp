@@ -111,7 +111,7 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
 
     // 初始化
     Vector direction (end - origin_);
-    //   auto length = direction.norm();
+    auto length = direction.norm();
     //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
     Index current_voxel = (origin_ / resolution_).cast<int>();
     Index last_voxel = (end / resolution_).cast<int>();
@@ -123,8 +123,18 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
         step[i] = sign(direction[i]);
 
         if (step[i] != 0) {
-            tMax[i] = step[i] * resolution_ / direction[i];
-            tDelta[i] = resolution_ / direction[i] * step[i];
+            double voxelBorder;
+            if (step[i] > 0) {
+                voxelBorder = (current_voxel[i] + 1) * resolution_;
+            } else {
+                voxelBorder = current_voxel[i] * resolution_;
+            }
+
+            // 计算到下一个边界的参数距离
+            tMax[i] = (voxelBorder - origin_[i]) / direction[i];
+
+            // 计算穿越一个完整体素的参数距离
+            tDelta[i] = resolution_ / std::abs(direction[i]);
         }
         else{
             tMax[i] = DBL_MAX ;
@@ -136,6 +146,10 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
 
     indices.push_back(current_voxel);
     while(last_voxel != current_voxel) {
+        if (!checkIfIndexValid(current_voxel, size_)) {
+        return false;
+    }
+
         if (tMax.x() < tMax.y()) {
             if (tMax.x() < tMax.z()) {
                 current_voxel.x() += step.x();;
@@ -153,7 +167,15 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
                 tMax.z() += tDelta.z();
             }
         }
+        // 记录当前最小tMax作为已行进距离
+        double traveled_distance = std::min({tMax[0], tMax[1], tMax[2]});
+
+        // 离散化误差保护：使用原始长度比较
+        if (traveled_distance > length) {
+            break;
+        }
         indices.push_back(current_voxel);
+
     }
 
 

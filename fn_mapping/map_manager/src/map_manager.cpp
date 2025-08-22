@@ -9,7 +9,7 @@ namespace finenav_2d {
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options),
-        local_map_({20.0, 20.0, 20.0}, 0.5) // 初始化地图
+        local_map_({20.0, 20.0, 20.0}, 0.05) // 初始化地图
     {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
@@ -60,12 +60,23 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     }
 
 
+
     for (const auto& p : points) {
-        local_map_.atPosition(p) = 1;  //把对应栅格设置成占据
-    }
+        std::vector<Index> ray_indices;
+        Position end{p.x(), p.y(), p.z()};
 
-    // moveTo()
+        // 调用 rayCast
+    //     if (local_map_.rayCast(end, ray_indices)) {
+    //         // 遍历光线上的栅格
+    //         for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
+    //             local_map_.at(ray_indices[i]) = 0;   // 清除，设置为空闲
+    //         }
+    //     }
+         local_map_.atPosition(p) = 1;
+     }
 
+    //Position move_position = {1,1,1};
+    //local_map_.moveTo(move_position);
 
 
 
