@@ -12,6 +12,8 @@
     <depend>rclcpp</depend>
     <depend>fn_grid_map</depend>
     <depend>sensor_msgs</depend>
+    <depend>pluginlib</depend>
+    <depend>fn_terrain_analysis_core</depend>
 
     <test_depend>ament_cmake_gtest</test_depend>
 

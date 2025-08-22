@@ -7,8 +7,10 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <pluginlib/class_loader.hpp>
 
 #include "grid_map.hpp"
+
 
 namespace finenav_2d {
 
