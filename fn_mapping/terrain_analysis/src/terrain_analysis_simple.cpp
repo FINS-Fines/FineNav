@@ -14,7 +14,7 @@ void TerrainAnalysisSimple::analyzeTerrain() {
     auto max_idx = map_interface_->getMaxIndex();
 
     // 创建terrain_test属性字段
-    map_interface_->getAttributeFields().addAttributeLayer("terrain_test", min_idx, max_idx, NAN);
+    map_interface_->getAttributeFields().addAttributeField("terrain_test", min_idx, max_idx, NAN);
 
     // 遍历所有索引
     for (int x = min_idx.x(); x <= max_idx.x(); ++x) {

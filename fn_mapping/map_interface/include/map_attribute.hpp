@@ -10,9 +10,9 @@
 namespace finenav_2d {
 
 template <typename DataT>
-class MapAttribute {
+class AttributeFiled {
 public:
-    MapAttribute(const Index& min_idx, const Index& max_idx, const DataT& default_value)
+    AttributeFiled(const Index& min_idx, const Index& max_idx, const DataT& default_value)
         : min_idx_(min_idx), max_idx_(max_idx) {
         size_ = max_idx - min_idx + Index::Ones();
         data_.resize(size_.x() * size_.y() * size_.z(), default_value);
@@ -50,41 +50,41 @@ private:
 };
 
 template <typename DataT>
-class MapAttributeFields {
+class AttributeFieldMap {
 public:
 
     bool exists(const std::string& name) const {
-        return attribute_fields_.find(name) != attribute_fields_.end();
+        return field_map.find(name) != field_map.end();
     }
 
     DataT& at(const std::string& name, const Index& idx) {
         if (exists(name)) {
-            return attribute_fields_.at(name).at(idx);
+            return field_map.at(name).at(idx);
         }
         throw std::out_of_range("Attribute layer does not exist");
     }
 
     DataT at(const std::string& name, const Index& idx) const {
         if (exists(name)) {
-            return attribute_fields_.at(name).at(idx);
+            return field_map.at(name).at(idx);
         }
         throw std::out_of_range("Attribute layer does not exist");
     }
 
-    bool addAttributeLayer(const std::string& name, const Index& min_idx, const Index& max_idx, const DataT& default_value) {
+    bool addAttributeField(const std::string& name, const Index& min_idx, const Index& max_idx, const DataT& default_value) {
         if (exists(name)) { return false; }
-        attribute_fields_[name] = MapAttribute<DataT>(min_idx, max_idx, default_value);
+        field_map[name] = AttributeFiled<DataT>(min_idx, max_idx, default_value);
         return true;
     }
 
-    bool removeAttributeLayer(const std::string& name) {
+    bool removeAttributeField(const std::string& name) {
         if (!exists(name)) { return false; }
-        attribute_fields_.erase(name);
+        field_map.erase(name);
         return true;
     }
 
 private:
-    std::unordered_map<std::string, MapAttribute<DataT>> attribute_fields_;
+    std::unordered_map<std::string, AttributeFiled<DataT>> field_map;
 };
 
 } // namespace finenav_2d

@@ -18,14 +18,14 @@ public:
 
     virtual bool isOccupied(const Index & index) const = 0;
 
-    MapAttributeFields<float>& getAttributeFields() const { return *attribute_fields_; }
+    AttributeFieldMap<float>& getAttributeFields() const { return *attribute_field_map_; }
 
     Size getSize() const {return size_;}
     Index getMinIndex() const { return min_idx_; }
     Index getMaxIndex() const { return max_idx_; }
 
 protected:
-    std::shared_ptr<MapAttributeFields<float>> attribute_fields_;
+    std::shared_ptr<AttributeFieldMap<float>> attribute_field_map_;
     Index min_idx_;
     Index max_idx_;
     Size size_;
