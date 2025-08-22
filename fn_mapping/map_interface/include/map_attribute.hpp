@@ -73,7 +73,7 @@ public:
 
     bool addAttributeField(const std::string& name, const Index& min_idx, const Index& max_idx, const DataT& default_value) {
         if (exists(name)) { return false; }
-        field_map[name] = AttributeFiled<DataT>(min_idx, max_idx, default_value);
+        field_map.insert({name, AttributeFiled<DataT>(min_idx, max_idx, default_value)});
         return true;
     }
 
