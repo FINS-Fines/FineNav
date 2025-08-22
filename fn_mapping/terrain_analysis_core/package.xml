@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
-    <name>fn_map_interface</name>
+    <name>fn_terrain_analysis_core</name>
     <version>0.1.0</version>
-    <description>Abstract map interface</description>
+    <description>FineNav Terrain Analysis Core</description>
 
     <maintainer email="wangjinghui@sjtu.edu.cn">Jinghui Wang</maintainer>
     <license>MPL 2.0</license>

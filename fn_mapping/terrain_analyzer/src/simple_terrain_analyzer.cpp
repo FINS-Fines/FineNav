@@ -8,7 +8,7 @@
 
 namespace finenav_2d {
 
-void TerrainAnalysisSimple::analyzeTerrain() {
+void SimpleTerrainAnalyzer::analyzeTerrain() {
     // 获取地图的最小和最大索引
     auto min_idx = map_interface_->getMinIndex();
     auto max_idx = map_interface_->getMaxIndex();
@@ -36,4 +36,4 @@ void TerrainAnalysisSimple::analyzeTerrain() {
 } // namespace finenav_2d
 
 #include <pluginlib/class_list_macros.hpp>
-PLUGINLIB_EXPORT_CLASS(finenav_2d::TerrainAnalysisSimple, finenav_2d::TerrainAnalysisBase)
+PLUGINLIB_EXPORT_CLASS(finenav_2d::SimpleTerrainAnalyzer, finenav_2d::TerrainAnalyzerBase)

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(fn_map_interface)
+project(fn_terrain_analysis_core)
 
 set(CMAKE_CXX_STANDARD 17)
 

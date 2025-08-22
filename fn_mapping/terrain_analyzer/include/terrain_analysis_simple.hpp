@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "terrain_analysis_base.hpp"
+#include "terrain_analyzer_base.hpp"
 
 namespace finenav_2d {
 
-class TerrainAnalysisSimple : public TerrainAnalysisBase {
+class SimpleTerrainAnalyzer : public TerrainAnalyzerBase {
 public:
-    TerrainAnalysisSimple() {}
-    ~TerrainAnalysisSimple() override = default;
+    SimpleTerrainAnalyzer() {}
+    ~SimpleTerrainAnalyzer() override = default;
 
     void analyzeTerrain() override;
 
