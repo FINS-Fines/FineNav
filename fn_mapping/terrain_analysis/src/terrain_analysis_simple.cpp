@@ -8,8 +8,27 @@
 
 namespace finenav_2d {
 
-void TerrainAnalysisSimple::analyzeTerrain(){
+void TerrainAnalysisSimple::analyzeTerrain() {
+    // 获取地图的最小和最大索引
+    auto min_idx = map_interface_->getMinIndex();
+    auto max_idx = map_interface_->getMaxIndex();
 
+    // 创建terrain_test属性字段
+    map_interface_->getAttributeFields().addAttributeLayer("terrain_test", min_idx, max_idx, NAN);
+
+    // 遍历所有索引
+    for (int x = min_idx.x(); x <= max_idx.x(); ++x) {
+        for (int y = min_idx.y(); y <= max_idx.y(); ++y) {
+            for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
+                Index current_idx(x, y, z);
+
+                // 检查当前索引是否被占用
+                if (map_interface_->isOccupied(current_idx)) {
+                    map_interface_->getAttributeFields().at("terrain_test", current_idx) = 1.0f;
+                }
+            }
+        }
+    }
 }
 
 
