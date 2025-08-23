@@ -79,9 +79,9 @@ void Tomography::clearMap() {
     auto max_cols = map_dim_x_;
 
     // 初始化tomography_
-    tomography_.ground.reset();
-    tomography_.ceiling.reset();
-    tomography_.trav_cost.reset();
+    tomography_.ground.layers.clear();
+    tomography_.ceiling.layers.clear();
+    tomography_.trav_cost.layers.clear();
     for (int s = 0; s < n_slice_init_; ++s) {
         tomography_.ground.layers.emplace_back(Layer::Constant(max_rows, max_cols, std::numeric_limits<float>::lowest()));
         tomography_.ceiling.layers.emplace_back(Layer::Constant(max_rows, max_cols, std::numeric_limits<float>::max()));
@@ -89,10 +89,10 @@ void Tomography::clearMap() {
     }
 
     // 初始化中间变量
-    grad_mag_sq_.reset();
-    grad_mag_max_.reset();
-    trav_cost_.reset();
-    inflated_cost_.reset();
+    grad_mag_sq_.layers.clear();
+    grad_mag_max_.layers.clear();
+    trav_cost_.layers.clear();
+    inflated_cost_.layers.clear();
     for (int s = 0; s < n_slice_init_; ++s) {
         grad_mag_sq_.layers.emplace_back(Layer::Zero(max_rows, max_cols));
         grad_mag_max_.layers.emplace_back(Layer::Zero(max_rows, max_cols));

@@ -42,10 +42,6 @@ struct LayerVolume {
         return layers[slice](y, x);
     }
 
-    void reset() {
-        layers.clear();
-    }
-
     std::vector<Layer> layers;
 };
 
