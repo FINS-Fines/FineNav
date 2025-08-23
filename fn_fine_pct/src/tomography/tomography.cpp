@@ -21,7 +21,7 @@ void Tomography::startAlgorithm() {
 
     initMappingEnv();          // 初始化地图环境
     point2map();         // 点云投影到地图
-    computeGradients();        // 计算梯度
+    computeGradients();        // 计 算梯度
     computeTraversability();   // 计算可通行性
     inflateCosts();            // 代价膨胀
     simplifyLayers();          // 图层简化
@@ -296,8 +296,8 @@ void Tomography::simplifyLayers() {
             for (int j = 0; j < map_dim_y_; ++j) {
                 float g_val = tomography_.ground(i, j, s);
                 float c_val = tomography_.ceiling(i, j, s);
-                tomography_.ground(i, j, s) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
-                tomography_.ceiling(i, j, s)= (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
+                tomography_.ground(i, j, k) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
+                tomography_.ceiling(i, j, k)= (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
             }
         }
     }
