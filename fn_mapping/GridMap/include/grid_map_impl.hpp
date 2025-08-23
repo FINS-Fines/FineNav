@@ -72,7 +72,7 @@ bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::
     // 更新移动后的地图状态
     const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_);
     origin_ += aligned_position_shift;
-    start_index_ = wrapIndexToRange(start_index_ + index_shift, size_); // 限制循环缓冲区起始索引在缓冲区范围内
+    start_index_ = wrapIndexToRange(start_index_ - index_shift, size_); // 缓冲区起始索引应当与原点反向移动
 
     // 以移动后的地图作为固定坐标系，获取受移动影响的栅格
     getDifferenceSet(-index_shift, size_, indices);
