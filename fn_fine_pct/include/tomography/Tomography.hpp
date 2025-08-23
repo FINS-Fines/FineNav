@@ -37,7 +37,6 @@ public:
     float getResolution() const { return config_.resolution; }
     const std::vector<float>& getCenter() const { return center_; }
 
-
 private:
     // Algorithm functions
     void initMappingEnv();
@@ -53,10 +52,10 @@ private:
 
     // Map metadata
     std::vector<float> center_;
-    int map_dim_x_;
-    int map_dim_y_;
-    int n_slice_init_;
-    float slice_h0_;
+    int map_dim_x_{};
+    int map_dim_y_{};
+    int n_slice_init_{};
+    float slice_h0_{};
 
     // Map layers
     TomographyLayers tomography_;
