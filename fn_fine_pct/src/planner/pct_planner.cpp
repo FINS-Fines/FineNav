@@ -44,7 +44,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
     tomography_config.inflation = this->get_parameter("inflation").as_double();
 
     tomography_ = std::make_unique<Tomography>(tomography_config);
-    path_finder_ = std::make_unique<Astar>(HeuristicType::kDiagonal);
+    path_finder_ = std::make_unique<Astar>();
 
     initPlanner();
 
@@ -88,23 +88,22 @@ void PctPlanner::initPlanner() const {
     int safe_cost_margin = 15; // 用于轨迹后端优化 ，无用
     double step_cost_weight = 0.2;
 
-
     // TODO: 只需要三个参数，a_star_cost_threshold，layer, resolution
-    path_finder_->Init(a_star_cost_threshold, tomography_->getResolution(), step_cost_weight, layers);
-
+    path_finder_->initialize(a_star_cost_threshold, step_cost_weight, layers, HeuristicType::kDiagonal);
 }
 
 void PctPlanner::publishTomography() const {
     auto layers = tomography_->getOutputLayers();
+    auto layers_num = layers.trav_cost.layers.size();
 
     // 1. 创建带颜色的点云
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    colored_cloud->reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers.size());
+    colored_cloud->reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers_num);
 
     // 2. 填充点云数据（按高度着色）
-    for (size_t k = 0; k < layers.size(); ++k) {
+    for (size_t k = 0; k < layers_num; ++k) {
         // 分层着色
-        float hue = static_cast<float>(k) / layers.size() * 360.0f;
+        float hue = static_cast<float>(k) / layers_num * 360.0f;
 
         // 将HSV转换为RGB (H:0-360, S:1.0, V:1.0)
         float c = 1.0f;
@@ -131,15 +130,15 @@ void PctPlanner::publishTomography() const {
         uint8_t G = static_cast<uint8_t>((g + m) * 255);
         uint8_t B = static_cast<uint8_t>((b + m) * 255);
 
-        for (int i = 0; i < tomography_->getMapDimX(); ++i) {
-            for (int j = 0; j < tomography_->getMapDimY(); ++j) {
-                if (std::isnan(layers[k].ground(i, j))) { continue; }
+        for (int x = 0; x < tomography_->getMapDimX(); ++x) {
+            for (int y = 0; y < tomography_->getMapDimY(); ++y) {
+                if (std::isnan(layers.ground(x, y, k))) { continue; }
 
                 pcl::PointXYZRGB point;
                 // 坐标转换
-                point.x = tomography_->getCenter()[0] + (i - tomography_->getMapDimX() / 2) * tomography_->getResolution();
-                point.y = tomography_->getCenter()[1] + (j - tomography_->getMapDimY() / 2) * tomography_->getResolution();
-                point.z = layers[k].ground(i, j);
+                point.x = tomography_->getCenter()[0] + (x - tomography_->getMapDimX() / 2) * tomography_->getResolution();
+                point.y = tomography_->getCenter()[1] + (y - tomography_->getMapDimY() / 2) * tomography_->getResolution();
+                point.z = layers.ground(x, y, k);
 
                 // set color option
                 point.r = R;

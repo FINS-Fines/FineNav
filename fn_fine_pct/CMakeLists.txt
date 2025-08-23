@@ -3,6 +3,7 @@ project(fn_fine_pct)
 
 set(CMAKE_CXX_STANDARD 17)
 
+#TODO: 将架构调整为三个subdirectory
 # 查找依赖
 find_package(ament_cmake_auto REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -24,24 +25,19 @@ ament_auto_add_library(lib_tomography SHARED
 target_include_directories(lib_tomography PUBLIC include/tomography)
 target_link_libraries(lib_tomography)
 
-# A star 库
-ament_auto_add_library(a_star_search SHARED
-        src/planner/a_star_search.cpp
+# A* 库
+ament_auto_add_library(a_star SHARED
+        src/planner/a_star.cpp
 )
-target_include_directories(a_star_search PUBLIC include/planner)
+target_include_directories(a_star PUBLIC include/planner)
 
-# 规划器节点
-ament_auto_add_executable(planner_node
-        src/planner/planner_node.cpp
-        src/planner/Planner_cp.cpp
-)
-
+# 规划器
 ament_auto_add_executable(fn_global_planner_node
         src/planner/pct_planner.cpp
 )
 
-target_include_directories(planner_node PRIVATE include/planner)
-target_link_libraries(planner_node lib_tomography)
+target_include_directories(fn_global_planner_node PRIVATE include/planner)
+target_link_libraries(fn_global_planner_node lib_tomography)
 
 ament_auto_package(
         INSTALL_TO_SHARE

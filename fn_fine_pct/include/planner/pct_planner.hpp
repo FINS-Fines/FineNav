@@ -18,7 +18,7 @@
 #include <pcl/filters/voxel_grid.h>
 
 #include "Tomography.hpp"
-#include "a_star_search.hpp"
+#include "a_star.hpp"
 
 using namespace finenav_2d;
 
