@@ -2,6 +2,7 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
+#include <chrono>
 #include "map_manager.h"
 
 
@@ -45,11 +46,20 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // 改写成message_filters实现的tf接收，文档......
     // 参考octomap_server
 
-    //1. 读取点云的 frame_id
-    std::string frame_id = msg->header.frame_id;
-    RCLCPP_INFO(this->get_logger(), "Received pointcloud in frame: %s", frame_id.c_str());
+    geometry_msgs::msg::TransformStamped tf_base;
+    try {
+        tf_base = tf2_buffer_->lookupTransform(
+            "base_link",   // 目标坐标系
+            "odom",      // 源坐标系
+            msg->header.stamp,
+            rclcpp::Duration::from_seconds(0.1)  // 超时 100ms
+        );
+    } catch (tf2::TransformException &ex) {
+        RCLCPP_WARN(this->get_logger(), "Could not transform pointcloud: %s", ex.what());
+        return;
+    }
 
-    // 2. 将 PointCloud2 转成 Eigen::Vector3d 的点集合
+
     std::vector<Eigen::Vector3d> points;
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
@@ -61,28 +71,34 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
 
 
+    auto t0 = std::chrono::high_resolution_clock::now();
     for (const auto& p : points) {
         std::vector<Index> ray_indices;
         Position end{p.x(), p.y(), p.z()};
 
         // 调用 rayCast
-    //     if (local_map_.rayCast(end, ray_indices)) {
-    //         // 遍历光线上的栅格
-    //         for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-    //             local_map_.at(ray_indices[i]) = 0;   // 清除，设置为空闲
-    //         }
-    //     }
-         local_map_.atPosition(p) = 1;
-     }
+         if (local_map_.rayCast(end, ray_indices)) {
+             // 遍历光线上的栅格
+             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
+                 local_map_.at(ray_indices[i]) = 0;   // 清除，设置为空闲
+             }
+         }
+    }
 
-    //Position move_position = {1,1,1};
-    //local_map_.moveTo(move_position);
-
-
+    for (const auto& p : points) {
+        local_map_.atPosition(p) = 1;
+    }
 
 
+    auto t1 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
 
-
+    //move to base_link
+    Position base_link_pos;
+    base_link_pos.x() = tf_base.transform.translation.x;
+    base_link_pos.y() = tf_base.transform.translation.y;
+    base_link_pos.z() = tf_base.transform.translation.z;
+    local_map_.moveTo(base_link_pos);
 
     // 发布地图（可视化）
     publishLocalMap();
@@ -100,7 +116,7 @@ void MapManager::publishLocalMap() {
 
     //创建Pointcloud2信息
     sensor_msgs::msg::PointCloud2 cloud;
-    cloud.header.frame_id = "map";
+    cloud.header.frame_id = "base_link";
     cloud.header.stamp = this->now();
     cloud.height = 1;  // 非组织型点云
     cloud.width = Ocuppied_cells.size(); // 点的数量
