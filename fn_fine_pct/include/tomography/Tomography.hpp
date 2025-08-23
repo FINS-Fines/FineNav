@@ -30,8 +30,7 @@ public:
      * @brief 获取输出的图层
      * @note layers_.ground和layers_.ceiling中存在NAN，代表不存在ground或ceiling
      */
-    const std::vector<TomographyLayer>& getOutputLayers() const { return layers_; }
-
+    const TomographyLayers& getOutputLayers() const { return tomography_; }
 
     int getMapDimX() const { return map_dim_x_; }
     int getMapDimY() const { return map_dim_y_; }
@@ -60,13 +59,13 @@ private:
     float slice_h0_;
 
     // Map layers
-    std::vector<TomographyLayer> layers_;
+    TomographyLayers tomography_;
 
     // 内部暂存的东西
-    std::vector<Layer> grad_mag_sq_;  // Gradient magnitude squared
-    std::vector<Layer> grad_mag_max_;  // Max gradient component
-    std::vector<Layer> trav_cost_;     // Traversability cost
-    std::vector<Layer> inflated_cost_; // Inflated cost
+    LayerVolume grad_mag_sq_;  // Gradient magnitude squared
+    LayerVolume grad_mag_max_;  // Max gradient component
+    LayerVolume trav_cost_;     // Traversability cost
+    LayerVolume inflated_cost_; // Inflated cost
     std::vector<std::vector<float>> inf_table_; // 离线存储的膨胀表
 
 public:

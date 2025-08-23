@@ -29,16 +29,34 @@ struct TomographyConfig {
 };
 
 
+/**
+ *  @brief 多层Layer结构
+ */
+struct LayerVolume {
+    float& operator()(const size_t& x, const size_t& y, const size_t& slice) {
+        return layers[slice](x, y);
+    }
+
+    const float& operator()(const size_t& x, const size_t& y, const size_t& slice) const {
+        return layers[slice](x, y);
+    }
+
+    void reset() {
+        layers.clear();
+    }
+
+    std::vector<Layer> layers;
+};
 
 /**
  *  @brief tomography算法输出的数据结构
  */
-struct TomographyLayer {
-    Layer trav_cost; // Traversability cost layer
-    Layer trav_grad_x; // Traversability gradient in x direction
-    Layer trav_grad_y; // Traversability gradient in y direction
-    Layer ground; // ground layer
-    Layer ceiling; // ceiling layer
+struct TomographyLayers {
+    LayerVolume trav_cost; // Traversability cost layer
+    LayerVolume trav_grad_x; // Traversability gradient in x direction
+    LayerVolume trav_grad_y; // Traversability gradient in y direction
+    LayerVolume ground; // ground layer
+    LayerVolume ceiling; // ceiling layer
 };
 
 

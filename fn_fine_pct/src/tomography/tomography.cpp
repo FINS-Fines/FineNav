@@ -25,7 +25,7 @@ void Tomography::startAlgorithm() {
     computeTraversability();   // 计算可通行性
     inflateCosts();            // 代价膨胀
     simplifyLayers();          // 图层简化
-    
+
    std::cout << "[Tomography] Process Finished." << std::endl;
 }
 
@@ -75,26 +75,33 @@ void Tomography::initMappingEnv() {
 }
 
 void Tomography::clearMap() {
-    layers_.clear();
+    // 清空主要输出层
+    tomography_.ground.reset();
+    tomography_.ceiling.reset();
+    tomography_.trav_cost.reset();
+    tomography_.trav_grad_x.reset();
+    tomography_.trav_grad_y.reset();
+
+    // 初始化主要输出层
     for (int s = 0; s < n_slice_init_; ++s) {
-        TomographyLayer layer;
-        layer.trav_cost = Layer::Zero(map_dim_x_, map_dim_y_);
-        layer.trav_grad_x = Layer::Zero(map_dim_x_, map_dim_y_);
-        layer.trav_grad_y = Layer::Zero(map_dim_x_, map_dim_y_);
-        layer.ground = Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::lowest());
-        layer.ceiling = Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::max());
-        layers_.push_back(layer);
+        tomography_.ground.layers.emplace_back(Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::lowest()));
+        tomography_.ceiling.layers.emplace_back(Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::max()));
+        tomography_.trav_cost.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        tomography_.trav_grad_x.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        tomography_.trav_grad_y.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
     }
 
-    grad_mag_sq_.clear();
-    grad_mag_max_.clear();
-    trav_cost_.clear();
-    inflated_cost_.clear();
+    // 清空并初始化内部暂存层
+    grad_mag_sq_.reset();
+    grad_mag_max_.reset();
+    trav_cost_.reset();
+    inflated_cost_.reset();
+
     for (int s = 0; s < n_slice_init_; ++s) {
-        grad_mag_sq_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
-        grad_mag_max_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
-        trav_cost_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
-        inflated_cost_.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        grad_mag_sq_.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        grad_mag_max_.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        trav_cost_.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
+        inflated_cost_.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
     }
 }
 
@@ -125,9 +132,9 @@ void Tomography::point2map() {
         for (int s_idx = 0; s_idx < n_slice_init_; ++s_idx) {
             float slice = slice_h0_ + s_idx * config_.slice_dh;
             if (point.z <= slice) {
-                layers_[s_idx].ground(idx_x,idx_y) = std::max(layers_[s_idx].ground(idx_x,idx_y), point.z);
+                tomography_.ground(idx_x, idx_y, s_idx) = std::max(tomography_.ground(idx_x, idx_y, s_idx), point.z);
             } else {
-                layers_[s_idx].ceiling(idx_x,idx_y) = std::min(layers_[s_idx].ceiling(idx_x,idx_y), point.z);
+                tomography_.ceiling(idx_x, idx_y, s_idx) = std::min(tomography_.ceiling(idx_x, idx_y, s_idx), point.z);
             }
         }
     }
@@ -142,18 +149,18 @@ void Tomography::computeGradients() {
         for (int i = 1; i < map_dim_x_ - 1; ++i) {
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
                 // Compute x gradient
-                float diff_x1 = layers_[s].ground(i, j) - layers_[s].ground(i - 1, j);
-                float diff_x2 = layers_[s].ground(i + 1, j) - layers_[s].ground(i, j);
+                float diff_x1 = tomography_.ground(i, j, s) - tomography_.ground(i - 1, j, s);
+                float diff_x2 = tomography_.ground(i + 1, j, s) - tomography_.ground(i, j, s);
                 float diff_x_sq = std::max(diff_x1 * diff_x1, diff_x2 * diff_x2);
 
                 // Compute y gradient
-                float diff_y1 = layers_[s].ground(i, j) - layers_[s].ground(i, j - 1);
-                float diff_y2 = layers_[s].ground(i, j + 1) - layers_[s].ground(i, j);
+                float diff_y1 = tomography_.ground(i, j, s) - tomography_.ground(i, j - 1, s);
+                float diff_y2 = tomography_.ground(i, j + 1, s) - tomography_.ground(i, j, s);
                 float diff_y_sq = std::max(diff_y1 * diff_y1, diff_y2 * diff_y2);
 
                 // Store results
-                grad_mag_sq_[s](i, j) = diff_x_sq + diff_y_sq;
-                grad_mag_max_[s](i, j) = std::max(diff_x_sq, diff_y_sq);
+                grad_mag_sq_(i, j, s) = diff_x_sq + diff_y_sq;
+                grad_mag_max_(i, j, s) = std::max(diff_x_sq, diff_y_sq);
             }
         }
     }
@@ -177,25 +184,26 @@ void Tomography::computeTraversability() {
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                float interval = layers_[s].ceiling(i, j) - layers_[s].ground(i, j);
+                float interval = tomography_.ceiling(i, j, s) - tomography_.ground(i, j, s);
 
                 // Check minimum interval
+                // 机器人无法通过的视为障碍物
                 if (interval < config_.interval_min) {
-                    trav_cost_[s](i, j) = config_.cost_barrier;
+                    trav_cost_(i, j, s) = config_.cost_barrier;
                     continue;
                 }
 
                 // Add cost based on interval
-                trav_cost_[s](i, j) += std::max(0.0f, 20.0f * (config_.interval_free - interval));
+                trav_cost_(i, j, s) += std::max(0.0f, 20.0f * (config_.interval_free - interval));
 
                 // Check standable condition
-                if (grad_mag_sq_[s](i, j) <= step_stand_sq) {
-                    trav_cost_[s](i, j) += 15.0f * grad_mag_sq_[s](i, j) / step_stand_sq;
+                if (grad_mag_sq_(i, j, s) <= step_stand_sq) {
+                    trav_cost_(i, j, s) += 15.0f * grad_mag_sq_(i, j, s) / step_stand_sq;
                     continue;
                 }
 
                 // Check crossable condition
-                if (grad_mag_max_[s](i, j) <= step_cross_sq) {
+                if (grad_mag_max_(i, j, s) <= step_cross_sq) {
                     int standable_grids = 0;
                     for (int dy = -config_.half_kernel_size; dy <= config_.half_kernel_size; ++dy) {
                         for (int dx = -config_.half_kernel_size; dx <= config_.half_kernel_size; ++dx) {
@@ -204,18 +212,18 @@ void Tomography::computeTraversability() {
                             if (ni < 0 || ni >= map_dim_x_ || nj < 0 || nj >= map_dim_y_) {
                                 continue;
                             }
-                            if (grad_mag_sq_[s](ni, nj) < step_stand_sq) {
+                            if (grad_mag_sq_(ni, nj, s) < step_stand_sq) {
                                 standable_grids++;
                             }
                         }
                     }
                     if (standable_grids < standable_th) {
-                        trav_cost_[s](i, j) = config_.cost_barrier;
+                        trav_cost_(i, j, s) = config_.cost_barrier;
                     } else {
-                        trav_cost_[s](i, j) += 20.0f * grad_mag_max_[s](i, j) / step_cross_sq;
+                        trav_cost_(i, j, s) += 20.0f * grad_mag_max_(i, j, s) / step_cross_sq;
                     }
                 } else {
-                    trav_cost_[s](i, j) = config_.cost_barrier;
+                    trav_cost_(i, j, s) = config_.cost_barrier;
                 }
             }
         }
@@ -236,11 +244,11 @@ void Tomography::inflateCosts() {
                         int ni = i + dx;
                         int nj = j + dy;
                         if (ni >= 0 && ni < map_dim_x_ && nj >= 0 && nj < map_dim_y_) {
-                            max_cost = std::max(max_cost, trav_cost_[s](ni, nj) * inf_table_[dy + half_inf_k_size][dx + half_inf_k_size]);
+                            max_cost = std::max(max_cost, trav_cost_(ni, nj, s) * inf_table_[dy + half_inf_k_size][dx + half_inf_k_size]);
                         }
                     }
                 }
-                inflated_cost_[s](i, j) = max_cost;
+                inflated_cost_(i, j, s) = max_cost;
             }
         }
     }
@@ -260,10 +268,10 @@ void Tomography::simplifyLayers() {
             for (int i = 0; i < map_dim_x_; ++i) {
                 for (int j = 0; j < map_dim_y_; ++j) {
                     // 四个独特性条件检查
-                    bool mask_l_g = layers_[m_idx].ground(i, j) - layers_[l_idx].ground(i, j) > 0;
-                    bool mask_l_t = inflated_cost_[l_idx](i, j) > inflated_cost_[m_idx](i, j);
-                    bool mask_u_g = (layers_[m_idx+1].ground(i, j) - layers_[m_idx].ground(i, j)) > 0;
-                    bool mask_t = inflated_cost_[m_idx](i, j) < config_.cost_barrier;
+                    bool mask_l_g = tomography_.ground(i, j, m_idx) - tomography_.ground(i, j, l_idx) > 0;
+                    bool mask_l_t = inflated_cost_(i, j, l_idx) > inflated_cost_(i, j, m_idx);
+                    bool mask_u_g = (tomography_.ground(i, j, m_idx + 1) - tomography_.ground(i, j, m_idx)) > 0;
+                    bool mask_t = inflated_cost_(i, j, m_idx) < config_.cost_barrier;
                     if ((mask_l_g || mask_l_t) && mask_u_g && mask_t) {
                         has_unique = true;
                         break;
@@ -285,31 +293,36 @@ void Tomography::simplifyLayers() {
         int s = idx_simp_[k];   // unique layer index
 
         // 更新 trav_cost
-        layers_[k].trav_cost = inflated_cost_[s];
+        tomography_.trav_cost.layers[k] = inflated_cost_.layers[s];
 
         // 更新 ground 和 ceiling，处理无效值
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
-                float g_val = layers_[s].ground(i, j);
-                float c_val = layers_[s].ceiling(i, j);
-                layers_[k].ground(i, j) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
-                layers_[k].ceiling(i, j) = (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
+                float g_val = tomography_.ground(i, j, s);
+                float c_val = tomography_.ceiling(i, j, s);
+                tomography_.ground(i, j, s) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
+                tomography_.ceiling(i, j, s)= (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
             }
         }
     }
-    // 移除多余的层，只保留简化后的层
-    layers_.resize(idx_simp_.size());
 
-    // Compute gradients for simplified layers
+    // 移除多余的层，只保留简化后的层
+    tomography_.trav_cost.layers.resize(idx_simp_.size());
+    tomography_.ground.layers.resize(idx_simp_.size());
+    tomography_.ceiling.layers.resize(idx_simp_.size());
+    tomography_.trav_grad_x.layers.resize(idx_simp_.size());
+    tomography_.trav_grad_y.layers.resize(idx_simp_.size());
+
+    // Compute gradients for simplified layers // TODO: 直接把这里删了吧
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
         for (int i = 1; i < map_dim_x_ - 1; ++i) { // x方向梯度
             for (int j = 0; j < map_dim_y_; ++j) {
-                    layers_[k].trav_grad_x(i, j) =  layers_[k].trav_cost(i+1, j) -  layers_[k].trav_cost(i-1,j);
+                tomography_.trav_grad_x(i, j, k) =  tomography_.trav_cost(i+1, j, k) -  tomography_.trav_cost(i-1,j, k);
             }
         }
         for (int i = 0; i < map_dim_x_; ++i) { // y方向梯度
             for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                     layers_[k].trav_grad_x(i, j) =  layers_[k].trav_cost(i,j+1) -  layers_[k].trav_cost(i,j-1);
+                tomography_.trav_grad_y(i, j, k) =  tomography_.trav_cost(i, j+1, k) -  tomography_.trav_cost(i,j-1, k);
             }
         }
     }
