@@ -53,8 +53,6 @@ struct LayerVolume {
  */
 struct TomographyLayers {
     LayerVolume trav_cost; // Traversability cost layer
-    LayerVolume trav_grad_x; // Traversability gradient in x direction
-    LayerVolume trav_grad_y; // Traversability gradient in y direction
     LayerVolume ground; // ground layer
     LayerVolume ceiling; // ceiling layer
 };

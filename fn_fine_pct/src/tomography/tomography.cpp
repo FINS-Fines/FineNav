@@ -75,28 +75,21 @@ void Tomography::initMappingEnv() {
 }
 
 void Tomography::clearMap() {
-    // 清空主要输出层
+    // 初始化tomography_
     tomography_.ground.reset();
     tomography_.ceiling.reset();
     tomography_.trav_cost.reset();
-    tomography_.trav_grad_x.reset();
-    tomography_.trav_grad_y.reset();
-
-    // 初始化主要输出层
     for (int s = 0; s < n_slice_init_; ++s) {
         tomography_.ground.layers.emplace_back(Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::lowest()));
         tomography_.ceiling.layers.emplace_back(Layer::Constant(map_dim_x_, map_dim_y_, std::numeric_limits<float>::max()));
         tomography_.trav_cost.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
-        tomography_.trav_grad_x.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
-        tomography_.trav_grad_y.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
     }
 
-    // 清空并初始化内部暂存层
+    // 初始化中间变量
     grad_mag_sq_.reset();
     grad_mag_max_.reset();
     trav_cost_.reset();
     inflated_cost_.reset();
-
     for (int s = 0; s < n_slice_init_; ++s) {
         grad_mag_sq_.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
         grad_mag_max_.layers.emplace_back(Layer::Zero(map_dim_x_, map_dim_y_));
@@ -310,22 +303,7 @@ void Tomography::simplifyLayers() {
     tomography_.trav_cost.layers.resize(idx_simp_.size());
     tomography_.ground.layers.resize(idx_simp_.size());
     tomography_.ceiling.layers.resize(idx_simp_.size());
-    tomography_.trav_grad_x.layers.resize(idx_simp_.size());
-    tomography_.trav_grad_y.layers.resize(idx_simp_.size());
 
-    // Compute gradients for simplified layers // TODO: 直接把这里删了吧
-    for (size_t k = 0; k < idx_simp_.size(); ++k) {
-        for (int i = 1; i < map_dim_x_ - 1; ++i) { // x方向梯度
-            for (int j = 0; j < map_dim_y_; ++j) {
-                tomography_.trav_grad_x(i, j, k) =  tomography_.trav_cost(i+1, j, k) -  tomography_.trav_cost(i-1,j, k);
-            }
-        }
-        for (int i = 0; i < map_dim_x_; ++i) { // y方向梯度
-            for (int j = 1; j < map_dim_y_ - 1; ++j) {
-                tomography_.trav_grad_y(i, j, k) =  tomography_.trav_cost(i, j+1, k) -  tomography_.trav_cost(i,j-1, k);
-            }
-        }
-    }
     std::cout << "[Tomography] Simplified layers num: " << idx_simp_.size() << std::endl;
 }
 
