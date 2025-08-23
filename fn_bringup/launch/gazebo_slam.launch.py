@@ -17,6 +17,7 @@ def generate_launch_description():
     bringup_dir = get_package_share_directory('fine_nav2d_bringup')
     config_dir = os.path.join(bringup_dir, 'config')
     localization_manager_dir = FindPackageShare(package='localization_manager').find('localization_manager')
+    odometry_gz_manager_dir = FindPackageShare(package='odometry_gz_manager').find('odometry_gz_manager')
 
     # 声明参数
     declare_use_sim_time = DeclareLaunchArgument(
@@ -145,6 +146,12 @@ def generate_launch_description():
             localization_manager_dir, '/launch', '/example_gazebo.launch.py'
         ])
     )
+    # Odometry gazebo manager 节点
+    odometry_gz_manager_node = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            odometry_gz_manager_dir, '/launch', '/example_gazebo.launch.py'
+        ])
+    )
 
     # Map Manager 节点
     map_manager_node = Node(
@@ -167,9 +174,10 @@ def generate_launch_description():
 
     ld.add_action(declare_nav_mode)
     ld.add_action(static_tf_node)
-    ld.add_action(fast_lio_node)
+    #ld.add_action(fast_lio_node)
     ld.add_action(map_manager_node)
-    ld.add_action(localization_manager_node)
+    #ld.add_action(localization_manager_node)
+    ld.add_action(odometry_gz_manager_node)
     ld.add_action(TimerAction(period=5.0, actions=[octomap_server_node]))  # 延迟 5s 确保 FAST-LIO 初始化
 
     return ld

@@ -18,3 +18,10 @@
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "ignition.msgs.Twist"
   direction: "ROS_TO_GZ"
+
+# 绝对里程计
+- ros_topic_name: "/world/default/dynamic_pose/info"
+  gz_topic_name: "/world/default/dynamic_pose/info"
+  ros_type_name: "geometry_msgs/msg/PoseArray"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
