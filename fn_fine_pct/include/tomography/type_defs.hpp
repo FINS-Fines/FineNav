@@ -31,14 +31,15 @@ struct TomographyConfig {
 
 /**
  *  @brief 多层Layer结构
+ *  @note x-对应cols，y-对应rows
  */
 struct LayerVolume {
     float& operator()(const size_t& x, const size_t& y, const size_t& slice) {
-        return layers[slice](x, y);
+        return layers[slice](y, x);
     }
 
     const float& operator()(const size_t& x, const size_t& y, const size_t& slice) const {
-        return layers[slice](x, y);
+        return layers[slice](y, x);
     }
 
     void reset() {
