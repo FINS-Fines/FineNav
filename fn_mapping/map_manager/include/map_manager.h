@@ -27,8 +27,11 @@
 namespace finenav_2d {
 class GridMapAdapter final : public MapInterface  {
 public:
-  explicit GridMapAdapter(const std::shared_ptr<GridMap<uint8_t>>& grid_map)
-      : map_(grid_map) {}
+explicit GridMapAdapter(const std::shared_ptr<GridMap<uint8_t>>& grid_map)
+    : MapInterface(
+          -grid_map->getSize() / 2,   // min_index = -size/2
+           grid_map->getSize() / 2),  // max_index = +size/2
+      map_(grid_map) {}
 
 
   bool isOccupied(const Index & index) const override ;
@@ -45,6 +48,7 @@ public:
   * @brief 发布局部地图
   */
   void publishLocalMap();
+  void publishTerrainPointCloud();
 
 private:
   /**
@@ -69,6 +73,7 @@ private:
   std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> > tf2_filter_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr terrain_pub_;
 };
 
 }

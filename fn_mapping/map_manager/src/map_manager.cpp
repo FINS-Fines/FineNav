@@ -37,24 +37,27 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     local_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "local_map", 10  // 队列长度
     );
-
+    terrain_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+        "terrain_test", 10  // 队列长度
+    );
+    RCLCPP_INFO(get_logger(), "Publishers initialized: local_map, terrain_test");
 
     // 地形分析
     pluginlib::ClassLoader<TerrainAnalyzerBase> tta_loader("fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
     try {
 
         // 放到类的成员，注意下这是个共享指针
-       terrain_analyzer_ = tta_loader.createSharedInstance("fn_terrain_analysis_plugins::SimpleTerrainAnalyzer");
+        terrain_analyzer_ = tta_loader.createSharedInstance("fn_terrain_analysis_plugins::SimpleTerrainAnalyzer");
+        RCLCPP_INFO(get_logger(), "TerrainAnalyzer plugin loaded successfully");
     }
     catch(pluginlib::PluginlibException& ex) {
-        printf("The plugin failed to load for some reason. Error: %s\n", ex.what());
-     }
+        RCLCPP_ERROR(get_logger(), "Failed to load TerrainAnalyzer plugin: %s", ex.what());
+    }
 
     gridmap_adapter_ = std::make_shared<GridMapAdapter>(local_map_);
     // 对应的对象的共享指针
     terrain_analyzer_->configure(gridmap_adapter_);
-
-
+    RCLCPP_INFO(get_logger(), "MapManager initialized successfully!");
 }
 
 
@@ -127,7 +130,11 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // 发布地图（可视化）
     publishLocalMap();
 
-
+    // 地形分析
+    if (terrain_analyzer_) {
+        terrain_analyzer_->analyzeTerrain();
+    }
+    publishTerrainPointCloud();
 }
 
 void MapManager::publishLocalMap() {
@@ -174,6 +181,82 @@ void MapManager::publishLocalMap() {
     // 4. 发布点云
     local_map_pub_->publish(cloud);
 }
+
+void MapManager::publishTerrainPointCloud() {
+
+    std::vector<Index> terrain_indices;
+
+    // 遍历所有XY，Z固定为0
+    // 获取地图尺寸
+    Size map_size = local_map_->getSize();
+    Index half_size(map_size.x()/2, map_size.y()/2, 0);  // Z方向固定为0
+
+    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
+        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
+            Index idx(x, y, 0); // Z = 0 对应属性字段
+            float value = terrain_analyzer_->getTerrainAttribute("terrain_test", idx);
+            if (!std::isnan(value)) { // 有占据值才加入点云
+                terrain_indices.push_back(idx);
+            }
+        }
+    }
+
+    // 2. 构建PointCloud2消息
+    sensor_msgs::msg::PointCloud2 cloud;
+    cloud.header.frame_id = "base_link";
+    cloud.header.stamp = this->now();
+    cloud.height = 1;
+    cloud.width = terrain_indices.size();
+    cloud.is_dense = true;
+    cloud.is_bigendian = false;
+    cloud.point_step = 3 * sizeof(float);
+    cloud.row_step = cloud.point_step * cloud.width;
+    cloud.data.resize(cloud.row_step * cloud.height);
+
+    cloud.fields.resize(3);
+    cloud.fields[0].name = "x"; cloud.fields[0].offset = 0; cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[0].count = 1;
+    cloud.fields[1].name = "y"; cloud.fields[1].offset = sizeof(float); cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[1].count = 1;
+    cloud.fields[2].name = "z"; cloud.fields[2].offset = 2*sizeof(float); cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[2].count = 1;
+
+    // 3. 填充点云
+    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
+
+    for (const Index& idx : terrain_indices) {
+        Position pos = local_map_->getPosition(idx);
+        *iter_x = pos.x();
+        *iter_y = pos.y();
+        *iter_z = terrain_analyzer_->getTerrainAttribute("terrain_test", idx); // Z方向用terrain_value表示高度或可通行性
+        ++iter_x; ++iter_y; ++iter_z;
+    }
+
+    // 4. 发布点云
+    terrain_pub_->publish(cloud);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 bool GridMapAdapter::isOccupied(const Index & index) const  {
     // return grid_map_中对应位置是否占据

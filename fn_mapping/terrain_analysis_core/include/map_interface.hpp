@@ -25,7 +25,7 @@ public:
 
     virtual bool isOccupied(const Index & index) const = 0;
 
-    AttributeFieldMap<float>& attributeFields() { return attribute_field_map_; }
+    AttributeFieldMap<float>& getAttributeFields() { return attribute_field_map_; }
     const Size& getSize() const {return size_;}
     const Index& getMinIndex() const { return min_idx_; }
     const Index& getMaxIndex() const { return max_idx_; }
