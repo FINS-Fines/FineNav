@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(fn_map_manager)
+project(fn_terrain_analyzer)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -9,20 +9,17 @@ endif ()
 
 find_package(ament_cmake_auto REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(fn_grid_map REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(tf2_eigen REQUIRED)
-find_package(message_filters REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(fn_terrain_analysis_core REQUIRED)
 
 ament_auto_find_build_dependencies()
 
-ament_auto_add_executable(${PROJECT_NAME}_node
-    src/map_manager_node.cpp
-    src/map_manager.cpp
+ament_auto_add_library(${PROJECT_NAME}_simple SHARED
+    src/simple_terrain_analyzer.cpp
 )
+
+pluginlib_export_plugin_description_file(fn_terrain_analysis_core simple_terrain_analyzer.xml)
+
 
 if (BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)

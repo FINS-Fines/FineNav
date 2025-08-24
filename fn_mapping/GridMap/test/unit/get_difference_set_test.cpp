@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "grid_map_math.hpp"
+#include "compare_vectors.hpp"
 
 using namespace finenav_2d;
 
@@ -54,21 +55,6 @@ void baseline(const Index& index_shift, const Size& size, std::vector<Index>& di
             }
         }
     }
-}
-
-/**
- * @brief 输入两个std::vector，比较它们的内容是否相同
- */
-static bool compareVectors(const std::vector<Index>& vec1, const std::vector<Index>& vec2) {
-    auto toTuple = [](const Index& idx) {
-        return std::make_tuple(idx.x(), idx.y(), idx.z());
-    };
-
-    std::set<std::tuple<int, int, int>> set1, set2;
-    for (const auto& idx : vec1) set1.insert(toTuple(idx));
-    for (const auto& idx : vec2) set2.insert(toTuple(idx));
-
-    return set1 == set2;
 }
 
 TEST(GetDifferenceSetTest, Simple) {
