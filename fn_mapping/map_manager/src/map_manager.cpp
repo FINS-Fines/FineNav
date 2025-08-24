@@ -43,11 +43,11 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     RCLCPP_INFO(get_logger(), "Publishers initialized: local_map, terrain_test");
 
     // 地形分析
-    pluginlib::ClassLoader<TerrainAnalyzerBase> tta_loader("fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
+    terrain_analyzer_loader_ = std::make_unique<pluginlib::ClassLoader<TerrainAnalyzerBase>>("fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
     try {
 
         // 放到类的成员，注意下这是个共享指针
-        terrain_analyzer_ = tta_loader.createSharedInstance("fn_terrain_analysis_plugins::SimpleTerrainAnalyzer");
+        terrain_analyzer_ = terrain_analyzer_loader_->createSharedInstance("fn_terrain_analysis/SimpleAnalyzer");
         RCLCPP_INFO(get_logger(), "TerrainAnalyzer plugin loaded successfully");
     }
     catch(pluginlib::PluginlibException& ex) {

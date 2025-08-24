@@ -59,8 +59,10 @@ private:
 
   // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
   std::shared_ptr<GridMap<uint8_t>> local_map_;
+    std::unique_ptr<pluginlib::ClassLoader<TerrainAnalyzerBase>> terrain_analyzer_loader_; // 插件加载器需要声明在管理的动态类之前
   std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
   std::shared_ptr<GridMapAdapter> gridmap_adapter_;
+
 
   // Input1: 监听tf，map，base_link
 
