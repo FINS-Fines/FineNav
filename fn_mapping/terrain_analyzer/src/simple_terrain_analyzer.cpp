@@ -3,7 +3,7 @@
 // All rights reserved.
 
 #include <rclcpp/rclcpp.hpp>
-#include "terrain_analysis_simple.hpp"
+#include "simple_terrain_analyzer.hpp"
 
 
 namespace finenav_2d {
@@ -29,6 +29,17 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
             }
         }
     }
+
+
+    /****** 上面的代码只是一个示例，实际的地形分析逻辑会更复杂 ******/
+
+    // addAttributeField 得设置成二维的大小，很简单
+
+    // 分析：遍历地图数据，针对每个(x,y)，可以获得该位置上的一串z
+
+    // 从下往上遍历，找到占据点。【为了测试起见，先拿到第一个占据点，然后发布出来，检测框架正确性】
+
+    // 把每个(x,y)能走或不能走，放到attribute field里
 }
 
 

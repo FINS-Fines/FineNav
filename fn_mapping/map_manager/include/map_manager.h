@@ -17,10 +17,11 @@
 #include <rclcpp/qos.hpp>
 #include <tf2_ros/create_timer_ros.h>
 
-
-
+#include <pluginlib/class_loader.hpp>
 
 #include "grid_map.hpp"
+#include "terrain_analysis_base.hpp"
+#include "map_interface.hpp"
 
 
 namespace finenav_2d {
@@ -44,7 +45,8 @@ private:
 
 
     // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
-    GridMap<uint8_t> local_map_; // TODO: 后续改为依赖注入
+    std::shared_ptr<GridMap<uint8_t>> local_map_;
+    std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
 
 
     // Input1: 监听tf，map，base_link
@@ -58,6 +60,21 @@ private:
     std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> > tf2_filter_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
+};
+
+
+
+class GridMapAdapter final : public MapInterface  {
+public:
+    explicit GridMapAdapter(const GridMap<uint8_t>& grid_map) : map_(grid_map) {}
+
+
+    bool isOccupied(const Index & index) const override {
+        // return grid_map_中对应位置是否占据
+    }
+
+private:
+    GridMap<uint8_t> map_;
 };
 
 }

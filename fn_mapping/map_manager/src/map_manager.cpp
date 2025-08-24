@@ -9,12 +9,13 @@
 namespace finenav_2d {
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
-    : Node("map_manager", options),
-        local_map_({10.0, 10.0, 10.0}, 0.05) // 初始化地图
+    : Node("map_manager", options)
     {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
     std::chrono::duration<int> buffer_timeout(1);
+
+    local_map_ = std::make_shared<GridMap<uint8_t>>(Length{10.0, 10.0, 10.0}, 0.05);
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -37,6 +38,21 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
         "local_map", 10  // 队列长度
     );
 
+
+    // // 地形分析
+    // pluginlib::ClassLoader<TerrainAnalyzerBase> tta_loader("fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
+    // try {
+    //
+    //     // 放到类的成员，注意下这是个共享指针
+    //     terrain_analyzer_ = tta_loader.createSharedInstance("fn_terrain_analysis_plugins::SimpleTerrainAnalyzer");
+    // }
+    // catch(pluginlib::PluginlibException& ex) {
+    //     printf("The plugin failed to load for some reason. Error: %s\n", ex.what());
+    // }
+    //
+    // // 对应的对象的共享指针
+    // terrain_analyzer_->configure(GridMapAdapter);
+    //
 
 }
 
@@ -64,7 +80,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     base_link_pos.x() = tf_base.transform.translation.x;
     base_link_pos.y() = tf_base.transform.translation.y;
     base_link_pos.z() = tf_base.transform.translation.z;
-    local_map_.moveTo(base_link_pos);
+    local_map_->moveTo(base_link_pos);
 
     std::vector<Eigen::Vector3d> points;
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
@@ -79,23 +95,23 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     for (const auto& p : points) {
         std::vector<Index> ray_indices;
         Position end{p.x(), p.y(), p.z()};
-        if(!local_map_.isInside(end)) {
+        if(!local_map_->isInside(end)) {
             continue;
         }
         // 调用 rayCast
-         if (local_map_.rayCast(end, ray_indices)) {
+         if (local_map_->rayCast(end, ray_indices)) {
              // 遍历光线上的栅格
              for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                 local_map_.at(ray_indices[i]) = 0;   // 清除，设置为空闲
+                 local_map_->at(ray_indices[i]) = 0;   // 清除，设置为空闲
              }
          }
     }
 
     for (const auto& p : points) {
-        if(!local_map_.isInside(p)) {
+        if(!local_map_->isInside(p)) {
             continue;
         }
-        local_map_.atPosition(p) = 1;
+        local_map_->atPosition(p) = 1;
     }
 
 
@@ -117,7 +133,7 @@ void MapManager::publishLocalMap() {
 
     // 获取local_map_中所有Occupied的格子
     std::vector<Index> Ocuppied_cells;
-    local_map_.selectCellsByCondition(Ocuppied_cells, [](const uint8_t& value) {
+    local_map_->selectCellsByCondition(Ocuppied_cells, [](const uint8_t& value) {
         return value; // 假设 true 表示 Ocuppied
     });
 
@@ -147,7 +163,7 @@ void MapManager::publishLocalMap() {
 
     for (const Index& idx : Ocuppied_cells) {
         Position pos;
-        pos = local_map_.getPosition(idx); // 获取对应的世界坐标
+        pos = local_map_->getPosition(idx); // 获取对应的世界坐标
 
         *iter_x = pos.x(); ++iter_x;
         *iter_y = pos.y(); ++iter_y;
