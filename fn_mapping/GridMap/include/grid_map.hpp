@@ -151,6 +151,13 @@ public:
      */
     Position getOrigin() const;
 
+    /**
+     * @brief 检查某个位置是否在地图范围内
+     * @param p 位置坐标
+     * @return 如果位置在地图范围内返回true，否则返回false
+     */
+    bool isInside(const Position& p) const;
+
 private:
     std::vector<T> data_; // 存储所有栅格数据
     Length length_;       // 栅格地图的长度，单位为米

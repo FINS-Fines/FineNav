@@ -236,5 +236,17 @@ void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::functi
         }
     }
 }
+
+template <typename T>
+bool GridMap<T>::isInside(const Position& p) const {
+    for (int i = 0; i < 3; ++i) {
+        double half_len = length_[i] / 2.0;          // 半边长
+        double min_val = origin_[i] - half_len;
+        double max_val = origin_[i] + half_len;
+        if (p[i] < min_val || p[i] >= max_val) return false;
+    }
+    return true;
+}
+
 }
 #endif  //GRID_MAP_IMPL_HPP

@@ -10,7 +10,7 @@ namespace finenav_2d {
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options),
-        local_map_({20.0, 20.0, 20.0}, 0.05) // 初始化地图
+        local_map_({10.0, 10.0, 10.0}, 0.05) // 初始化地图
     {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
@@ -59,6 +59,12 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         return;
     }
 
+    //move to base_link
+    Position base_link_pos;
+    base_link_pos.x() = tf_base.transform.translation.x;
+    base_link_pos.y() = tf_base.transform.translation.y;
+    base_link_pos.z() = tf_base.transform.translation.z;
+    local_map_.moveTo(base_link_pos);
 
     std::vector<Eigen::Vector3d> points;
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
@@ -69,13 +75,13 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         points.emplace_back(*iter_x, *iter_y, *iter_z);
     }
 
-
-
     auto t0 = std::chrono::high_resolution_clock::now();
     for (const auto& p : points) {
         std::vector<Index> ray_indices;
         Position end{p.x(), p.y(), p.z()};
-
+        if(!local_map_.isInside(end)) {
+            continue;
+        }
         // 调用 rayCast
          if (local_map_.rayCast(end, ray_indices)) {
              // 遍历光线上的栅格
@@ -86,19 +92,20 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     }
 
     for (const auto& p : points) {
+        if(!local_map_.isInside(p)) {
+            continue;
+        }
         local_map_.atPosition(p) = 1;
     }
 
 
     auto t1 = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+    RCLCPP_INFO(this->get_logger(), "Point cloud processing time: %ld ms", duration.count());
+    RCLCPP_INFO(this->get_logger(), "Received point cloud with %zu points", points.size());
 
-    //move to base_link
-    Position base_link_pos;
-    base_link_pos.x() = tf_base.transform.translation.x;
-    base_link_pos.y() = tf_base.transform.translation.y;
-    base_link_pos.z() = tf_base.transform.translation.z;
-    local_map_.moveTo(base_link_pos);
+
+
 
     // 发布地图（可视化）
     publishLocalMap();
