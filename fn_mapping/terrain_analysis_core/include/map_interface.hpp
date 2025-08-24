@@ -14,18 +14,24 @@ class MapInterface {
 public:
     using Ptr = std::shared_ptr<MapInterface>;
 
+    MapInterface(const Index & min_idx, const Index & max_idx) : min_idx_(min_idx), max_idx_(max_idx) {
+        size_ = max_idx - min_idx + Index::Ones();
+        if ((max_idx.array() < min_idx.array()).any()) {
+            throw std::invalid_argument("MapInterface: max_idx must be >= min_idx in all dimensions");
+        }
+    }
+
     virtual ~MapInterface() = default;
 
     virtual bool isOccupied(const Index & index) const = 0;
 
-    AttributeFieldMap<float>& getAttributeFields() const { return *attribute_field_map_; }
-
-    Size getSize() const {return size_;}
-    Index getMinIndex() const { return min_idx_; }
-    Index getMaxIndex() const { return max_idx_; }
+    AttributeFieldMap<float>& attributeFields() { return attribute_field_map_; }
+    const Size& getSize() const {return size_;}
+    const Index& getMinIndex() const { return min_idx_; }
+    const Index& getMaxIndex() const { return max_idx_; }
 
 protected:
-    std::shared_ptr<AttributeFieldMap<float>> attribute_field_map_;
+    AttributeFieldMap<float> attribute_field_map_;
     Index min_idx_;
     Index max_idx_;
     Size size_;
