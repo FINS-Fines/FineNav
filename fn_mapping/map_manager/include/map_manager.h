@@ -30,7 +30,8 @@ public:
 explicit GridMapAdapter(const std::shared_ptr<GridMap<uint8_t>>& grid_map)
     : MapInterface(
           -grid_map->getSize() / 2,   // min_index = -size/2
-           grid_map->getSize() / 2),  // max_index = +size/2
+           grid_map->getSize() / 2,
+           grid_map->getResolution()),
       map_(grid_map) {}
 
 

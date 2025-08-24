@@ -14,7 +14,7 @@ class MapInterface {
 public:
     using Ptr = std::shared_ptr<MapInterface>;
 
-    MapInterface(const Index & min_idx, const Index & max_idx) : min_idx_(min_idx), max_idx_(max_idx) {
+    MapInterface(const Index & min_idx, const Index & max_idx,const double & resolution) : min_idx_(min_idx), max_idx_(max_idx),resolution_(resolution){
         size_ = max_idx - min_idx + Index::Ones();
         if ((max_idx.array() < min_idx.array()).any()) {
             throw std::invalid_argument("MapInterface: max_idx must be >= min_idx in all dimensions");
@@ -29,12 +29,14 @@ public:
     const Size& getSize() const {return size_;}
     const Index& getMinIndex() const { return min_idx_; }
     const Index& getMaxIndex() const { return max_idx_; }
+    const double& getResolution() const { return resolution_; }
 
 protected:
     AttributeFieldMap<float> attribute_field_map_;
     Index min_idx_;
     Index max_idx_;
     Size size_;
+    double resolution_; // 仅供派生类使用
 };
 
 } // namespace finenav_2d

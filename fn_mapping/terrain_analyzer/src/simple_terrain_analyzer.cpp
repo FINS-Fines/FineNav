@@ -34,7 +34,7 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
             for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
                 Index idx(x, y, z);
                 if (map_interface_->isOccupied(idx)) {
-                    terrain_value = static_cast<float>(z); // 保存第一个被占据的 Z
+                    terrain_value = static_cast<float>(z) * map_interface_->getResolution(); // 保存第一个被占据的 Z
                     break; // 找到后停止
                 }
             }
