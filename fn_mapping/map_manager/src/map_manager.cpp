@@ -39,20 +39,21 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     );
 
 
-    // // 地形分析
-    // pluginlib::ClassLoader<TerrainAnalyzerBase> tta_loader("fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
-    // try {
-    //
-    //     // 放到类的成员，注意下这是个共享指针
-    //     terrain_analyzer_ = tta_loader.createSharedInstance("fn_terrain_analysis_plugins::SimpleTerrainAnalyzer");
-    // }
-    // catch(pluginlib::PluginlibException& ex) {
-    //     printf("The plugin failed to load for some reason. Error: %s\n", ex.what());
-    // }
-    //
-    // // 对应的对象的共享指针
-    // terrain_analyzer_->configure(GridMapAdapter);
-    //
+    // 地形分析
+    pluginlib::ClassLoader<TerrainAnalyzerBase> tta_loader("fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
+    try {
+
+        // 放到类的成员，注意下这是个共享指针
+       terrain_analyzer_ = tta_loader.createSharedInstance("fn_terrain_analysis_plugins::SimpleTerrainAnalyzer");
+    }
+    catch(pluginlib::PluginlibException& ex) {
+        printf("The plugin failed to load for some reason. Error: %s\n", ex.what());
+     }
+
+    gridmap_adapter_ = std::make_shared<GridMapAdapter>(local_map_);
+    // 对应的对象的共享指针
+    terrain_analyzer_->configure(gridmap_adapter_);
+
 
 }
 
@@ -174,7 +175,10 @@ void MapManager::publishLocalMap() {
     local_map_pub_->publish(cloud);
 }
 
-
+bool GridMapAdapter::isOccupied(const Index & index) const  {
+    // return grid_map_中对应位置是否占据
+    return map_->at(index) != 0;
+}
 
 
 }

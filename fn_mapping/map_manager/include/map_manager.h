@@ -20,63 +20,56 @@
 #include <pluginlib/class_loader.hpp>
 
 #include "grid_map.hpp"
-#include "terrain_analysis_base.hpp"
+#include "terrain_analyzer_base.hpp"
 #include "map_interface.hpp"
 
 
 namespace finenav_2d {
+class GridMapAdapter final : public MapInterface  {
+public:
+  explicit GridMapAdapter(const std::shared_ptr<GridMap<uint8_t>>& grid_map)
+      : map_(grid_map) {}
+
+
+  bool isOccupied(const Index & index) const override ;
+
+private:
+  std::shared_ptr<GridMap<uint8_t>> map_;
+};
+
 
 class MapManager : public rclcpp::Node {
 public:
-    explicit MapManager(const rclcpp::NodeOptions& options);
-    /**
-    * @brief 发布局部地图
-    */
-    void publishLocalMap();
+  explicit MapManager(const rclcpp::NodeOptions& options);
+  /**
+  * @brief 发布局部地图
+  */
+  void publishLocalMap();
 
 private:
-    /**
-     * @brief 管理主流程
-     */
-    void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  /**
+   * @brief 管理主流程
+   */
+  void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 
 
+  // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
+  std::shared_ptr<GridMap<uint8_t>> local_map_;
+  std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
+  std::shared_ptr<GridMapAdapter> gridmap_adapter_;
+
+  // Input1: 监听tf，map，base_link
+
+  // Input2: pcd_cbk
 
 
+  std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+  message_filters::Subscriber<sensor_msgs::msg::PointCloud2>  point_sub_;
+  std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> > tf2_filter_;
 
-    // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
-    std::shared_ptr<GridMap<uint8_t>> local_map_;
-    std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
-
-
-    // Input1: 监听tf，map，base_link
-
-    // Input2: pcd_cbk
-
-
-    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
-    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
-    message_filters::Subscriber<sensor_msgs::msg::PointCloud2>  point_sub_;
-    std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> > tf2_filter_;
-
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
-};
-
-
-
-class GridMapAdapter final : public MapInterface  {
-public:
-    explicit GridMapAdapter(const GridMap<uint8_t>& grid_map) : map_(grid_map) {}
-
-
-    bool isOccupied(const Index & index) const override {
-        // return grid_map_中对应位置是否占据
-    }
-
-private:
-    GridMap<uint8_t> map_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
 };
 
 }
-
 #endif //FINENAV2D_MAP_MANAGER_H
