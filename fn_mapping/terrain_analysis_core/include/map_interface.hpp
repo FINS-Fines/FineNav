@@ -5,7 +5,9 @@
 #pragma once
 
 #include <memory>
-#include "type_defs.hpp"
+#include <vector>
+#include <span>
+
 #include "map_attribute.hpp"
 
 namespace finenav_2d {
@@ -14,27 +16,36 @@ class MapInterface {
 public:
     using Ptr = std::shared_ptr<MapInterface>;
 
-    MapInterface(const Index & min_idx, const Index & max_idx) : min_idx_(min_idx), max_idx_(max_idx) {
-        size_ = max_idx - min_idx + Index::Ones();
-        if ((max_idx.array() < min_idx.array()).any()) {
-            throw std::invalid_argument("MapInterface: max_idx must be >= min_idx in all dimensions");
-        }
-    }
+    MapInterface(const size_t& rows, const size_t& cols) : rows_(rows), cols_(cols) {}
 
     virtual ~MapInterface() = default;
 
-    virtual bool isOccupied(const Index & index) const = 0;
+    // // 通过AttributeField访问占用状态 - 兼容旧接口
+    // bool isOccupied(const Index & index) const {
+    //     try {
+    //         // 转换Index到相对坐标
+    //         size_t row = index.x() - min_idx_.x();
+    //         size_t col = index.y() - min_idx_.y();
+    //         size_t depth = index.z() - min_idx_.z();
+    //         return attribute_field_map_.at("occupancy", row, col, depth) > 0.5f;
+    //     } catch (const std::out_of_range&) {
+    //         return false; // 越界认为未占用
+    //     }
+    // }
+    //
 
-    AttributeFieldMap<float>& getAttributeFields() { return attribute_field_map_; }
-    const Size& getSize() const {return size_;}
-    const Index& getMinIndex() const { return min_idx_; }
-    const Index& getMaxIndex() const { return max_idx_; }
+
+    // 获取属性字段访问器
+    AttributeMap<float>& getAttributeFields() { return attribute_field_map_; }
+    const AttributeMap<float>& getAttributeFields() const { return attribute_field_map_; }
+
+    const size_t& rows() const { return rows_; }
+    const size_t& cols() const { return cols_; }
+
 
 protected:
-    AttributeFieldMap<float> attribute_field_map_;
-    Index min_idx_;
-    Index max_idx_;
-    Size size_;
+    AttributeMap<float> attribute_field_map_;
+    size_t rows_, cols_; // TODO: 是否需要知道min_idx_
 };
 
 } // namespace finenav_2d

@@ -5,93 +5,48 @@
 #pragma once
 
 #include <string>
-#include "type_defs.hpp"
+#include "vector_matrix.hpp"
 
 namespace finenav_2d {
 
-template <typename DataT>
-class AttributeField {
+template <typename T>
+class AttributeMap {
 public:
-    AttributeField(const Index& min_idx, const Index& max_idx, const DataT& default_value)
-        : min_idx_(min_idx), max_idx_(max_idx) {
-        size_ = max_idx - min_idx + Index::Ones();
-        data_.resize(size_.x() * size_.y() * size_.z(), default_value);
-    }
-    ~AttributeField() = default;
-
-    bool exists(const Index& idx) const {
-        return (idx.array() >= min_idx_.array()).all() && (idx.array() <= max_idx_.array()).all();
-    }
-
-    DataT& at (const Index& idx) {
-        if (exists(idx)) {
-            return data_[flatten(idx)];
-        }
-        throw std::out_of_range("Index out of bounds in Attribute layer");
-    }
-
-    DataT at(const Index& idx) const {
-        if (exists(idx)) {
-            return data_[flatten(idx)];
-        }
-        throw std::out_of_range("Index out of bounds in Attribute layer");
-    }
-
-private:
-     int flatten(const Index & idx) const {
-        return (idx.x() - min_idx_.x()) * size_.y() * size_.z() +
-               (idx.y() - min_idx_.y()) * size_.z() +
-               (idx.z() - min_idx_.z());
-    }
-
-    std::vector<DataT> data_;
-    Index min_idx_;
-    Index max_idx_;
-    Size size_;
-};
-
-template <typename DataT>
-class AttributeFieldMap {
-public:
-    AttributeFieldMap() = default;
-    ~AttributeFieldMap() = default;
+    AttributeMap() = default;
+    ~AttributeMap() = default;
 
     bool exists(const std::string& name) const {
-        return field_map.find(name) != field_map.end();
+        return field_map_.contains(name);
     }
 
-    DataT& at(const std::string& name, const Index& idx) {
+    VectorMatrix<T>& at(const std::string& name) {
         if (exists(name)) {
-            return field_map.at(name).at(idx);
+            return field_map_.at(name);
         }
-        throw std::out_of_range("Attribute layer does not exist");
+        throw std::out_of_range("Attribute does not exist");
     }
 
-    DataT at(const std::string& name, const Index& idx) const {
+    const VectorMatrix<T>& at(const std::string& name) const {
         if (exists(name)) {
-            return field_map.at(name).at(idx);
+            return field_map_.at(name);
         }
-        throw std::out_of_range("Attribute layer does not exist");
+        throw std::out_of_range("Attribute does not exist");
     }
 
-    bool addAttributeField(const std::string& name, const Index& min_idx, const Index& max_idx, const DataT& default_value) {
-        if ((max_idx.array() < min_idx.array()).any()) {
-            throw std::invalid_argument("AttributeFieldMap: max_idx must be >= min_idx in all dimensions");
-        }
-
+    bool addAttributeField(const std::string& name, const size_t& row, const size_t& col, const T& default_value) {
         if (exists(name)) { return false; }
-        field_map.insert({name, AttributeField<DataT>(min_idx, max_idx, default_value)});
+        field_map_.insert({name, VectorMatrix<T>(row, col)});
         return true;
     }
 
     bool removeAttributeField(const std::string& name) {
         if (!exists(name)) { return false; }
-        field_map.erase(name);
+        field_map_.erase(name);
         return true;
     }
 
 private:
-    std::unordered_map<std::string, AttributeField<DataT>> field_map;
+    std::unordered_map<std::string, VectorMatrix<T>> field_map_;
 };
 
 } // namespace finenav_2d
