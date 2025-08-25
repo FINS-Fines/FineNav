@@ -5,7 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <string>
+#include <span>
+
 #include "map_interface.hpp"
 
 namespace finenav_2d {
@@ -13,19 +14,21 @@ namespace finenav_2d {
 class TerrainAnalyzerBase
 {
 public:
-    explicit TerrainAnalyzerBase() : map_interface_(nullptr) {}
+    explicit TerrainAnalyzerBase() : terrain_data_view_(nullptr) {}
     virtual ~TerrainAnalyzerBase() = default;
 
-    void configure(const MapInterfaceBase::Ptr &map_interface) {
-        map_interface_ = map_interface;
+    void configure(const TerrainDataView::Ptr &map_interface) {
+        terrain_data_view_ = map_interface;
     }
 
-    MapInterfaceBase::Ptr getMapInterface() const { return map_interface_; }
+    std::span<double> getMapDataAt(const size_t& row, const size_t& col) const {
+        return terrain_data_view_->getMapDataAt(row,col);
+    }
 
     virtual void analyzeTerrain() = 0;
 
 protected:
-    MapInterfaceBase::Ptr map_interface_;
+    TerrainDataView::Ptr terrain_data_view_;
 
 };
 
