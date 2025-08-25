@@ -12,7 +12,20 @@
 
 namespace finenav_2d {
 
-class MapInterface {
+/**
+ * @note 用于防止基类为模板
+ */
+class MapInterfaceBase {
+public:
+    virtual ~MapInterfaceBase() = default;
+};
+
+/**
+ * @note 用户实际继承的接口类
+ * @note 仅作为访问接口，不进行访问权限控制
+ */
+template <typename T>
+class MapInterface : public MapInterfaceBase {
 public:
     using Ptr = std::shared_ptr<MapInterface>;
 
@@ -20,31 +33,16 @@ public:
 
     virtual ~MapInterface() = default;
 
-    // // 通过AttributeField访问占用状态 - 兼容旧接口
-    // bool isOccupied(const Index & index) const {
-    //     try {
-    //         // 转换Index到相对坐标
-    //         size_t row = index.x() - min_idx_.x();
-    //         size_t col = index.y() - min_idx_.y();
-    //         size_t depth = index.z() - min_idx_.z();
-    //         return attribute_field_map_.at("occupancy", row, col, depth) > 0.5f;
-    //     } catch (const std::out_of_range&) {
-    //         return false; // 越界认为未占用
-    //     }
-    // }
-    //
+    virtual std::span<T> getMapDataAt(const size_t& rows, const size_t& cols) const = 0;
 
-
-    // 获取属性字段访问器
-    AttributeMap<float>& getAttributeFields() { return attribute_field_map_; }
-    const AttributeMap<float>& getAttributeFields() const { return attribute_field_map_; }
-
+    AttributeMap<T>& attributeMap() { return attribute_field_map_; }
     const size_t& rows() const { return rows_; }
     const size_t& cols() const { return cols_; }
 
 
 protected:
-    AttributeMap<float> attribute_field_map_;
+    AttributeMap<T> attribute_field_map_;
+
     size_t rows_, cols_; // TODO: 是否需要知道min_idx_
 };
 
