@@ -22,14 +22,14 @@ public:
     /**
      * @brief 访问指定位置的Vector
      */
-    std::vector<T>& at(const size_t& row, const size_t& col) {
+    std::vector<T>& operator()(const size_t& row, const size_t& col) {
         if (exists(row, col)) {
             return data_[flatten(row, col)];
         }
         throw std::out_of_range("Index out of bounds in Attribute layer");
     }
 
-    const std::vector<T>& at(const size_t& row, const size_t& col) const{
+    const std::vector<T>& operator()(const size_t& row, const size_t& col) const{
         if (exists(row, col)) {
             return data_[flatten(row, col)];
         }
@@ -40,11 +40,11 @@ public:
      * @brief 访问指定位置的Vector中的指定元素
      * @note 可能会访问越界，需要调用者自行保证depth不越界
      */
-    T& at(const size_t& row, const size_t& col, const size_t& vector_idx) {
+    T& operator()(const size_t& row, const size_t& col, const size_t& vector_idx) {
         return data_.at(row, col)[vector_idx];
     }
 
-    const T& at(const size_t& row, const size_t& col, const size_t& vector_idx) const {
+    const T& operator()(const size_t& row, const size_t& col, const size_t& vector_idx) const {
         return data_.at(row, col)[vector_idx];
     }
 
