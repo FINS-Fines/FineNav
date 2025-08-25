@@ -8,7 +8,7 @@
 #include <vector>
 #include <span>
 
-#include "map_attribute.hpp"
+#include "attribute_map.hpp"
 
 namespace finenav_2d {
 
