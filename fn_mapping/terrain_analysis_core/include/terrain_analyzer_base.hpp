@@ -16,22 +16,16 @@ public:
     explicit TerrainAnalyzerBase() : map_interface_(nullptr) {}
     virtual ~TerrainAnalyzerBase() = default;
 
-    void configure(const MapInterface::Ptr &map_interface) {
+    void configure(const MapInterfaceBase::Ptr &map_interface) {
         map_interface_ = map_interface;
     }
 
-    float getTerrainAttribute(const std::string& attr_name, const Index& index) const {
-        return map_interface_->getAttributeFields().at(attr_name, index);
-    }
-
-    void setTerrainAttribute(const std::string& attr_name, const Index& index, const float& value) const {
-        map_interface_->getAttributeFields().at(attr_name, index) = value;
-    }
+    MapInterfaceBase::Ptr getMapInterface() const { return map_interface_; }
 
     virtual void analyzeTerrain() = 0;
 
 protected:
-    std::shared_ptr<MapInterface> map_interface_;
+    MapInterfaceBase::Ptr map_interface_;
 
 };
 

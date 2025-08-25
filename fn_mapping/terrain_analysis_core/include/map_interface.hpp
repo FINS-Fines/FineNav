@@ -8,17 +8,22 @@
 #include <vector>
 #include <span>
 
-#include "attribute_map.hpp"
+#include "vector_matrix.hpp"
 
 namespace finenav_2d {
 
 /**
- * @note 用于防止基类为模板
+ * @note 类型擦除
  */
 class MapInterfaceBase {
 public:
+    using Ptr = std::shared_ptr<MapInterfaceBase>;
+
     virtual ~MapInterfaceBase() = default;
 };
+
+template <typename T>
+using AttributeMap = std::unordered_map<std::string, VectorMatrix<T>>;
 
 /**
  * @note 用户实际继承的接口类
@@ -27,11 +32,10 @@ public:
 template <typename T>
 class MapInterface : public MapInterfaceBase {
 public:
-    using Ptr = std::shared_ptr<MapInterface>;
 
     MapInterface(const size_t& rows, const size_t& cols) : rows_(rows), cols_(cols) {}
 
-    virtual ~MapInterface() = default;
+    ~MapInterface() override = default;
 
     virtual std::span<T> getMapDataAt(const size_t& rows, const size_t& cols) const = 0;
 
