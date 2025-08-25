@@ -7,7 +7,7 @@
 #include <memory>
 #include <span>
 
-#include "map_interface.hpp"
+#include "terrain_data_view.hpp"
 
 namespace finenav_2d {
 
