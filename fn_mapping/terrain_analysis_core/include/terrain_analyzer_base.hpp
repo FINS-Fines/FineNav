@@ -5,26 +5,25 @@
 #pragma once
 
 #include <memory>
-#include <span>
 
-#include "terrain_data_view.hpp"
+#include "terrain_analyzer_interface.hpp"
 
 namespace finenav_2d {
 
 class TerrainAnalyzerBase
 {
 public:
-    explicit TerrainAnalyzerBase() : terrain_data_view_(nullptr) {}
+    explicit TerrainAnalyzerBase() : interface_(nullptr) {}
     virtual ~TerrainAnalyzerBase() = default;
 
-    void configure(const TerrainDataView::Ptr &map_interface) {
-        terrain_data_view_ = map_interface;
+    void configure(const TerrainAnalyzerInterface::Ptr &map_interface) {
+        interface_ = map_interface;
     }
 
     virtual void analyzeTerrain() = 0;
 
 protected:
-    TerrainDataView::Ptr terrain_data_view_;
+    TerrainAnalyzerInterface::Ptr interface_;
 
 };
 
