@@ -21,10 +21,6 @@ public:
         terrain_data_view_ = map_interface;
     }
 
-    std::span<double> getMapDataAt(const size_t& row, const size_t& col) const {
-        return terrain_data_view_->getMapDataAt(row,col);
-    }
-
     virtual void analyzeTerrain() = 0;
 
 protected:
