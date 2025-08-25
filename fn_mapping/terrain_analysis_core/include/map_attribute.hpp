@@ -10,14 +10,14 @@
 namespace finenav_2d {
 
 template <typename DataT>
-class AttributeFiled {
+class AttributeField {
 public:
-    AttributeFiled(const Index& min_idx, const Index& max_idx, const DataT& default_value)
+    AttributeField(const Index& min_idx, const Index& max_idx, const DataT& default_value)
         : min_idx_(min_idx), max_idx_(max_idx) {
         size_ = max_idx - min_idx + Index::Ones();
         data_.resize(size_.x() * size_.y() * size_.z(), default_value);
     }
-    ~AttributeFiled() = default;
+    ~AttributeField() = default;
 
     bool exists(const Index& idx) const {
         return (idx.array() >= min_idx_.array()).all() && (idx.array() <= max_idx_.array()).all();
@@ -80,7 +80,7 @@ public:
         }
 
         if (exists(name)) { return false; }
-        field_map.insert({name, AttributeFiled<DataT>(min_idx, max_idx, default_value)});
+        field_map.insert({name, AttributeField<DataT>(min_idx, max_idx, default_value)});
         return true;
     }
 
@@ -91,7 +91,7 @@ public:
     }
 
 private:
-    std::unordered_map<std::string, AttributeFiled<DataT>> field_map;
+    std::unordered_map<std::string, AttributeField<DataT>> field_map;
 };
 
 } // namespace finenav_2d
