@@ -15,15 +15,18 @@ public:
 
     using Ptr = std::shared_ptr<TerrainDataView>;
 
-    explicit TerrainDataView(const size_t& rows, const size_t cols, const Getter &getter)
-        : rows_(rows), cols_(cols) ,getter_(getter) {}
+    explicit TerrainDataView(const size_t& size_x, const size_t& size_y, const Getter &getter)
+        : size_x_(size_x), size_y_(size_y) ,getter_(getter) {}
 
-    std::span<double> getMapDataAt(const size_t& row, const size_t& col) const {
-        return getter_(row, col);
+    std::span<double> operator()(const size_t& idx_x, const size_t& idx_y) const {
+        return getter_(idx_x, idx_y);
     }
 
+    const size_t& sizeX() const { return size_x_; }
+    const size_t& sizeY() const { return size_y_; }
+
 protected:
-    size_t rows_, cols_;
+    size_t size_x_, size_y_;
     Getter getter_;
 };
 
