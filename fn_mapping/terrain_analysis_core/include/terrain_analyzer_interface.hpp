@@ -12,13 +12,13 @@ namespace finenav_2d {
 class TerrainAnalyzerInterface {
 public:
     using Ptr = std::shared_ptr<TerrainAnalyzerInterface>;
-    using Getter = std::function<std::span<double>(const size_t&, const size_t&)>;
+    using Getter = std::function<std::span<float>(const size_t&, const size_t&)>;
     using Setter = std::function<void(const size_t&, const size_t&, const float&)>;
 
     explicit TerrainAnalyzerInterface(const size_t& size_x, const size_t& size_y, const Getter& getter, const Setter& setter)
         : size_x_(size_x), size_y_(size_y) ,getter_(getter), setter_(setter) {}
 
-    std::span<double> getMap(const size_t& idx_x, const size_t& idx_y) const {
+    std::span<float> getMap(const size_t& idx_x, const size_t& idx_y) const {
         return getter_(idx_x, idx_y);
     }
 
