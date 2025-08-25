@@ -25,21 +25,6 @@
 
 
 namespace finenav_2d {
-class GridMapAdapter final : public MapInterface  {
-public:
-explicit GridMapAdapter(const std::shared_ptr<GridMap<uint8_t>>& grid_map)
-    : MapInterface(
-          -grid_map->getSize() / 2,   // min_index = -size/2
-           grid_map->getSize() / 2),  // max_index = +size/2
-      map_(grid_map) {}
-
-
-  bool isOccupied(const Index & index) const override ;
-
-private:
-  std::shared_ptr<GridMap<uint8_t>> map_;
-};
-
 
 class MapManager : public rclcpp::Node {
 public:
@@ -61,7 +46,7 @@ private:
   std::shared_ptr<GridMap<uint8_t>> local_map_;
     std::unique_ptr<pluginlib::ClassLoader<TerrainAnalyzerBase>> terrain_analyzer_loader_; // 插件加载器需要声明在管理的动态类之前
   std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
-  std::shared_ptr<GridMapAdapter> gridmap_adapter_;
+    TerrainAnalyzerInterface::Ptr terrain_analyzer_interface_;
 
 
   // Input1: 监听tf，map，base_link
