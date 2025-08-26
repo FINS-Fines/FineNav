@@ -224,11 +224,13 @@ void MapManager::publishTerrainPointCloud() {
     sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
 
     for (const Index& idx : terrain_indices) {
-        Position pos = local_map_->getPosition(idx);
-        *iter_x = pos.x();
-        *iter_y = pos.y();
-        *iter_z = terrain_analyzer_->getTerrainAttribute("terrain_test", idx); // Z方向用terrain_value表示高度或可通行性
-        ++iter_x; ++iter_y; ++iter_z;
+        if(terrain_analyzer_->getTerrainAttribute("terrain_test", idx)==1) {
+            Position pos = local_map_->getPosition(idx);
+            *iter_x = pos.x();
+            *iter_y = pos.y();
+            *iter_z = 0; // Z方向用terrain_value表示高度或可通行性
+            ++iter_x; ++iter_y; ++iter_z;
+        }
     }
 
     // 4. 发布点云
