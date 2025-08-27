@@ -27,7 +27,7 @@
 namespace finenav_2d {
 class GridMapAdapter final : public MapInterface  {
 public:
-explicit GridMapAdapter(const std::shared_ptr<GridMap<uint8_t>>& grid_map)
+explicit GridMapAdapter(const std::shared_ptr<GridMap<float>>& grid_map)
     : MapInterface(
           -grid_map->getSize() / 2,   // min_index = -size/2
            grid_map->getSize() / 2,
@@ -36,9 +36,10 @@ explicit GridMapAdapter(const std::shared_ptr<GridMap<uint8_t>>& grid_map)
 
 
   bool isOccupied(const Index & index) const override ;
+  float getZheightat(const Index & index) const override;
 
 private:
-  std::shared_ptr<GridMap<uint8_t>> map_;
+  std::shared_ptr<GridMap<float>> map_;
 };
 
 
@@ -49,7 +50,9 @@ public:
   * @brief 发布局部地图
   */
   void publishLocalMap();
-  void publishTerrainPointCloud();
+  void publishGradientPointCloud();
+  void publishGroundPointCloud();
+  void publishCeilingPointCloud();
 
 private:
   /**
@@ -59,7 +62,7 @@ private:
 
 
   // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
-  std::shared_ptr<GridMap<uint8_t>> local_map_;
+  std::shared_ptr<GridMap<float>> local_map_;
     std::unique_ptr<pluginlib::ClassLoader<TerrainAnalyzerBase>> terrain_analyzer_loader_; // 插件加载器需要声明在管理的动态类之前
   std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
   std::shared_ptr<GridMapAdapter> gridmap_adapter_;
@@ -76,7 +79,9 @@ private:
   std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> > tf2_filter_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr terrain_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr gradient_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ceiling_pub_;
 };
 
 }

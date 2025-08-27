@@ -25,6 +25,8 @@ public:
 
     virtual bool isOccupied(const Index & index) const = 0;
 
+    virtual float getZheightat(const Index & index) const = 0;
+
     AttributeFieldMap<float>& getAttributeFields() { return attribute_field_map_; }
     const Size& getSize() const {return size_;}
     const Index& getMinIndex() const { return min_idx_; }

@@ -22,7 +22,7 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
 
     const float OCCUPIED_VALUE = 100.0f;      // 全占据特殊值
     const float FREE_VALUE = -100.0f;         // 全空闲特殊值
-    const float MAX_GRADIENT = 2.0f;            // 最大允许坡度（梯度阈值）
+    const float MAX_GRADIENT = 1.0f;            // 最大允许坡度（梯度阈值）
     const float ROBOT_HEIGHT = 0.6f;            // 机器人最小通过高度
 
     // 创建terrain_test属性字段
@@ -30,6 +30,7 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
     map_interface_->getAttributeFields().addAttributeField("Ground", attr_min_idx, attr_max_idx, NAN);
     map_interface_->getAttributeFields().addAttributeField("Ceiling", attr_min_idx, attr_max_idx, NAN);
     map_interface_->getAttributeFields().addAttributeField("Height", attr_min_idx, attr_max_idx, NAN);
+    map_interface_->getAttributeFields().addAttributeField("gradient", attr_min_idx, attr_max_idx, 0);
 
     // 遍历所有索引
     // 遍历二维平面 X-Y
@@ -69,12 +70,12 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
             else{
                 int effective_index =0;
                 for (int i=1 ; i< ground_indices.size();++i){
-                    if(fabs(ground_indices[i]) < fabs(ground_indices[effective_index])){
+                    if(fabs(ground_indices[i]) < fabs(ground_indices[effective_index]) && ((ceiling_indices[i]-ground_indices[i])>2)){
                         effective_index = i;
                     }
                 }
-                map_interface_->getAttributeFields().at("Ground", terrain_idx) = ground_indices[effective_index]*map_interface_->getResolution();
-                map_interface_->getAttributeFields().at("Ceiling", terrain_idx) = ceiling_indices[effective_index]*map_interface_->getResolution();
+                map_interface_->getAttributeFields().at("Ground", terrain_idx) = ground_indices[effective_index];
+                map_interface_->getAttributeFields().at("Ceiling", terrain_idx) = ceiling_indices[effective_index];
                 map_interface_->getAttributeFields().at("Height", terrain_idx) = (ceiling_indices[effective_index]-ground_indices[effective_index])*map_interface_->getResolution();
 
             }
@@ -129,7 +130,10 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                             continue;
                         } else {
                             // 计算梯度（高度差）
-                            float gradient = std::abs(current_ground - neighbor_ground) / map_interface_->getResolution();
+                            float gradient =fabs(map_interface_->getZheightat({x,y,current_ground}) -map_interface_->getZheightat({x,y,neighbor_ground})) /map_interface_->getResolution();
+                            if (gradient>map_interface_->getAttributeFields().at("gradient", idx)){
+                                map_interface_->getAttributeFields().at("gradient", idx) = gradient;
+                            }
                             if (gradient > MAX_GRADIENT) {
                                 terrain_value = 1;
                                 break;
