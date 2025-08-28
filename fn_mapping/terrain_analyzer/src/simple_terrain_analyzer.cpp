@@ -4,6 +4,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cmath>
+#include <ranges>
 
 #include "simple_terrain_analyzer.hpp"
 
@@ -47,6 +48,10 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
         for (size_t y = 0; y < interface_->sizeY() ; ++y) {
 
             auto z_values = interface_->getMap(x, y);
+            auto filtered_z_values = z_values | std::views::filter([this](const float& value) {
+                return interface_->dataIsValid(value);
+            });
+
             // 这里可以对 z_values 进行分析，例如计算最大值、最小值、平均值等
             if (!z_values.empty()) {
                 double max_z = *std::max_element(z_values.begin(), z_values.end());
