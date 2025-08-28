@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <rclcpp/rclcpp.hpp>
 
 #include "terrain_analyzer_interface.hpp"
 
@@ -13,18 +14,20 @@ namespace finenav_2d {
 class TerrainAnalyzerBase
 {
 public:
-    explicit TerrainAnalyzerBase() : interface_(nullptr) {}
+    explicit TerrainAnalyzerBase() : node_(), interface_(nullptr) {}
     virtual ~TerrainAnalyzerBase() = default;
 
-    void configure(const TerrainAnalyzerInterface::Ptr &map_interface) {
-        interface_ = map_interface;
-    }
+    virtual void configure(
+        const rclcpp::Node::WeakPtr & parent,
+        std::string name,
+        const TerrainAnalyzerInterface::Ptr &map_interface) = 0;
 
     virtual void analyzeTerrain() = 0;
 
 protected:
+    rclcpp::Node::WeakPtr & node_;
+    std::string name_;
     TerrainAnalyzerInterface::Ptr interface_;
-
 };
 
 } // namespace finenav_2d

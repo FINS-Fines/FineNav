@@ -13,6 +13,10 @@ public:
     SimpleTerrainAnalyzer() {}
     ~SimpleTerrainAnalyzer() override = default;
 
+    void configure(const rclcpp::Node::WeakPtr & parent,
+        std::string name,
+        const TerrainAnalyzerInterface::Ptr &map_interface) override;
+
     void analyzeTerrain() override;
 
 private:

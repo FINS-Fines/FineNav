@@ -8,6 +8,22 @@
 
 namespace finenav_2d {
 
+
+void SimpleTerrainAnalyzer::configure(
+    const rclcpp::Node::WeakPtr & parent,
+    std::string name,
+    const TerrainAnalyzerInterface::Ptr &map_interface) {
+
+    node_ = parent;
+    interface_ = map_interface;
+
+    auto node = parent.lock();
+    node->declare_parameter(name + ".example_param", 1.0);
+
+    // TODO: 输入参数，决定发布字段
+
+} // namespace finenav_2d
+
 void SimpleTerrainAnalyzer::analyzeTerrain() {
     // 获取地图的最小和最大索引
     auto min_idx = interface_->getMinIndex();
