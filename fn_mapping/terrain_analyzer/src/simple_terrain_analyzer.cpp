@@ -10,11 +10,33 @@ namespace finenav_2d {
 
 void SimpleTerrainAnalyzer::analyzeTerrain() {
     // 获取地图的最小和最大索引
-    auto min_idx = map_interface_->getMinIndex();
-    auto max_idx = map_interface_->getMaxIndex();
+    auto min_idx = interface_->getMinIndex();
+    auto max_idx = interface_->getMaxIndex();
 
     Index attr_min_idx = min_idx;
     Index attr_max_idx = max_idx;
+
+
+    /******** Example ************/
+    for (size_t x = 0; x < interface_->sizeX(); ++x) {
+        for (size_t y = 0; y < interface_->sizeY() ; ++y) {
+
+            auto z_values = interface_->getMap(x, y);
+            // 这里可以对 z_values 进行分析，例如计算最大值、最小值、平均值等
+            if (!z_values.empty()) {
+                double max_z = *std::max_element(z_values.begin(), z_values.end());
+                double min_z = *std::min_element(z_values.begin(), z_values.end());
+                double avg_z = std::accumulate(z_values.begin(), z_values.end(), 0.0) / z_values.size();
+
+                // 将分析结果存储到属性字段中
+                // terrain_data_view_->getAttributeFields().at("terrain_test", Index(x, y, 0)) = static_cast<float>(avg_z);
+            } else {
+                // 如果没有数据，可以设置为 NaN 或其他默认值
+                // terrain_data_view_->getAttributeFields().at("terrain_test", Index(x, y, 0)) = NAN;
+            }
+        }
+    }
+    /******** Example ************/
 
     // 只保留二维，将 Z 置为 0
     attr_min_idx.z() = 0;
@@ -26,11 +48,11 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
     const float ROBOT_HEIGHT = 0.6f;            // 机器人最小通过高度
 
     // 创建terrain_test属性字段
-    map_interface_->getAttributeFields().addAttributeField("terrain_test", attr_min_idx, attr_max_idx, NAN);
-    map_interface_->getAttributeFields().addAttributeField("Ground", attr_min_idx, attr_max_idx, NAN);
-    map_interface_->getAttributeFields().addAttributeField("Ceiling", attr_min_idx, attr_max_idx, NAN);
-    map_interface_->getAttributeFields().addAttributeField("Height", attr_min_idx, attr_max_idx, NAN);
-    map_interface_->getAttributeFields().addAttributeField("gradient", attr_min_idx, attr_max_idx, 0);
+    interface_->getAttributeFields().addAttributeField("terrain_test", attr_min_idx, attr_max_idx, NAN);
+    interface_->getAttributeFields().addAttributeField("Ground", attr_min_idx, attr_max_idx, NAN);
+    interface_->getAttributeFields().addAttributeField("Ceiling", attr_min_idx, attr_max_idx, NAN);
+    interface_->getAttributeFields().addAttributeField("Height", attr_min_idx, attr_max_idx, NAN);
+    interface_->getAttributeFields().addAttributeField("gradient", attr_min_idx, attr_max_idx, 0);
 
     // 遍历所有索引
     // 遍历二维平面 X-Y
@@ -44,10 +66,10 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
             for (int z = min_idx.z(); z < max_idx.z(); ++z) {
                 Index idx(x, y, z);
                 Index idx_next(x, y, z+1);
-                if (map_interface_->isOccupied(idx) && !map_interface_->isOccupied(idx_next)){
+                if (interface_->isOccupied(idx) && !interface_->isOccupied(idx_next)){
                         ground_indices.push_back(z);
                 }
-                if (!map_interface_->isOccupied(idx)  && ceiling_indices.size()<ground_indices.size() && map_interface_->isOccupied(idx_next)) {
+                if (!interface_->isOccupied(idx)  && ceiling_indices.size()<ground_indices.size() && interface_->isOccupied(idx_next)) {
                         ceiling_indices.push_back(z);
                 }
 
@@ -57,14 +79,14 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
             }
 
             if(ground_indices.empty()){
-                if(map_interface_->isOccupied({x,y,0})){
-                    map_interface_->getAttributeFields().at("Ground", terrain_idx) = OCCUPIED_VALUE;
-                    map_interface_->getAttributeFields().at("Ceiling", terrain_idx) = OCCUPIED_VALUE;
-                    map_interface_->getAttributeFields().at("Height", terrain_idx) = OCCUPIED_VALUE;
+                if(interface_->isOccupied({x,y,0})){
+                    interface_->getAttributeFields().at("Ground", terrain_idx) = OCCUPIED_VALUE;
+                    interface_->getAttributeFields().at("Ceiling", terrain_idx) = OCCUPIED_VALUE;
+                    interface_->getAttributeFields().at("Height", terrain_idx) = OCCUPIED_VALUE;
                 }else{
-                    map_interface_->getAttributeFields().at("Ground", terrain_idx) = FREE_VALUE;
-                    map_interface_->getAttributeFields().at("Ceiling", terrain_idx) = FREE_VALUE;
-                    map_interface_->getAttributeFields().at("Height", terrain_idx) = FREE_VALUE;
+                    interface_->getAttributeFields().at("Ground", terrain_idx) = FREE_VALUE;
+                    interface_->getAttributeFields().at("Ceiling", terrain_idx) = FREE_VALUE;
+                    interface_->getAttributeFields().at("Height", terrain_idx) = FREE_VALUE;
             }
             }
             else{
@@ -74,9 +96,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                         effective_index = i;
                     }
                 }
-                map_interface_->getAttributeFields().at("Ground", terrain_idx) = ground_indices[effective_index];
-                map_interface_->getAttributeFields().at("Ceiling", terrain_idx) = ceiling_indices[effective_index];
-                map_interface_->getAttributeFields().at("Height", terrain_idx) = (ceiling_indices[effective_index]-ground_indices[effective_index])*map_interface_->getResolution();
+                interface_->getAttributeFields().at("Ground", terrain_idx) = ground_indices[effective_index];
+                interface_->getAttributeFields().at("Ceiling", terrain_idx) = ceiling_indices[effective_index];
+                interface_->getAttributeFields().at("Height", terrain_idx) = (ceiling_indices[effective_index]-ground_indices[effective_index])*interface_->getResolution();
 
             }
 
@@ -85,8 +107,8 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
     for (int x = min_idx.x(); x <= max_idx.x(); ++x) {
         for (int y = min_idx.y(); y <= max_idx.y(); ++y) {
             Index idx(x, y, 0);
-            float current_ground = map_interface_->getAttributeFields().at("Ground", idx);
-            float current_height = map_interface_->getAttributeFields().at("Height", idx);
+            float current_ground = interface_->getAttributeFields().at("Ground", idx);
+            float current_height = interface_->getAttributeFields().at("Height", idx);
 
             // 定义四个方向：上、右、下、左
             int dx[4] = {0, 1, 0, -1};
@@ -118,7 +140,7 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                         }
 
                         Index neighbor_idx(nx, ny, 0);
-                        float neighbor_ground = map_interface_->getAttributeFields().at("Ground", neighbor_idx);
+                        float neighbor_ground = interface_->getAttributeFields().at("Ground", neighbor_idx);
 
                         // 处理特殊值
                         if (neighbor_ground == OCCUPIED_VALUE) {
@@ -130,9 +152,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                             continue;
                         } else {
                             // 计算梯度（高度差）
-                            float gradient =fabs(map_interface_->getZheightat({x,y,current_ground}) -map_interface_->getZheightat({x,y,neighbor_ground})) /map_interface_->getResolution();
-                            if (gradient>map_interface_->getAttributeFields().at("gradient", idx)){
-                                map_interface_->getAttributeFields().at("gradient", idx) = gradient;
+                            float gradient =fabs(interface_->getZheightat({x,y,current_ground}) -interface_->getZheightat({x,y,neighbor_ground})) /interface_->getResolution();
+                            if (gradient>interface_->getAttributeFields().at("gradient", idx)){
+                                interface_->getAttributeFields().at("gradient", idx) = gradient;
                             }
                             if (gradient > MAX_GRADIENT) {
                                 terrain_value = 1;
@@ -142,7 +164,7 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                     }
                 }
             }
-            map_interface_->getAttributeFields().at("terrain_test", idx) = terrain_value;
+            interface_->getAttributeFields().at("terrain_test", idx) = terrain_value;
         }
     }
 
