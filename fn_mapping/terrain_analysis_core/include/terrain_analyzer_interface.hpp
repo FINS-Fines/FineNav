@@ -16,9 +16,14 @@ public:
     using Filter = std::function<bool(const float&)>;
     using Setter = std::function<void(const size_t&, const size_t&, const float&)>;
 
-    explicit TerrainAnalyzerInterface(  const size_t& size_x, const size_t& size_y,
+
+    /**
+     * @note 原点定义在terrainMap的左下角
+     */
+    explicit TerrainAnalyzerInterface( const size_t& size_x, const size_t& size_y,
+        const float& origin_x, const float& origin_y,
         const Getter& getter, const Setter& setter, const Filter& filter = nullptr)
-        : size_x_(size_x), size_y_(size_y) ,getter_(getter), filter_(filter), setter_(setter) {
+        : size_x_(size_x), size_y_(size_y) ,origin_x_(origin_x), origin_y_(origin_y), getter_(getter), filter_(filter), setter_(setter) {
 
         // 默认Filter滤除NAN
         if (filter_ == nullptr) {
@@ -45,6 +50,7 @@ public:
 
 protected:
     size_t size_x_, size_y_;
+    float origin_x_, origin_y_;
     Getter getter_;
     Filter filter_;
     Setter setter_;

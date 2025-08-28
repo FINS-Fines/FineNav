@@ -63,15 +63,17 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     }
 
     TerrainAnalyzerInterface::Getter gridmap_getter = [this](const size_t& x, const size_t& y) -> std::span<float> {
-        return local_map_->getVoxelsAlongZ(x, y);
+        // return local_map_->getVoxelsAlongZ(x, y);
+
+        // TODO:处理下坐标变换关系
     };
 
     auto terrain_setter = nullptr; // Map Manager应当维护一个占据栅格地图like的东西，将结果写到terrain_setter
     // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
 
     terrain_analyzer_interface_ = std::make_shared<TerrainAnalyzerInterface>(
-        local_map_->getSize().x(), local_map_->getSize().y(),
-        gridmap_getter, terrain_setter);
+        // local_map_->getSize().x(), local_map_->getSize().y(),
+        // gridmap_getter, terrain_setter);
 
     // 对应的对象的共享指针
     terrain_analyzer_->configure(shared_from_this(), "terrain_analysis", terrain_analyzer_interface_);
