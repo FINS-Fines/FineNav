@@ -12,6 +12,7 @@
     <depend>rclcpp</depend>
     <depend>pluginlib</depend>
     <depend>fn_terrain_analysis_core</depend>
+    <depend>fn_utils</depend>
 
     <test_depend>ament_cmake_gtest</test_depend>
 

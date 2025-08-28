@@ -3,8 +3,11 @@
 // All rights reserved.
 
 #include <rclcpp/rclcpp.hpp>
-#include "simple_terrain_analyzer.hpp"
 #include <cmath>
+
+#include "simple_terrain_analyzer.hpp"
+#include "cloud_publish_helper.hpp"
+
 
 namespace finenav_2d {
 
@@ -25,6 +28,16 @@ void SimpleTerrainAnalyzer::configure(
 } // namespace finenav_2d
 
 void SimpleTerrainAnalyzer::analyzeTerrain() {
+
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub;
+    pub = node_.lock()->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_analyzer/debug_cloud", 10);
+
+    finenav_utils::CloudPublishHelper pub_helper;
+    pub_helper.configure(pub, true, "map");
+    pub_helper.addPoint(1, 1, 1, {255, 0, 0});
+
+    pub_helper.publish(node_.lock()->now());
+
     // 获取地图的最小和最大索引
     auto min_idx = interface_->getMinIndex();
     auto max_idx = interface_->getMaxIndex();
