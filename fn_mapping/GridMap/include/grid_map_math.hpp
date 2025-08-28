@@ -110,15 +110,14 @@ inline Position getPositionFromIndex(const Index& index, const double& resolutio
  * @param buffer_size 缓冲区中地图的大小
  * @param buffer_start_index 循环缓冲区的起始索引
  * @return 对应的缓冲区索引
- * @note 按照x-y-z的顺序在缓冲区存储
+ * @note 按照z-y-x的顺序在缓冲区存储
  */
 inline int getBufferIndex(const Index& index,
                             const Size& buffer_size,
                             const Index& buffer_start_index = Index::Zero()) {
     const Index unwrapped_index = buffer_size / 2 + index;
     const Index wrapped_index = wrapIndexToRange(unwrapped_index - buffer_start_index, buffer_size);
-    return wrapped_index.x() + wrapped_index.y() * buffer_size.x() + wrapped_index.z() * buffer_size.x() * buffer_size.y();
-
+    return wrapped_index.z() + wrapped_index.y() * buffer_size.z() + wrapped_index.x() * buffer_size.y() * buffer_size.z();
 }
 
 /**

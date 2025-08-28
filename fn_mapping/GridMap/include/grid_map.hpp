@@ -8,6 +8,8 @@
 #include <vector>
 #include "grid_map_math.hpp"
 
+#include <span>
+
 namespace finenav_2d {
 
 /**
@@ -68,6 +70,26 @@ public:
      * @return 对应的栅格数据
      */
     T at(const Index& index) const;
+
+
+    /**
+     * @brief 访问某个(x,y)索引上的一串栅格数据
+     * @param x x索引
+     * @param y y索引
+     * @return 一串栅格数据的span
+     * @note 该函数的实现基于内部缓冲区z-y-x的存储顺序
+     */
+    std::span<T> getVoxelsAlongZ(const int& x, const int& y);
+
+
+    /**
+     * @brief 访问某个(x,y)索引上的一串栅格数据（常量版本）
+     * @param x x索引
+     * @param y y索引
+     * @return 一串栅格数据的span
+     * @note 该函数的实现基于内部缓冲区z-y-x的存储顺序
+     */
+    std::span<const T> getVoxelsAlongZ(const int& x, const int& y) const;
 
     /**
      * @brief 清空地图数据

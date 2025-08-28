@@ -49,6 +49,28 @@ T GridMap<T>::at(const Index& index) const {
 }
 
 template <typename T>
+std::span<T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) {
+    if (std::abs(x) > size_.x() / 2 || std::abs(y) > size_.y() / 2) {
+        throw std::out_of_range("Accessing grid out of bounds");
+    }
+
+    Index index_start(x, y, -size_.z() / 2);
+    int buffer_start = getBufferIndex(index_start, size_, start_index_);
+    return std::span<T>(&data_[buffer_start], size_.z());
+}
+
+template <typename T>
+std::span<const T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) const {
+    if (std::abs(x) > size_.x() / 2 || std::abs(y) > size_.y() / 2) {
+        throw std::out_of_range("Accessing grid out of bounds");
+    }
+
+    Index index_start(x, y, -size_.z() / 2);
+    int buffer_start = getBufferIndex(index_start, size_, start_index_);
+    return std::span<T>(&data_[buffer_start], size_.z());
+}
+
+template <typename T>
 void GridMap<T>::clear() {
     data_.clear();
     data_.resize(size_.x() * size_.y() * size_.z(), T{});
