@@ -19,6 +19,7 @@ void SimpleTerrainAnalyzer::configure(
 
     node_ = parent;
     interface_ = map_interface;
+    name_ = name;
 
     auto node = parent.lock();
     node->declare_parameter(name + ".example_param", 1.0);
