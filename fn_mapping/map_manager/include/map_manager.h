@@ -21,7 +21,7 @@
 
 #include "grid_map.hpp"
 #include "terrain_analyzer_base.hpp"
-#include "map_interface.hpp"
+#include "terrain_analyzer_interface.hpp"
 
 
 namespace finenav_2d {

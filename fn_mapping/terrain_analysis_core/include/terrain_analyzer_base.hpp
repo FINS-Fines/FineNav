@@ -25,7 +25,7 @@ public:
     virtual void analyzeTerrain() = 0;
 
 protected:
-    rclcpp::Node::WeakPtr & node_;
+    rclcpp::Node::WeakPtr node_;
     std::string name_;
     TerrainAnalyzerInterface::Ptr interface_;
 };

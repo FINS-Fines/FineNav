@@ -74,11 +74,10 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
     }
 
 
-
-    // 可视化ground
-    pub_helper_.configure(pub_ground_, true, "map");
-    pub_helper_.addPoint(1, 1, 1, {255, 0, 0});
-	pub_helper_.publish(node_.lock()->now());
+    // TODO: 发布ground点云
+    // pub_helper_.configure(pub_ground_, true, "map");
+    // pub_helper_.addPoint(1, 1, 1, {255, 0, 0});
+    // pub_helper_.publish(node_.lock()->now());
 
 
     // 计算高度差以推断可通行性
