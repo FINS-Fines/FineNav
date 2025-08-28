@@ -63,9 +63,16 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
         RCLCPP_ERROR(get_logger(), "Failed to load TerrainAnalyzer plugin: %s", ex.what());
     }
 
-    gridmap_adapter_ = std::make_shared<GridMapAdapter>(local_map_);
+    auto gridmap_getter = nullptr;
+    auto terrain_setter = nullptr; // Map Manager应当维护一个占据栅格地图like的东西，将结果写到terrain_setter
+    // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
+
+    terrain_analyzer_interface_ = std::make_shared<TerrainAnalyzerInterface>(
+        local_map_->getSize().x(), local_map_->getSize().y(),
+        gridmap_getter, terrain_setter);
+
     // 对应的对象的共享指针
-    terrain_analyzer_->configure(gridmap_adapter_);
+    terrain_analyzer_->configure(terrain_analyzer_interface_);
     RCLCPP_INFO(get_logger(), "MapManager initialized successfully!");
 }
 

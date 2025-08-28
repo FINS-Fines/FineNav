@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(fn_terrain_analysis_core)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
