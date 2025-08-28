@@ -53,6 +53,7 @@ public:
   void publishGradientPointCloud();
   void publishGroundPointCloud();
   void publishCeilingPointCloud();
+  void publishPassabilityPointCloud();
 
 private:
   /**
@@ -82,6 +83,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr gradient_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ceiling_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr passability_pub_;
 };
 
 }
