@@ -16,6 +16,7 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <rclcpp/qos.hpp>
 #include <tf2_ros/create_timer_ros.h>
+#include <nav_msgs/msg/occupancy_grid.hpp>
 
 #include <pluginlib/class_loader.hpp>
 
@@ -25,22 +26,7 @@
 
 
 namespace finenav_2d {
-class GridMapAdapter final : public MapInterface  {
-public:
-explicit GridMapAdapter(const std::shared_ptr<GridMap<float>>& grid_map)
-    : MapInterface(
-          -grid_map->getSize() / 2,   // min_index = -size/2
-           grid_map->getSize() / 2,
-           grid_map->getResolution()),
-      map_(grid_map) {}
 
-
-  bool isOccupied(const Index & index) const override ;
-  float getZheightat(const Index & index) const override;
-
-private:
-  std::shared_ptr<GridMap<float>> map_;
-};
 
 
 class MapManager : public rclcpp::Node {
@@ -50,10 +36,8 @@ public:
   * @brief 发布局部地图
   */
   void publishLocalMap();
-  void publishGradientPointCloud();
-  void publishGroundPointCloud();
-  void publishCeilingPointCloud();
-  void publishPassabilityPointCloud();
+  void publishLocalcostMap();
+
 
 private:
   /**
@@ -67,7 +51,7 @@ private:
     std::unique_ptr<pluginlib::ClassLoader<TerrainAnalyzerBase>> terrain_analyzer_loader_; // 插件加载器需要声明在管理的动态类之前
   std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
   TerrainAnalyzerInterface::Ptr terrain_analyzer_interface_;
-
+  Eigen::ArrayXXf passability_array_;
 
   // Input1: 监听tf，map，base_link
 
@@ -80,10 +64,7 @@ private:
   std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> > tf2_filter_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr gradient_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ceiling_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr passability_pub_;
+  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr localcost_map_pub_;  // 发布局部代价地图
 };
 
 }

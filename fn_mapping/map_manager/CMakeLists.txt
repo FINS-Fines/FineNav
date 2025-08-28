@@ -16,6 +16,8 @@ find_package(tf2_eigen REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(fn_terrain_analysis_core REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 ament_auto_find_build_dependencies()
 

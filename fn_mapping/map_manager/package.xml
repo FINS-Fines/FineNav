@@ -17,6 +17,8 @@
     <depend>sensor_msgs</depend>
     <depend>pluginlib</depend>
     <depend>fn_terrain_analysis_core</depend>
+    <depend>Eigen3</depend>
+    <depend>nav_msgs</depend>
 
     <test_depend>ament_cmake_gtest</test_depend>
 

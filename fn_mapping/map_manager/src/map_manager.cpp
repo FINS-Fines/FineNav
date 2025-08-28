@@ -4,10 +4,9 @@
 
 #include <chrono>
 #include "map_manager.h"
-
+#include <Eigen/Core>
 
 namespace finenav_2d {
-
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
@@ -36,19 +35,11 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     local_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "local_map", 10  // 队列长度
     );
-    gradient_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        "gradient", 10  // 队列长度
-    );
-    ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-    "ground", 10  // 队列长度
-);
-    ceiling_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-    "ceiling", 10  // 队列长度
-);
-    passability_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-"passability", 10  // 队列长度
-);
+    localcost_map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>(
+        "local_cost_map", 10
+        );
     RCLCPP_INFO(get_logger(), "Publishers initialized: local_map, terrain_test");
+
 
     // 地形分析
     terrain_analyzer_loader_ = std::make_unique<pluginlib::ClassLoader<TerrainAnalyzerBase>>("fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
@@ -62,18 +53,22 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
         RCLCPP_ERROR(get_logger(), "Failed to load TerrainAnalyzer plugin: %s", ex.what());
     }
 
-    TerrainAnalyzerInterface::Getter gridmap_getter = [this](const size_t& x, const size_t& y) -> std::span<float> {
-        // return local_map_->getVoxelsAlongZ(x, y);
+    passability_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x() , local_map_->getSize().y(), 0);
 
-        // TODO:处理下坐标变换关系
+    TerrainAnalyzerInterface::Getter gridmap_getter = [this](const size_t& x, const size_t& y) -> std::span<float> {
+        return local_map_->getVoxelsAlongZ(static_cast<int>(x)-local_map_->getSize().x()/2, static_cast<int>(x)-local_map_->getSize().y()/2);
     };
 
-    auto terrain_setter = nullptr; // Map Manager应当维护一个占据栅格地图like的东西，将结果写到terrain_setter
+    auto terrain_setter = [this](const size_t& idx_x, const size_t& idx_y, const float& value) {
+        passability_array_(idx_x, idx_y) = value;
+    };
     // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
 
     terrain_analyzer_interface_ = std::make_shared<TerrainAnalyzerInterface>(
-        // local_map_->getSize().x(), local_map_->getSize().y(),
-        // gridmap_getter, terrain_setter);
+         local_map_->getSize().x(), local_map_->getSize().y(),
+         local_map_->getOrigin().x()-local_map_->getSize().x()/2*local_map_->getResolution(),
+         local_map_->getOrigin().y()-local_map_->getSize().y()/2*local_map_->getResolution(),
+        gridmap_getter, terrain_setter);
 
     // 对应的对象的共享指针
     terrain_analyzer_->configure(shared_from_this(), "terrain_analysis", terrain_analyzer_interface_);
@@ -123,12 +118,12 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
             continue;
         }
         // 调用 rayCast
-         if (local_map_->rayCast(end, ray_indices)) {
-             // 遍历光线上的栅格
-             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                 local_map_->at(ray_indices[i]) = -100;   // 清除，设置为空闲
-             }
-         }
+        if (local_map_->rayCast(end, ray_indices)) {
+            // 遍历光线上的栅格
+            for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
+                local_map_->at(ray_indices[i]) = NAN;   // 清除，设置为空闲
+            }
+        }
     }
 
     for (const auto& p : points) {
@@ -155,10 +150,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     if (terrain_analyzer_) {
         terrain_analyzer_->analyzeTerrain();
     }
-    publishGradientPointCloud();
-    publishGroundPointCloud();
-    publishCeilingPointCloud();
-    publishPassabilityPointCloud();
+    publishLocalcostMap();
 }
 
 void MapManager::publishLocalMap() {
@@ -206,255 +198,26 @@ void MapManager::publishLocalMap() {
     local_map_pub_->publish(cloud);
 }
 
-void MapManager::publishGradientPointCloud() {
+void MapManager::publishLocalcostMap() {
+    std::vector<Index> Ocuppied_cells;
+    local_map_->selectCellsByCondition(Ocuppied_cells, [](const float& value) {
+        return value ==1 ; // 假设 true 表示 Ocuppied
+    });
 
-    std::vector<Index> terrain_indices;
+    nav_msgs::msg::OccupancyGrid grid_msg;
+    grid_msg.header.frame_id = "map";   //map的坐标系位置在哪里
+    grid_msg.header.stamp = this->now();
+    grid_msg.info.resolution = local_map_->getResolution(); // 地图分辨率
+    grid_msg.info.width = local_map_->getLength().x(); // 地图宽度
+    grid_msg.info.height = local_map_->getLength().x(); // 地图高度
+    grid_msg.info.origin.position.x = local_map_->getOrigin().x(); //应该设置成什么
+    grid_msg.info.origin.position.y = local_map_->getOrigin().y();    //应该设置成什么
+    grid_msg.info.origin.position.z = 0.0;
 
-    // 遍历所有XY，Z固定为0
-    // 获取地图尺寸
-    Size map_size = local_map_->getSize();
-    Index half_size(map_size.x()/2, map_size.y()/2, 0);  // Z方向固定为0
-
-    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
-        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
-            Index idx(x, y, 0); // Z = 0 对应属性字段
-            float value = terrain_analyzer_->getTerrainAttribute("gradient", idx);
-            if (!std::isnan(value)) { // 有占据值才加入点云
-                terrain_indices.push_back(idx);
-            }
-        }
+    grid_msg.data.resize(local_map_->getLength().x() * local_map_->getLength().y());
+    for (size_t i = 0; i < local_map_->getLength().x() * local_map_->getLength().y(); ++i) {
+        grid_msg.data[i] = passability_array_(i%static_cast<size_t>(local_map_->getLength().x()),i/static_cast<size_t>(local_map_->getLength().x()));
     }
-
-    // 2. 构建PointCloud2消息
-    sensor_msgs::msg::PointCloud2 cloud;
-    cloud.header.frame_id = "base_link";
-    cloud.header.stamp = this->now();
-    cloud.height = 1;
-    cloud.width = terrain_indices.size();
-    cloud.is_dense = true;
-    cloud.is_bigendian = false;
-    cloud.point_step = 3 * sizeof(float);
-    cloud.row_step = cloud.point_step * cloud.width;
-    cloud.data.resize(cloud.row_step * cloud.height);
-
-    cloud.fields.resize(3);
-    cloud.fields[0].name = "x"; cloud.fields[0].offset = 0; cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[0].count = 1;
-    cloud.fields[1].name = "y"; cloud.fields[1].offset = sizeof(float); cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[1].count = 1;
-    cloud.fields[2].name = "z"; cloud.fields[2].offset = 2*sizeof(float); cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[2].count = 1;
-
-    // 3. 填充点云
-    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
-    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
-
-    for (const Index& idx : terrain_indices) {
-        // if(terrain_analyzer_->getTerrainAttribute("terrain_test", idx)==1) {
-        //     Position pos = local_map_->getPosition(idx);
-        //     *iter_x = pos.x();
-        //     *iter_y = pos.y();
-        //     *iter_z = 0; // Z方向用terrain_value表示高度或可通行性
-        //     ++iter_x; ++iter_y; ++iter_z;
-        // }
-        Position pos = local_map_->getPosition(idx);
-        *iter_x = pos.x();
-        *iter_y = pos.y();
-        *iter_z = terrain_analyzer_->getTerrainAttribute("gradient", idx); // Z方向用terrain_value表示高度或可通行性
-        ++iter_x; ++iter_y; ++iter_z;
-    }
-
-    // 4. 发布点云
-    gradient_pub_->publish(cloud);
-}
-void MapManager::publishGroundPointCloud() {
-
-    std::vector<Index> terrain_indices;
-
-    // 遍历所有XY，Z固定为0
-    // 获取地图尺寸
-    Size map_size = local_map_->getSize();
-    Index half_size(map_size.x()/2, map_size.y()/2, 0);  // Z方向固定为0
-
-    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
-        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
-            Index idx(x, y, 0); // Z = 0 对应属性字段
-            float value = terrain_analyzer_->getTerrainAttribute("Ground", idx);
-            if (!std::isnan(value)) { // 有占据值才加入点云
-                terrain_indices.push_back(idx);
-            }
-        }
-    }
-
-    // 2. 构建PointCloud2消息
-    sensor_msgs::msg::PointCloud2 cloud;
-    cloud.header.frame_id = "base_link";
-    cloud.header.stamp = this->now();
-    cloud.height = 1;
-    cloud.width = terrain_indices.size();
-    cloud.is_dense = true;
-    cloud.is_bigendian = false;
-    cloud.point_step = 3 * sizeof(float);
-    cloud.row_step = cloud.point_step * cloud.width;
-    cloud.data.resize(cloud.row_step * cloud.height);
-
-    cloud.fields.resize(3);
-    cloud.fields[0].name = "x"; cloud.fields[0].offset = 0; cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[0].count = 1;
-    cloud.fields[1].name = "y"; cloud.fields[1].offset = sizeof(float); cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[1].count = 1;
-    cloud.fields[2].name = "z"; cloud.fields[2].offset = 2*sizeof(float); cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[2].count = 1;
-
-    // 3. 填充点云
-    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
-    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
-
-    for (const Index& idx : terrain_indices) {
-
-        Position pos = local_map_->getPosition(idx);
-        *iter_x = pos.x();
-        *iter_y = pos.y();
-        *iter_z = gridmap_adapter_->getZheightat({idx.x(),idx.y(),terrain_analyzer_->getTerrainAttribute("Ground", idx)}); // Z方向用terrain_value表示高度或可通行性
-        ++iter_x; ++iter_y; ++iter_z;
-    }
-
-    // 4. 发布点云
-    ground_pub_->publish(cloud);
-}
-void MapManager::publishCeilingPointCloud() {
-
-    std::vector<Index> terrain_indices;
-
-    // 遍历所有XY，Z固定为0
-    // 获取地图尺寸
-    Size map_size = local_map_->getSize();
-    Index half_size(map_size.x()/2, map_size.y()/2, 0);  // Z方向固定为0
-
-    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
-        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
-            Index idx(x, y, 0); // Z = 0 对应属性字段
-            float value = terrain_analyzer_->getTerrainAttribute("Ground", idx);
-            if (!std::isnan(value)) { // 有占据值才加入点云
-                terrain_indices.push_back(idx);
-            }
-        }
-    }
-
-    // 2. 构建PointCloud2消息
-    sensor_msgs::msg::PointCloud2 cloud;
-    cloud.header.frame_id = "base_link";
-    cloud.header.stamp = this->now();
-    cloud.height = 1;
-    cloud.width = terrain_indices.size();
-    cloud.is_dense = true;
-    cloud.is_bigendian = false;
-    cloud.point_step = 3 * sizeof(float);
-    cloud.row_step = cloud.point_step * cloud.width;
-    cloud.data.resize(cloud.row_step * cloud.height);
-
-    cloud.fields.resize(3);
-    cloud.fields[0].name = "x"; cloud.fields[0].offset = 0; cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[0].count = 1;
-    cloud.fields[1].name = "y"; cloud.fields[1].offset = sizeof(float); cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[1].count = 1;
-    cloud.fields[2].name = "z"; cloud.fields[2].offset = 2*sizeof(float); cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[2].count = 1;
-
-    // 3. 填充点云
-    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
-    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
-
-    for (const Index& idx : terrain_indices) {
-        Position pos = local_map_->getPosition(idx);
-        *iter_x = pos.x();
-        *iter_y = pos.y();
-        *iter_z = terrain_analyzer_->getTerrainAttribute("Ground", idx)*local_map_->getResolution(); // Z方向用terrain_value表示高度或可通行性
-        ++iter_x; ++iter_y; ++iter_z;
-    }
-
-    // 4. 发布点云
-    ceiling_pub_->publish(cloud);
-}
-
-void MapManager::publishPassabilityPointCloud() {
-
-    std::vector<Index> terrain_indices;
-
-    // 遍历所有XY，Z固定为0
-    // 获取地图尺寸
-    Size map_size = local_map_->getSize();
-    Index half_size(map_size.x()/2, map_size.y()/2, 0);  // Z方向固定为0
-
-    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
-        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
-            Index idx(x, y, 0); // Z = 0 对应属性字段
-            float value = terrain_analyzer_->getTerrainAttribute("terrain_test", idx);
-            if (value==1) { // 有占据值才加入点云
-                terrain_indices.push_back(idx);
-            }
-        }
-    }
-
-    // 2. 构建PointCloud2消息
-    sensor_msgs::msg::PointCloud2 cloud;
-    cloud.header.frame_id = "base_link";
-    cloud.header.stamp = this->now();
-    cloud.height = 1;
-    cloud.width = terrain_indices.size();
-    cloud.is_dense = true;
-    cloud.is_bigendian = false;
-    cloud.point_step = 3 * sizeof(float);
-    cloud.row_step = cloud.point_step * cloud.width;
-    cloud.data.resize(cloud.row_step * cloud.height);
-
-    cloud.fields.resize(3);
-    cloud.fields[0].name = "x"; cloud.fields[0].offset = 0; cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[0].count = 1;
-    cloud.fields[1].name = "y"; cloud.fields[1].offset = sizeof(float); cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[1].count = 1;
-    cloud.fields[2].name = "z"; cloud.fields[2].offset = 2*sizeof(float); cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32; cloud.fields[2].count = 1;
-
-    // 3. 填充点云
-    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
-    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
-
-    for (const Index& idx : terrain_indices) {
-        Position pos = local_map_->getPosition(idx);
-        *iter_x = pos.x();
-        *iter_y = pos.y();
-        *iter_z = 0;
-        ++iter_x; ++iter_y; ++iter_z;
-    }
-
-    // 4. 发布点云
-    passability_pub_->publish(cloud);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-bool GridMapAdapter::isOccupied(const Index & index) const  {
-    // return grid_map_中对应位置是否占据
-    return map_->at(index) != -100;
-}
-
-float GridMapAdapter::getZheightat(const Index & index) const  {
-    // return grid_map_中对应位置是否占据
-    return map_->at(index) ;
+    localcost_map_pub_->publish(grid_msg);
 }
 }
