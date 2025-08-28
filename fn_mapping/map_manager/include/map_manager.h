@@ -66,7 +66,7 @@ private:
   std::shared_ptr<GridMap<float>> local_map_;
     std::unique_ptr<pluginlib::ClassLoader<TerrainAnalyzerBase>> terrain_analyzer_loader_; // 插件加载器需要声明在管理的动态类之前
   std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
-  std::shared_ptr<GridMapAdapter> gridmap_adapter_;
+  TerrainAnalyzerInterface::Ptr terrain_analyzer_interface_;
 
 
   // Input1: 监听tf，map，base_link

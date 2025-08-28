@@ -9,8 +9,7 @@
 namespace finenav_2d {
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
-    : Node("map_manager", options)
-    {
+    : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
     std::chrono::duration<int> buffer_timeout(1);
@@ -63,7 +62,10 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
         RCLCPP_ERROR(get_logger(), "Failed to load TerrainAnalyzer plugin: %s", ex.what());
     }
 
-    auto gridmap_getter = nullptr;
+    TerrainAnalyzerInterface::Getter gridmap_getter = [this](const size_t& x, const size_t& y) -> std::span<float> {
+        return local_map_->getVoxelsAlongZ(x, y);
+    };
+
     auto terrain_setter = nullptr; // Map Manager应当维护一个占据栅格地图like的东西，将结果写到terrain_setter
     // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
 
@@ -72,7 +74,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
         gridmap_getter, terrain_setter);
 
     // 对应的对象的共享指针
-    terrain_analyzer_->configure(terrain_analyzer_interface_);
+    terrain_analyzer_->configure(shared_from_this(), "terrain_analysis", terrain_analyzer_interface_);
     RCLCPP_INFO(get_logger(), "MapManager initialized successfully!");
 }
 
