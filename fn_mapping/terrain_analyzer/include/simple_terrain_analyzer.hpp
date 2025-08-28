@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "cloud_publish_helper.hpp"
 #include "terrain_analyzer_base.hpp"
 
 namespace finenav_2d {
@@ -20,6 +21,8 @@ public:
     void analyzeTerrain() override;
 
 private:
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_ground_;
+    finenav_utils::CloudPublishHelper pub_helper_;
 
 
 };

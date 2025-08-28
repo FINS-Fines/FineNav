@@ -6,7 +6,7 @@
 #include <cmath>
 
 #include "simple_terrain_analyzer.hpp"
-#include "cloud_publish_helper.hpp"
+
 
 
 namespace finenav_2d {
@@ -26,25 +26,20 @@ void SimpleTerrainAnalyzer::configure(
 
     // TODO: 输入参数，决定发布字段
 
+    pub_ground_ = node->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_analyzer/debug_cloud", 10);
+
 } // namespace finenav_2d
 
 void SimpleTerrainAnalyzer::analyzeTerrain() {
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub;
-    pub = node_.lock()->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_analyzer/debug_cloud", 10);
+    /*********** 发布示例 *************/
 
-    finenav_utils::CloudPublishHelper pub_helper;
-    pub_helper.configure(pub, true, "map");
-    pub_helper.addPoint(1, 1, 1, {255, 0, 0});
 
-    pub_helper.publish(node_.lock()->now());
 
-    // 获取地图的最小和最大索引
-    auto min_idx = interface_->getMinIndex();
-    auto max_idx = interface_->getMaxIndex();
 
-    Index attr_min_idx = min_idx;
-    Index attr_max_idx = max_idx;
+
+
+    /*********** 发布示例 *************/
 
 
     /******** Example ************/
@@ -67,29 +62,23 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
         }
     }
     /******** Example ************/
-
-    // 只保留二维，将 Z 置为 0
-    attr_min_idx.z() = 0;
-    attr_max_idx.z() = 0;
+    // TODO: ground和ceiling不存在值 1） NAN 2） std::neumet
+    // std::numeric_limits<float>::max(); // 最大值
+    // std::numeric_limits<float>::min(); // 最小正值
+    // std::numeric_limits<float>::lowest(); // 最小值
 
     const float OCCUPIED_VALUE = 100.0f;      // 全占据特殊值
     const float FREE_VALUE = -100.0f;         // 全空闲特殊值
     const float MAX_GRADIENT = 1.0f;            // 最大允许坡度（梯度阈值）
     const float ROBOT_HEIGHT = 0.6f;            // 机器人最小通过高度
 
-    // 创建terrain_test属性字段
-    interface_->getAttributeFields().addAttributeField("terrain_test", attr_min_idx, attr_max_idx, NAN);
-    interface_->getAttributeFields().addAttributeField("Ground", attr_min_idx, attr_max_idx, NAN);
-    interface_->getAttributeFields().addAttributeField("Ceiling", attr_min_idx, attr_max_idx, NAN);
-    interface_->getAttributeFields().addAttributeField("Height", attr_min_idx, attr_max_idx, NAN);
-    interface_->getAttributeFields().addAttributeField("gradient", attr_min_idx, attr_max_idx, 0);
 
     // 遍历所有索引
     // 遍历二维平面 X-Y
-    for (int x = min_idx.x(); x <= max_idx.x(); ++x) {
-        for (int y = min_idx.y(); y <= max_idx.y(); ++y) {
-            Index terrain_idx(x, y, 0); // Z 固定为 0，用作二维属性字段索引
-            float terrain_value = NAN;   // 默认没有占据
+    for (size_t x = 0; x < interface_->sizeX(); ++x) {
+        for (size_t y = 0; y < interface_->sizeY() ; ++y) {
+
+            // TODO: 过会儿大改
             std::vector<int> ground_indices;
             std::vector<int> ceiling_indices;
             // 沿 Z 方向从下到上扫描 处理ground和ceiling信息
@@ -102,44 +91,49 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                 if (!interface_->isOccupied(idx)  && ceiling_indices.size()<ground_indices.size() && interface_->isOccupied(idx_next)) {
                         ceiling_indices.push_back(z);
                 }
+                // TODO： Ensure出来的时候保证ground和ceiling一一对应
 
             }
-            if(ceiling_indices.size()<ground_indices.size()){
-                ceiling_indices.push_back(max_idx.z()+1); // 添加一个虚拟的顶点，表示地图顶部
-            }
+            // if(ceiling_indices.size()<ground_indices.size()){
+            //     ceiling_indices.push_back(max_idx.z()+1); // 添加一个虚拟的顶点，表示地图顶部
+            // }
+            //
+            // if(ground_indices.empty()){
+            //     if(interface_->isOccupied({x,y,0})){
+            //         interface_->getAttributeFields().at("Ground", terrain_idx) = OCCUPIED_VALUE;
+            //         interface_->getAttributeFields().at("Ceiling", terrain_idx) = OCCUPIED_VALUE;
+            //         interface_->getAttributeFields().at("Height", terrain_idx) = OCCUPIED_VALUE;
+            //     }else{
+            //         interface_->getAttributeFields().at("Ground", terrain_idx) = FREE_VALUE;
+            //         interface_->getAttributeFields().at("Ceiling", terrain_idx) = FREE_VALUE;
+            //         interface_->getAttributeFields().at("Height", terrain_idx) = FREE_VALUE;
+            // }
+            // }
+            // else{
+            //     int effective_index =0;
+            //     for (int i=1 ; i< ground_indices.size();++i){
+            //         if(fabs(ground_indices[i]) < fabs(ground_indices[effective_index]) && ((ceiling_indices[i]-ground_indices[i])>2)){
+            //             effective_index = i;
+            //         }
+            //     }
+            //     interface_->getAttributeFields().at("Ground", terrain_idx) = ground_indices[effective_index];
+            //     interface_->getAttributeFields().at("Ceiling", terrain_idx) = ceiling_indices[effective_index];
+            //     interface_->getAttributeFields().at("Height", terrain_idx) = (ceiling_indices[effective_index]-ground_indices[effective_index])*interface_->getResolution();
+            //
+            // }
 
-            if(ground_indices.empty()){
-                if(interface_->isOccupied({x,y,0})){
-                    interface_->getAttributeFields().at("Ground", terrain_idx) = OCCUPIED_VALUE;
-                    interface_->getAttributeFields().at("Ceiling", terrain_idx) = OCCUPIED_VALUE;
-                    interface_->getAttributeFields().at("Height", terrain_idx) = OCCUPIED_VALUE;
-                }else{
-                    interface_->getAttributeFields().at("Ground", terrain_idx) = FREE_VALUE;
-                    interface_->getAttributeFields().at("Ceiling", terrain_idx) = FREE_VALUE;
-                    interface_->getAttributeFields().at("Height", terrain_idx) = FREE_VALUE;
-            }
-            }
-            else{
-                int effective_index =0;
-                for (int i=1 ; i< ground_indices.size();++i){
-                    if(fabs(ground_indices[i]) < fabs(ground_indices[effective_index]) && ((ceiling_indices[i]-ground_indices[i])>2)){
-                        effective_index = i;
-                    }
-                }
-                interface_->getAttributeFields().at("Ground", terrain_idx) = ground_indices[effective_index];
-                interface_->getAttributeFields().at("Ceiling", terrain_idx) = ceiling_indices[effective_index];
-                interface_->getAttributeFields().at("Height", terrain_idx) = (ceiling_indices[effective_index]-ground_indices[effective_index])*interface_->getResolution();
+            // 可视化ground
+            pub_helper_.configure(pub_ground_, true, "map");
+            pub_helper_.addPoint(1, 1, 1, {255, 0, 0});
 
-            }
+            pub_helper_.publish(node_.lock()->now());
 
         }
     }
-    for (int x = min_idx.x(); x <= max_idx.x(); ++x) {
-        for (int y = min_idx.y(); y <= max_idx.y(); ++y) {
-            Index idx(x, y, 0);
-            float current_ground = interface_->getAttributeFields().at("Ground", idx);
-            float current_height = interface_->getAttributeFields().at("Height", idx);
 
+
+    for (size_t x = 0; x < interface_->sizeX(); ++x) {
+        for (size_t y = 0; y < interface_->sizeY() ; ++y) {
             // 定义四个方向：上、右、下、左
             int dx[4] = {0, 1, 0, -1};
             int dy[4] = {1, 0, -1, 0};
@@ -194,19 +188,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                     }
                 }
             }
-            interface_->getAttributeFields().at("terrain_test", idx) = terrain_value;
         }
     }
 
-    /****** 上面的代码只是一个示例，实际的地形分析逻辑会更复杂 ******/
-
-    // addAttributeField 得设置成二维的大小，很简单
-
-    // 分析：遍历地图数据，针对每个(x,y)，可以获得该位置上的一串z
-
-    // 从下往上遍历，找到占据点。【为了测试起见，先拿到第一个占据点，然后发布出来，检测框架正确性】
-
-    // 把每个(x,y)能走或不能走，放到attribute field里
 }
 
 
