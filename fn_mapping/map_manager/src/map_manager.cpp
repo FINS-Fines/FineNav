@@ -224,13 +224,13 @@ void MapManager::publishLocalcostMap() {
     grid_msg.info.resolution = local_map_->getResolution(); // 地图分辨率
     grid_msg.info.width = local_map_->getSize().x(); // 地图宽度
     grid_msg.info.height = local_map_->getSize().y(); // 地图高度
-    grid_msg.info.origin.position.x = local_map_->getOrigin().x(); //应该设置成什么
-    grid_msg.info.origin.position.y = local_map_->getOrigin().y();    //应该设置成什么
+    grid_msg.info.origin.position.x = local_map_->getOrigin().x()-local_map_->getLength().x()/2; //应该设置成什么
+    grid_msg.info.origin.position.y = local_map_->getOrigin().y()-local_map_->getLength().y()/2;    //应该设置成什么
     grid_msg.info.origin.position.z = 0.0;
 
-    grid_msg.data.resize(local_map_->getLength().x() * local_map_->getLength().y());
+    grid_msg.data.resize(local_map_->getSize().x() * local_map_->getSize().y());
     for (size_t i = 0; i < local_map_->getSize().x() * local_map_->getSize().y(); ++i) {
-        grid_msg.data[i] = passability_array_(i%static_cast<size_t>(local_map_->getSize().x()),i/static_cast<size_t>(local_map_->getSize().x()));
+        grid_msg.data[i] = passability_array_(i%static_cast<size_t>(local_map_->getSize().x()),i/static_cast<size_t>(local_map_->getSize().x()))*100;
     }
     localcost_map_pub_->publish(grid_msg);
 }
