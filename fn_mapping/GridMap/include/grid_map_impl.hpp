@@ -18,7 +18,7 @@ GridMap<T>::GridMap(const Length& length, const double& resolution, const Positi
         return (v % 2 == 0) ? v + 1 : v; // 确保尺寸为奇数
     });
 
-    data_.resize(size_.x() * size_.y() * size_.z(), static_cast<T>(-100.0f));
+    data_.resize(size_.x() * size_.y() * size_.z(), NAN);
     start_index_ = Index::Zero();
 }
 
@@ -102,7 +102,7 @@ bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::
     if (!keep_removed) {
         for (const auto& index : indices) {
             if (checkIfIndexValid(index, size_)) {
-                data_[getBufferIndex(index, size_, start_index_)] = -100; // 清空数据
+                data_[getBufferIndex(index, size_, start_index_)] = NAN; // 清空数据
             }
         }
     }

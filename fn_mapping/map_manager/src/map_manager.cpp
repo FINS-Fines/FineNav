@@ -5,6 +5,7 @@
 #include <chrono>
 #include "map_manager.h"
 #include <Eigen/Core>
+#include "cloud_publish_helper.hpp"
 
 namespace finenav_2d {
 MapManager::MapManager(const rclcpp::NodeOptions& options)
@@ -38,6 +39,10 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     localcost_map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>(
         "local_cost_map", 10
         );
+
+    test_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+        "terrain_test", 10
+        );
     RCLCPP_INFO(get_logger(), "Publishers initialized: local_map, terrain_test");
 
 
@@ -53,10 +58,13 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
         RCLCPP_ERROR(get_logger(), "Failed to load TerrainAnalyzer plugin: %s", ex.what());
     }
 
+}
+
+void MapManager::AnalyzerInit() {
     passability_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x() , local_map_->getSize().y(), 0);
 
     TerrainAnalyzerInterface::Getter gridmap_getter = [this](const size_t& x, const size_t& y) -> std::span<float> {
-        return local_map_->getVoxelsAlongZ(static_cast<int>(x)-local_map_->getSize().x()/2, static_cast<int>(x)-local_map_->getSize().y()/2);
+        return local_map_->getVoxelsAlongZ(static_cast<int>(x)-local_map_->getSize().x()/2, static_cast<int>(y)-local_map_->getSize().y()/2);
     };
 
     auto terrain_setter = [this](const size_t& idx_x, const size_t& idx_y, const float& value) {
@@ -73,6 +81,9 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     // 对应的对象的共享指针
     terrain_analyzer_->configure(shared_from_this(), "terrain_analysis", terrain_analyzer_interface_);
     RCLCPP_INFO(get_logger(), "MapManager initialized successfully!");
+
+
+
 }
 
 
@@ -158,7 +169,7 @@ void MapManager::publishLocalMap() {
     // 获取local_map_中所有Occupied的格子
     std::vector<Index> Ocuppied_cells;
     local_map_->selectCellsByCondition(Ocuppied_cells, [](const float& value) {
-        return value!=-100; // 假设 true 表示 Ocuppied
+        return (!std::isnan(value)); // 假设 true 表示 Ocuppied
     });
 
     //创建Pointcloud2信息

@@ -18,6 +18,7 @@ find_package(pluginlib REQUIRED)
 find_package(fn_terrain_analysis_core REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(fn_utils REQUIRED)
 
 ament_auto_find_build_dependencies()
 

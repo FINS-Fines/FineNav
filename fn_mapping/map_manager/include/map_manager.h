@@ -37,6 +37,7 @@ public:
   */
   void publishLocalMap();
   void publishLocalcostMap();
+  void AnalyzerInit();
 
 
 private:
@@ -65,6 +66,10 @@ private:
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr localcost_map_pub_;  // 发布局部代价地图
+
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr test_pub_;  // 发布局部地图的点云消息
+
+
 };
 
 }

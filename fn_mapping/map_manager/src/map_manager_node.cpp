@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
     rclcpp::NodeOptions options;
     options.arguments({"map_manager_node"});
     auto node = std::make_shared<finenav_2d::MapManager>(options);
+    node->AnalyzerInit();   //TODO:能不能放在构造函数里
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

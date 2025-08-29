@@ -42,6 +42,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
 
     Eigen::ArrayXXf ground_array = Eigen::ArrayXXf::Constant(size_x, size_y, NAN);
     Eigen::ArrayXXf ceiling_array = Eigen::ArrayXXf::Constant(size_x, size_y, NAN);
+
+    pub_helper_.configure(pub_ground_, true, "map");
+
     /******** Example ************/
     for (size_t x = 0; x < size_x; ++x) {
         for (size_t y = 0; y < size_y ; ++y) {
@@ -70,14 +73,10 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                 nearest_ground = NAN;
             }
             ground_array(x, y) = nearest_ground;   // 记录ground NAN代表全空 其他值为有效值
+            pub_helper_.addPoint(x*0.05, y*0.05, nearest_ground, {255, 0, 0});
         }
     }
-
-
-    // TODO: 发布ground点云
-    // pub_helper_.configure(pub_ground_, true, "map");
-    // pub_helper_.addPoint(1, 1, 1, {255, 0, 0});
-    // pub_helper_.publish(node_.lock()->now());
+    pub_helper_.publish(node_.lock()->now());
 
 
     // 计算高度差以推断可通行性
