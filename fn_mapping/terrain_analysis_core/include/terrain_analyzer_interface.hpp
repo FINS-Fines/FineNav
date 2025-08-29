@@ -47,7 +47,8 @@ public:
 
     const size_t& sizeX() const { return size_x_; }
     const size_t& sizeY() const { return size_y_; }
-
+    const float& originX() const { return origin_x_; }
+    const float& originY() const { return origin_y_; }
 protected:
     size_t size_x_, size_y_;
     float origin_x_, origin_y_;

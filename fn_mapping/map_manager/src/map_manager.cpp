@@ -69,6 +69,9 @@ void MapManager::AnalyzerInit() {
 
     auto terrain_setter = [this](const size_t& idx_x, const size_t& idx_y, const float& value) {
         passability_array_(idx_x, idx_y) = value;
+        if(value>0) {
+            std::cout<<value<<std::endl;
+        }
     };
     // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
 
@@ -148,8 +151,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     auto t1 = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
-    RCLCPP_INFO(this->get_logger(), "Point cloud processing time: %ld ms", duration.count());
-    RCLCPP_INFO(this->get_logger(), "Received point cloud with %zu points", points.size());
+    // RCLCPP_INFO(this->get_logger(), "Point cloud processing time: %ld ms", duration.count());
+    // RCLCPP_INFO(this->get_logger(), "Received point cloud with %zu points", points.size());
 
 
 
@@ -219,15 +222,15 @@ void MapManager::publishLocalcostMap() {
     grid_msg.header.frame_id = "map";   //map的坐标系位置在哪里
     grid_msg.header.stamp = this->now();
     grid_msg.info.resolution = local_map_->getResolution(); // 地图分辨率
-    grid_msg.info.width = local_map_->getLength().x(); // 地图宽度
-    grid_msg.info.height = local_map_->getLength().x(); // 地图高度
+    grid_msg.info.width = local_map_->getSize().x(); // 地图宽度
+    grid_msg.info.height = local_map_->getSize().y(); // 地图高度
     grid_msg.info.origin.position.x = local_map_->getOrigin().x(); //应该设置成什么
     grid_msg.info.origin.position.y = local_map_->getOrigin().y();    //应该设置成什么
     grid_msg.info.origin.position.z = 0.0;
 
     grid_msg.data.resize(local_map_->getLength().x() * local_map_->getLength().y());
-    for (size_t i = 0; i < local_map_->getLength().x() * local_map_->getLength().y(); ++i) {
-        grid_msg.data[i] = passability_array_(i%static_cast<size_t>(local_map_->getLength().x()),i/static_cast<size_t>(local_map_->getLength().x()));
+    for (size_t i = 0; i < local_map_->getSize().x() * local_map_->getSize().y(); ++i) {
+        grid_msg.data[i] = passability_array_(i%static_cast<size_t>(local_map_->getSize().x()),i/static_cast<size_t>(local_map_->getSize().x()));
     }
     localcost_map_pub_->publish(grid_msg);
 }

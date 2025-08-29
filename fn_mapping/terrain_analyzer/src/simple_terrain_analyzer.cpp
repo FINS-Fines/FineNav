@@ -34,7 +34,7 @@ void SimpleTerrainAnalyzer::configure(
 
 void SimpleTerrainAnalyzer::analyzeTerrain() {
 
-    const float MAX_GRADIENT = 1.0f;            // 最大允许坡度（梯度阈值）
+    const float MAX_GRADIENT = 0.3f;            // 最大允许坡度（梯度阈值）
     const float ROBOT_HEIGHT = 0.6f;            // 机器人最小通过高度
 
     size_t size_x = interface_->sizeX();
@@ -73,11 +73,11 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                 nearest_ground = NAN;
             }
             ground_array(x, y) = nearest_ground;   // 记录ground NAN代表全空 其他值为有效值
-            pub_helper_.addPoint(x*0.05, y*0.05, nearest_ground, {255, 0, 0});
+            pub_helper_.addPoint(x*0.05+interface_->originX(), y*0.05+interface_->originY(), nearest_ground, {255, 0, 0});
         }
     }
     pub_helper_.publish(node_.lock()->now());
-
+    int count=0;
 
     // 计算高度差以推断可通行性
     for (size_t x = 0; x < size_x; ++x) {
@@ -88,7 +88,6 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
 
             float terrain_value = 0;  // 默认可通行
 			float current_ground = ground_array(x, y);  //读取当前格子的ground高度
-
             // 检查当前格子本身
             if (!std::isnan(current_ground)) {   // 当前格子有ground
                  // 检查与周围四个格子的梯度
@@ -97,25 +96,26 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                     int ny = y + dy[i];
 
                     // 检查是否越界
-                    if (nx < 0 || nx > size_x ||
-                        ny < 0 || ny > size_y) {
+                    if (nx < 0 || nx > size_x-1 ||
+                        ny < 0 || ny > size_y-1) {
                         continue; // 忽略边界格子
                         }
 
                     float neighbor_ground = ground_array(nx, ny);    // 读取邻居格子的ground高度
-
                     // 处理特殊值
 					if (!std::isnan(neighbor_ground)) {   // 邻居格子有ground
                         // 计算高度差
-                        float gradient = fabs(current_ground - neighbor_ground);
+                        float gradient = fabs(current_ground - neighbor_ground)/0.05f;
                         if (gradient > MAX_GRADIENT) {
                             terrain_value = 1;
+//                            std::cout<<terrain_value<<std::endl;
                             break;
                         }
                     }
                 }
             }
             interface_->setResult(x, y, terrain_value);
+//            std::cout<<terrain_value<<std::endl;
         }
     }
 
