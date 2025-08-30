@@ -1,0 +1,27 @@
+# 激光雷达数据 点云数据
+- ros_topic_name: "/livox/lidar"
+  gz_topic_name: "/lidar/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "ignition.msgs.PointCloudPacked"
+  direction: "GZ_TO_ROS"
+
+# IMU数据
+- ros_topic_name: "/imu"
+  gz_topic_name: "/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "ignition.msgs.IMU"
+  direction: "GZ_TO_ROS"
+
+# 速度命令
+- ros_topic_name: "/cmd_vel"
+  gz_topic_name: "/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "ignition.msgs.Twist"
+  direction: "ROS_TO_GZ"
+
+# 绝对里程计
+- ros_topic_name: "/world/default/dynamic_pose/info"
+  gz_topic_name: "/world/default/dynamic_pose/info"
+  ros_type_name: "geometry_msgs/msg/PoseArray"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS

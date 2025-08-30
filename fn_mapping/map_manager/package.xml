@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package format="3">
+    <name>fn_map_manager</name>
+    <version>0.1.0</version>
+    <description>Rolling Grid Map used in FineNav</description>
+
+    <maintainer email="wangjinghui@sjtu.edu.cn">Jinghui Wang</maintainer>
+    <license>MPL 2.0</license>
+
+    <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+    <depend>rclcpp</depend>
+    <depend>fn_grid_map</depend>
+    <depend>tf2_ros</depend>
+    <depend>tf2_eigen</depend>
+    <depend>message_filters</depend>
+    <depend>sensor_msgs</depend>
+    <depend>pluginlib</depend>
+    <depend>fn_terrain_analysis_core</depend>
+    <depend>Eigen3</depend>
+    <depend>nav_msgs</depend>
+    <depend>fn_utils</depend>
+
+    <test_depend>ament_cmake_gtest</test_depend>
+
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>

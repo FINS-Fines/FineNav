@@ -1,0 +1,40 @@
+<sdf version='1.9'>
+  <model name='field_description'>
+    <link name='base_link'>
+      <inertial>
+        <pose>0.500814010947333 -0.0392166317902097 -1.91270871235796 0 0 0</pose>
+        <mass>13268.446324432</mass>
+        <inertia>
+          <ixx>36441.0637179572</ixx>
+          <ixy>2153.9131365732601</ixy>
+          <ixz>-1072.5221454924699</ixz>
+          <iyy>61148.603361855901</iyy>
+          <iyz>6731.7855539970997</iyz>
+          <izz>71942.1605579936</izz>
+        </inertia>
+      </inertial>
+      <collision name='collision'>
+        <pose>0 0 2.55 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1500 1500 1500</scale>
+            <uri>model://field_description/meshes/base_link.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='base_link_visual'>
+        <pose>0 0 2.55 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1500 1500 1500</scale>
+            <uri>model://field_description/meshes/base_link.dae</uri>
+          </mesh>
+        </geometry>
+        <!-- <material>
+          <diffuse>0 0 1 0.8</diffuse>  
+          <ambient>0 0 1 0.8</ambient>
+        </material> -->
+      </visual>
+    </link>
+  </model>
+</sdf>

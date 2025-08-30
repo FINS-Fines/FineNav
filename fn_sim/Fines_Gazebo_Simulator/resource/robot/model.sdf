@@ -1,0 +1,407 @@
+<sdf version='1.9'>
+  <model name='robot'>
+    <link name='base_origin'>
+      <inertial>
+        <pose>0 2.117582368135751e-17 -0.5125000000000001 0 0 0</pose>
+        <mass>6</mass>
+        <inertia>
+          <ixx>9.9468749999999995e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>9.0468750000000014e-06</iyy>
+          <iyz>-1.5881867761018069e-23</iyz>
+          <izz>1.01e-05</izz>
+        </inertia>
+      </inertial>
+      <visual name='base_origin_fixed_joint_lump__base_lidar_visual'>
+        <pose>0 0 -0.175 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.34999999999999998</length>
+            <radius>0.029999999999999999</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Black</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <visual name='base_origin_fixed_joint_lump__base_link_visual_1'>
+        <pose>0 0 -0.5 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.6 0.4 0.3</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Red</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    <frame name='base_lidar_frame' attached_to='base_origin'>
+      <pose>0 0 -0.175 0 -0 0</pose>
+    </frame>
+    <frame name='base_lidar' attached_to='base_lidar_frame' />
+
+    <frame name='left_front_frame' attached_to='base_link'>
+      <pose>0.2 -0.25 0.15 1.57 -0 0</pose>
+    </frame>
+    <frame name='left_front_wheel' attached_to='left_front_frame' />
+    <frame name='left_rear_frame' attached_to='base_link'>
+      <pose>-0.2 -0.25 0.15 1.57 -0 0</pose>
+    </frame>
+    <frame name='left_rear_wheel' attached_to='left_rear_frame' />
+    <frame name='right_rear_frame' attached_to='base_link'>
+      <pose>-0.2 0.25 0.15 -1.57 0 0</pose>
+    </frame>
+    <frame name='right_rear_wheel' attached_to='right_rear_frame' />
+    <frame name='rigth_front_frame' attached_to='base_link'>
+      <pose>0.2 0.25 0.15 -1.57 0 0</pose>
+    </frame>
+    <frame name='right_front_wheel' attached_to='rigth_front_frame' />
+    <frame name='base_link_frame' attached_to='base_origin'>
+      <pose>0 0 -0.75 0 -0 0</pose>
+    </frame>
+    <frame name='base_link' attached_to='base_link_frame' />
+
+    <!-- 新增：base_link的传感器挂载点 -->
+    <link name="base_link_sensors">
+      <!-- 传感器挂载点的惯性参数（轻量化） -->
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <sensor name="imu_sensor" type="imu">
+        <pose relative_to="base_link_sensors">0 0 0 0 0 0</pose> <!-- IMU在挂载点中心 -->
+        <always_on>1</always_on>
+        <update_rate>200</update_rate>
+        <visualize>true</visualize>
+        <topic>imu</topic>
+      </sensor>
+
+      <sensor name='sensor_contact' type='contact'>
+        <pose relative_to="base_link">0 0 0 0 0 0</pose> <!-- 接触传感器在base_link中心 -->
+        <contact>
+          <collision>collision</collision>
+        </contact>
+      </sensor>
+    </link>
+
+    <link name="base_lidar_sensors">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <sensor name='gpu_lidar' type='gpu_lidar'>
+        <pose relative_to='lidar_frame'>0 0 0 0 0 0</pose> <!-- 激光雷达使用lidar_frame坐标系 -->
+        <topic>lidar</topic>
+        <update_rate>10</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>3000</samples>
+              <resolution>1.0</resolution>
+              <min_angle>0</min_angle>
+              <max_angle>6.2831852</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>128</samples>
+              <min_angle>-1.57</min_angle>
+              <max_angle>0</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>0.08</min>
+            <max>10.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </ray>
+        <noise>
+					<type>gaussian</type>
+					<mean>0.0</mean>
+					<stddev>0.01</stddev>
+				</noise>
+        <always_on>1</always_on>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
+
+    <joint name="lidar_frame_to_base_lidar_sensors" type="fixed">
+      <parent>lidar_frame</parent>
+      <child>base_lidar_sensors</child>
+      <pose>0 0 0 0 0 0</pose> <!-- 将传感器挂载点与base_link对齐 -->
+    </joint>
+
+    <!-- 将传感器挂载点连接到base_link -->
+    <joint name="base_link_to_sensors" type="fixed">
+      <parent>base_link</parent>
+      <child>base_link_sensors</child>
+      <pose>0 0 0 0 0 0</pose>
+    </joint>
+
+    <!-- 激光雷达坐标系定义 -->
+    <frame name="lidar_frame" attached_to="base_link">
+      <pose>0 0 0.85 0 0 0</pose> <!-- 激光雷达在挂载点上方0.6米 -->
+    </frame>
+
+    <!-- 安装到base_link的传感器 -->
+
+
+    <link name="left_front_link">
+      <pose relative_to="base_origin">0.2 -0.25 -0.6 1.57 0 0</pose>
+      <inertial>
+        <mass>5</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <iyy>0.01</iyy>
+          <izz>0.01</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name='left_rear_wheel_visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Black</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <collision name='left_rear_wheel_collision'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="left_rear_link">
+      <pose relative_to="base_origin">-0.2 -0.25 -0.6 1.57 0 0</pose>
+      <inertial>
+        <mass>5</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <iyy>0.01</iyy>
+          <izz>0.01</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name='left_rear_wheel_visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Black</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <collision name='left_rear_wheel_collision'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="right_front_link">
+      <pose relative_to="base_origin">-0.2 0.25 -0.6 -1.57 0 0</pose>
+      <inertial>
+        <mass>5</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <iyy>0.01</iyy>
+          <izz>0.01</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name='right_rear_wheel_visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Black</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <collision name='right_rear_wheel_collision'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="right_rear_link">
+      <pose relative_to="base_origin">0.2 0.25 -0.6 -1.57 0 0</pose>
+      <inertial>
+        <mass>5</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <iyy>0.01</iyy>
+          <izz>0.01</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name='right_rear_wheel_visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Black</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <collision name='right_rear_wheel_collision'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.1</length>
+            <radius>0.15</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name='left_front_joint' type='revolute'>
+      <parent>base_origin</parent>
+      <child>left_front_link</child>
+      <axis>
+        <xyz expressed_in="__model__">0 1 0</xyz>
+        <limit>
+          <lower>-1.79769e+308</lower>
+          <upper>1.79769e+308</upper>
+        </limit>
+      </axis>
+      <!-- <dynamics>
+        <damping>0.1</damping>
+        <friction>0.1</friction>
+      </dynamics> -->
+    </joint>
+
+    <joint name='left_rear_joint' type='revolute'>
+      <parent>base_origin</parent>
+      <child>left_rear_link</child>
+      <axis>
+        <xyz expressed_in="__model__">0 1 0</xyz>
+        <limit>
+          <lower>-1.79769e+308</lower>
+          <upper>1.79769e+308</upper>
+        </limit>
+      </axis>
+      <!-- <dynamics>
+        <damping>0.1</damping>
+        <friction>0.1</friction>
+      </dynamics> -->
+    </joint>
+
+    <joint name='right_front_joint' type='revolute'>
+      <parent>base_origin</parent>
+      <child>right_front_link</child>
+      <axis>
+        <xyz expressed_in="__model__">0 1 0</xyz>
+        <limit>
+          <lower>-1.79769e+308</lower>
+          <upper>1.79769e+308</upper>
+        </limit>
+      </axis>
+      <!-- <dynamics>
+        <damping>0.1</damping>
+        <friction>0.1</friction>
+      </dynamics> -->
+    </joint>
+
+    <joint name='right_rear_joint' type='revolute'>
+      <parent>base_origin</parent>
+      <child>right_rear_link</child>
+      <axis>
+        <xyz expressed_in="__model__">0 1 0</xyz>
+        <limit>
+          <lower>-1.79769e+308</lower>
+          <upper>1.79769e+308</upper>
+        </limit>
+      </axis>
+      <!-- <dynamics>
+        <damping>0.1</damping>
+        <friction>0.1</friction>
+      </dynamics> -->
+    </joint>
+
+    <plugin filename="libignition-gazebo-mecanum-drive-system.so"
+      name="ignition::gazebo::systems::MecanumDrive">
+      <chassis_link>base_origin</chassis_link>
+      <front_left_joint>right_front_joint</front_left_joint>
+      <front_right_joint>left_front_joint</front_right_joint>
+      <back_left_joint>right_rear_joint</back_left_joint>
+      <back_right_joint>left_rear_joint</back_right_joint>
+      <wheel_radius>0.15</wheel_radius>
+      <wheel_separation_x>0.5</wheel_separation_x>
+      <wheel_separation_y>0.4</wheel_separation_y>
+      <topic>cmd_vel</topic>
+    </plugin>
+
+  </model>
+
+
+</sdf>

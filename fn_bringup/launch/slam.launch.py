@@ -21,7 +21,7 @@ def generate_launch_description():
     # 声明参数
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='false',
+        default_value='true',  # 临时修改
         description='Use simulation (Gazebo) clock if true'
     )
 
@@ -55,11 +55,13 @@ def generate_launch_description():
         description='Enable octomap loading a map before navigation'
     )
 
-# 动态选择配置文件路径（使用 PythonExpression）
+    # 动态选择配置文件路径（使用 PythonExpression）
     fast_lio_config = PythonExpression([
-        '"', config_dir, '/fastlio_mid360_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "livox" else "',
-        config_dir, '/fastlio_unilidar_config.yaml"'
+        '"', config_dir, '/fastlio_mid360_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "livox" else ',
+        '"', config_dir, '/fastlio_gazebo_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "virtual" else ',
+        '"', config_dir, '/fastlio_unilidar_config.yaml"'
     ])
+    
 
     # FAST-LIO 参数
     fast_lio_params = [
@@ -87,7 +89,7 @@ def generate_launch_description():
         output='both',
         # arguments=['--ros-args', '--log-level', 'debug'],
         parameters=[{
-            'use_sime_time': LaunchConfiguration('use_sim_time'),
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
             'resolution': 0.05,  # Resolution in meter for the map when starting with an empty map. Otherwise the loaded file's resolution is used.
             'frame_id': 'map',  # Static global frame in which the map will be published. A transform from sensor data to this frame needs to be available when dynamically building maps.
             'base_frame_id': 'base_link',  # The robot's base frame in which ground plane detection is performed (if enabled)
@@ -123,8 +125,19 @@ def generate_launch_description():
     # Localization Manager 节点
     localization_manager_node = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            localization_manager_dir, '/launch', '/example.launch.py'
+            localization_manager_dir, '/launch', '/example_gazebo.launch.py'
         ])
+    )
+
+    # Map Manager 节点
+    map_manager_node = Node(
+        package='fn_map_manager',              # 包名
+        executable='fn_map_manager_node',      # 可执行文件
+        name='map_manager',                    # 节点名
+        output='screen',
+        parameters=[{
+            'use_sim_time': LaunchConfiguration('use_sim_time')
+        }]
     )
 
     # 启动顺序控制
@@ -138,6 +151,7 @@ def generate_launch_description():
     ld.add_action(declare_nav_mode)
     ld.add_action(static_tf_node)
     ld.add_action(fast_lio_node)
+    ld.add_action(map_manager_node)
     ld.add_action(localization_manager_node)
     ld.add_action(TimerAction(period=5.0, actions=[octomap_server_node]))  # 延迟 5s 确保 FAST-LIO 初始化
 

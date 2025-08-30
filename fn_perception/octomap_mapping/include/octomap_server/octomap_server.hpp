@@ -33,7 +33,8 @@
 #include <octomap/OcTreeKey.h>
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"  // pcl::SAC_SAMPLE_SIZE is protected since PCL 1.8.0 // NOLINT
+#pragma GCC diagnostic ignored \
+    "-Wdeprecated-declarations"  // pcl::SAC_SAMPLE_SIZE is protected since PCL 1.8.0 // NOLINT
 #include <pcl/sample_consensus/model_types.h>
 #pragma GCC diagnostic pop
 
@@ -65,23 +66,14 @@
 
 #include "octomap_ros/conversions.hpp"
 
-
-// switch color here - easier maintenance, only maintain OctomapServer.
-// Two targets are defined in the cmake, octomap_server_color and octomap_server.
-// One has this defined, and the other doesn't
-// #define COLOR_OCTOMAP_SERVER
-
-#ifdef COLOR_OCTOMAP_SERVER
-#include <octomap/ColorOcTree.h>
-#endif
-
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-namespace octomap_server
-{
+#include "ground_segmentation/ground_segmentation.h"
+
+namespace octomap_server {
 using nav_msgs::msg::MapMetaData;
 using nav_msgs::msg::OccupancyGrid;
 using octomap_msgs::msg::Octomap;
@@ -89,74 +81,59 @@ using sensor_msgs::msg::PointCloud2;
 using std_msgs::msg::ColorRGBA;
 using visualization_msgs::msg::MarkerArray;
 
-class OctomapServer : public rclcpp::Node
-{
-public:
-#ifdef COLOR_OCTOMAP_SERVER
-  using PCLPoint = pcl::PointXYZRGB;
-  using PCLPointCloud = pcl::PointCloud<pcl::PointXYZRGB>;
-  using OcTreeT = octomap::ColorOcTree;
-#else
-  using PCLPoint = pcl::PointXYZ;
-  using PCLPointCloud = pcl::PointCloud<pcl::PointXYZ>;
-  using OcTreeT = octomap::OcTree;
-#endif
-  using OctomapSrv = octomap_msgs::srv::GetOctomap;
-  using BBoxSrv = octomap_msgs::srv::BoundingBoxQuery;
-  using ResetSrv = std_srvs::srv::Empty;
+class OctomapServer : public rclcpp::Node {
+  public:
+    using PCLPoint = pcl::PointXYZ;
+    using PCLPointCloud = pcl::PointCloud<pcl::PointXYZ>;
+    using OcTreeT = octomap::OcTree;
+    using OctomapSrv = octomap_msgs::srv::GetOctomap;
+    using BBoxSrv = octomap_msgs::srv::BoundingBoxQuery;
+    using ResetSrv = std_srvs::srv::Empty;
 
-  explicit OctomapServer(const rclcpp::NodeOptions & node_options);
-  virtual bool onOctomapBinarySrv(
-    const std::shared_ptr<OctomapSrv::Request> req,
-    const std::shared_ptr<OctomapSrv::Response> res);
-  virtual bool onOctomapFullSrv(
-    const std::shared_ptr<OctomapSrv::Request> req,
-    const std::shared_ptr<OctomapSrv::Response> res);
-  bool clearBBoxSrv(
-    const std::shared_ptr<BBoxSrv::Request> req,
-    const std::shared_ptr<BBoxSrv::Response> resp);
-  bool resetSrv(
-    const std::shared_ptr<ResetSrv::Request> req,
-    const std::shared_ptr<ResetSrv::Response> resp);
+    explicit OctomapServer(const rclcpp::NodeOptions& node_options);
+    virtual bool onOctomapBinarySrv(const std::shared_ptr<OctomapSrv::Request> req,
+                                    const std::shared_ptr<OctomapSrv::Response> res);
+    virtual bool onOctomapFullSrv(const std::shared_ptr<OctomapSrv::Request> req,
+                                  const std::shared_ptr<OctomapSrv::Response> res);
+    bool clearBBoxSrv(const std::shared_ptr<BBoxSrv::Request> req, const std::shared_ptr<BBoxSrv::Response> resp);
+    bool resetSrv(const std::shared_ptr<ResetSrv::Request> req, const std::shared_ptr<ResetSrv::Response> resp);
 
-  virtual void insertCloudCallback(const PointCloud2::ConstSharedPtr cloud);
-  virtual bool openFile(const std::string & filename);
+    virtual void insertCloudCallback(const PointCloud2::ConstSharedPtr cloud);
+    virtual bool openFile(const std::string& filename);
 
-protected:
-  inline static void updateMinKey(const octomap::OcTreeKey & in, octomap::OcTreeKey & min)
-  {
-    for (size_t i = 0; i < 3; ++i) {
-      min[i] = std::min(in[i], min[i]);
+  protected:
+    void initGroundSegmenter();
+
+    inline static void updateMinKey(const octomap::OcTreeKey& in, octomap::OcTreeKey& min) {
+        for (size_t i = 0; i < 3; ++i) {
+            min[i] = std::min(in[i], min[i]);
+        }
     }
-  }
 
-  inline static void updateMaxKey(const octomap::OcTreeKey & in, octomap::OcTreeKey & max)
-  {
-    for (size_t i = 0; i < 3; ++i) {
-      max[i] = std::max(in[i], max[i]);
+    inline static void updateMaxKey(const octomap::OcTreeKey& in, octomap::OcTreeKey& max) {
+        for (size_t i = 0; i < 3; ++i) {
+            max[i] = std::max(in[i], max[i]);
+        }
     }
-  }
 
-  /// Test if key is within update area of map (2D, ignores height)
-  inline bool isInUpdateBBX(const OcTreeT::iterator & it) const
-  {
-    // 2^(tree_depth-depth) voxels wide:
-    unsigned voxelWidth = (1 << (max_tree_depth_ - it.getDepth()));
-    octomap::OcTreeKey key = it.getIndexKey();  // lower corner of voxel
-    return key[0] + voxelWidth >= update_bbox_min_[0] &&
-           key[1] + voxelWidth >= update_bbox_min_[1] &&
-           key[0] <= update_bbox_max_[0] &&
-           key[1] <= update_bbox_max_[1];
-  }
+    /// Test if key is within update area of map (2D, ignores height)
+    inline bool isInUpdateBBX(const OcTreeT::iterator& it) const {
+        // 2^(tree_depth-depth) voxels wide:
+        unsigned voxelWidth = (1 << (max_tree_depth_ - it.getDepth()));
+        octomap::OcTreeKey key = it.getIndexKey();  // lower corner of voxel
+        return key[0] + voxelWidth >= update_bbox_min_[0] && key[1] + voxelWidth >= update_bbox_min_[1] &&
+               key[0] <= update_bbox_max_[0] && key[1] <= update_bbox_max_[1];
+    }
 
-  OnSetParametersCallbackHandle::SharedPtr set_param_res_;
-  rcl_interfaces::msg::SetParametersResult onParameter(
-    const std::vector<rclcpp::Parameter> & parameters);
-  void publishBinaryOctoMap(const rclcpp::Time & rostime) const;
-  void publishFullOctoMap(const rclcpp::Time & rostime) const;
-  virtual void publishAll(const rclcpp::Time & rostime);
+    OnSetParametersCallbackHandle::SharedPtr set_param_res_;
+    rcl_interfaces::msg::SetParametersResult onParameter(const std::vector<rclcpp::Parameter>& parameters);
+    void publishBinaryOctoMap(const rclcpp::Time& rostime) const;
+    void publishFullOctoMap(const rclcpp::Time& rostime) const;
+    virtual void publishAll(const rclcpp::Time& rostime);
 
-  /**
+    void filterPointCloud(PCLPointCloud & pcd);
+
+    /**
   * @brief update occupancy map with a scan labeled as ground and nonground.
   * The scans should be in the global map frame.
   *
@@ -164,148 +141,153 @@ protected:
   * @param ground scan endpoints on the ground plane (only clear space)
   * @param nonground all other endpoints (clear up to occupied endpoint)
   */
-  virtual void insertScan(
-    const tf2::Vector3 & sensor_origin, const PCLPointCloud & ground,
-    const PCLPointCloud & nonground);
+    virtual void insertScan(const tf2::Vector3& sensor_origin, const PCLPointCloud& ground,
+                            const PCLPointCloud& nonground);
 
-  /// label the input cloud "pc" into ground and nonground.
-  /// Should be in the robot's fixed frame (not world!)
-  void filterGroundPlane(
-    const PCLPointCloud & pc, PCLPointCloud & ground,
-    PCLPointCloud & nonground) const;
+    /// label the input cloud "pc" into ground and nonground.
+    /// Should be in the robot's fixed frame (not world!)
+    void segmentGround(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const;
 
-  /**
+    /**
   * @brief Find speckle nodes (single occupied voxels with no neighbors). Only works on lowest resolution!
   * @param key
   * @return
   */
-  bool isSpeckleNode(const octomap::OcTreeKey & key) const;
+    bool isSpeckleNode(const octomap::OcTreeKey& key) const;
 
-  /// hook that is called before traversing all nodes
-  virtual void handlePreNodeTraversal(const rclcpp::Time & rostime);
+    /// hook that is called before traversing all nodes
+    virtual void handlePreNodeTraversal(const rclcpp::Time& rostime);
 
-  /// hook that is called when traversing all nodes of the updated Octree (does nothing here)
-  virtual void handleNode([[maybe_unused]] const OcTreeT::iterator & it) {}
+    /// hook that is called when traversing all nodes of the updated Octree (does nothing here)
+    virtual void handleNode([[maybe_unused]] const OcTreeT::iterator& it) {}
 
-  /// hook that is called
-  /// when traversing all nodes of the updated Octree in the updated area (does nothing here)
-  virtual void handleNodeInBBX([[maybe_unused]] const OcTreeT::iterator & it) {}
+    /// hook that is called
+    /// when traversing all nodes of the updated Octree in the updated area (does nothing here)
+    virtual void handleNodeInBBX([[maybe_unused]] const OcTreeT::iterator& it) {}
 
-  /// hook that is called when traversing occupied nodes of the updated Octree
-  virtual void handleOccupiedNode(const OcTreeT::iterator & it);
+    /// hook that is called when traversing occupied nodes of the updated Octree
+    virtual void handleOccupiedNode(const OcTreeT::iterator& it);
 
-  /// hook that is called
-  /// when traversing occupied nodes in the updated area (updates 2D map projection here)
-  virtual void handleOccupiedNodeInBBX(const OcTreeT::iterator & it);
+    /// hook that is called
+    /// when traversing occupied nodes in the updated area (updates 2D map projection here)
+    virtual void handleOccupiedNodeInBBX(const OcTreeT::iterator& it);
 
-  /// hook that is called when traversing free nodes of the updated Octree
-  virtual void handleFreeNode(const OcTreeT::iterator & it);
+    /// hook that is called when traversing free nodes of the updated Octree
+    virtual void handleFreeNode(const OcTreeT::iterator& it);
 
-  /// hook that is called
-  /// when traversing free nodes in the updated area (updates 2D map projection here)
-  virtual void handleFreeNodeInBBX(const OcTreeT::iterator & it);
+    /// hook that is called
+    /// when traversing free nodes in the updated area (updates 2D map projection here)
+    virtual void handleFreeNodeInBBX(const OcTreeT::iterator& it);
 
-  /// hook that is called after traversing all nodes
-  virtual void handlePostNodeTraversal(const rclcpp::Time & rostime);
+    /// hook that is called after traversing all nodes
+    virtual void handlePostNodeTraversal(const rclcpp::Time& rostime);
 
-  /// updates the downprojected 2D map as either occupied or free
-  virtual void update2DMap(const OcTreeT::iterator & it, bool occupied);
+    /// updates the downprojected 2D map as either occupied or free
+    virtual void update2DMap(const OcTreeT::iterator& it, bool occupied);
 
-  inline size_t mapIdx(const int i, const int j) const
-  {
-    return gridmap_.info.width * j + i;
-  }
+    inline size_t mapIdx(const int i, const int j) const { return gridmap_.info.width * j + i; }
 
-  inline size_t mapIdx(const octomap::OcTreeKey & key) const
-  {
-    return mapIdx(
-      (key[0] - padded_min_key_[0]) / multires_2d_scale_,
-      (key[1] - padded_min_key_[1]) / multires_2d_scale_);
-  }
+    inline size_t mapIdx(const octomap::OcTreeKey& key) const {
+        return mapIdx((key[0] - padded_min_key_[0]) / multires_2d_scale_,
+                      (key[1] - padded_min_key_[1]) / multires_2d_scale_);
+    }
 
-  /**
+    /**
    * Adjust data of map due to a change in its info properties (origin or size,
    * resolution needs to stay fixed). map already contains the new map info,
    * but the data is stored according to old_map_info.
    */
 
-  void adjustMapData(OccupancyGrid & map, const MapMetaData & old_map_info) const;
+    void adjustMapData(OccupancyGrid& map, const MapMetaData& old_map_info) const;
 
-  inline bool mapChanged(const MapMetaData & old_map_info, const MapMetaData & new_map_info)
-  {
-    return old_map_info.height != new_map_info.height ||
-           old_map_info.width != new_map_info.width ||
-           old_map_info.origin.position.x != new_map_info.origin.position.x ||
-           old_map_info.origin.position.y != new_map_info.origin.position.y;
-  }
+    inline bool mapChanged(const MapMetaData& old_map_info, const MapMetaData& new_map_info) {
+        return old_map_info.height != new_map_info.height || old_map_info.width != new_map_info.width ||
+               old_map_info.origin.position.x != new_map_info.origin.position.x ||
+               old_map_info.origin.position.y != new_map_info.origin.position.y;
+    }
 
-  static ColorRGBA heightMapColor(double h);
+    static ColorRGBA heightMapColor(double h);
 
-  rclcpp::Publisher<MarkerArray>::SharedPtr marker_pub_;
-  rclcpp::Publisher<Octomap>::SharedPtr binary_map_pub_;
-  rclcpp::Publisher<Octomap>::SharedPtr full_map_pub_;
-  rclcpp::Publisher<PointCloud2>::SharedPtr point_cloud_pub_;
-  rclcpp::Publisher<OccupancyGrid>::SharedPtr map_pub_;
-  rclcpp::Publisher<MarkerArray>::SharedPtr fmarker_pub_;
-  message_filters::Subscriber<PointCloud2> point_cloud_sub_;
-  std::shared_ptr<tf2_ros::MessageFilter<PointCloud2>> tf_point_cloud_sub_;
-  rclcpp::Service<OctomapSrv>::SharedPtr octomap_binary_srv_;
-  rclcpp::Service<OctomapSrv>::SharedPtr octomap_full_srv_;
-  rclcpp::Service<BBoxSrv>::SharedPtr clear_bbox_srv_;
-  rclcpp::Service<ResetSrv>::SharedPtr reset_srv_;
-  std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
-  std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+    rclcpp::Publisher<MarkerArray>::SharedPtr marker_pub_;
+    rclcpp::Publisher<Octomap>::SharedPtr binary_map_pub_;
+    rclcpp::Publisher<Octomap>::SharedPtr full_map_pub_;
+    rclcpp::Publisher<PointCloud2>::SharedPtr point_cloud_pub_;
+    rclcpp::Publisher<OccupancyGrid>::SharedPtr map_pub_;
+    rclcpp::Publisher<MarkerArray>::SharedPtr fmarker_pub_;
+    rclcpp::Publisher<PointCloud2>::SharedPtr pc_nonground_pub_;
+    rclcpp::Publisher<PointCloud2>::SharedPtr pc_ground_pub_;
 
-  std::unique_ptr<OcTreeT> octree_;
-  octomap::KeyRay key_ray_;  // temp storage for ray casting
-  octomap::OcTreeKey update_bbox_min_;
-  octomap::OcTreeKey update_bbox_max_;
+    message_filters::Subscriber<PointCloud2> point_cloud_sub_;
+    std::shared_ptr<tf2_ros::MessageFilter<PointCloud2>> tf_point_cloud_sub_;
 
-  double max_range_;
-  std::string world_frame_id_;  // the map frame
-  std::string base_frame_id_;  // base of the robot for ground plane filtering
-  bool use_height_map_;
-  ColorRGBA color_;
-  ColorRGBA color_free_;
-  double color_factor_;
+    rclcpp::Service<OctomapSrv>::SharedPtr octomap_binary_srv_;
+    rclcpp::Service<OctomapSrv>::SharedPtr octomap_full_srv_;
+    rclcpp::Service<BBoxSrv>::SharedPtr clear_bbox_srv_;
+    rclcpp::Service<ResetSrv>::SharedPtr reset_srv_;
 
-  bool latched_topics_;
-  bool publish_free_space_;
+    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
-  double res_;
-  size_t tree_depth_;
-  size_t max_tree_depth_;
+    std::unique_ptr<OcTreeT> octree_;
+    size_t tree_depth_;
+    octomap::KeyRay key_ray_;  // temp storage for ray casting
 
-  double point_cloud_min_x_;
-  double point_cloud_max_x_;
-  double point_cloud_min_y_;
-  double point_cloud_max_y_;
-  double point_cloud_min_z_;
-  double point_cloud_max_z_;
-  double occupancy_min_z_;
-  double occupancy_max_z_;
-  double min_x_size_;
-  double min_y_size_;
-  bool filter_speckles_;
+    OccupancyGrid gridmap_;
+    bool publish_2d_map_; // 默认设置为 true
 
-  bool filter_ground_plane_;
-  double ground_filter_distance_;
-  double ground_filter_angle_;
-  double ground_filter_plane_distance_;
+    octomap::OcTreeKey update_bbox_min_;
+    octomap::OcTreeKey update_bbox_max_;
+    bool project_complete_map_;
+    bool map_origin_changed;
+    octomap::OcTreeKey padded_min_key_;
+    unsigned multires_2d_scale_;
 
-  bool compress_map_;
+    // 八叉树控制
+    double res_;
+    size_t max_tree_depth_;
+    bool compress_map_; // 压缩八叉树，通过octree_->prune()，将可以合并的子节点合并为父节点
 
-  bool init_config_;
+    // 可视化相关
+    ColorRGBA color_free_; // 可视化空闲空间的颜色
+    bool use_height_map_; // 发布marker_array时按高度赋色
+    double color_factor_; // 高度赋色的缩放因子
 
-  // downprojected 2D map:
-  bool incremental_2D_projection_;
-  OccupancyGrid gridmap_;
-  bool publish_2d_map_;
-  bool map_origin_changed;
-  octomap::OcTreeKey padded_min_key_;
-  unsigned multires_2d_scale_;
-  bool project_complete_map_;
-  bool use_colored_map_;
+
+    std::string world_frame_id_;  // the map frame
+    std::string base_frame_id_;   // base of the robot for ground plane filtering
+
+    // topic锁存模式，发布者会保存最后一条消息，新订阅者一连接就会立即收到这条消息
+    // 栅格地图发布默认锁存，以适配导航系统订阅的qos
+    bool latched_topics_;
+
+    // 发布空闲空间
+    bool publish_free_space_;
+
+    // 接收点云的边界范围
+    double point_cloud_min_x_;
+    double point_cloud_max_x_;
+    double point_cloud_min_y_;
+    double point_cloud_max_y_;
+    double point_cloud_min_z_;
+    double point_cloud_max_z_;
+    double max_range_; // 点云的最大范围，超过这个范围的点会被忽略
+
+    // 投影到二维栅格的高度范围
+    double occupancy_min_z_;
+    double occupancy_max_z_;
+    double min_x_size_; // 保证生成的栅格地图不会小于某个范围
+    double min_y_size_; // TODO: 似乎nav2偶尔会报错机器人在代价地图外，最好定义这个参数
+    bool incremental_2D_projection_; // 是否增量更新2D地图
+
+    // 毛刺过滤控制，毛刺node不参与publishAll()过程
+    bool filter_speckles_; // TODO: 可以打开试试效果
+
+    // 地面滤波控制，基于linefit_ground_segmentation
+    bool filter_ground_plane_;
+    GroundSegmentationParams seg_params;
+    std::shared_ptr<GroundSegmentation> segmenter_;
+
+
 };
 }  // namespace octomap_server
 

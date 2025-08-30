@@ -2,7 +2,7 @@
     ros__parameters:
         # https://github.com/hku-mars/FAST_LIO/issues/33:
         feature_extract_enable: false
-        point_filter_num: 3 # this downsamples the pointcloud, grouping the number of points indicated in the parameter. You can set to 1 of course, the run time will be double i think.
+        point_filter_num: 3 # 接收到点云后的前级滤波处理 TODO: 全部设为1 or 2，需要观察算法输出延时 # this downsamples the pointcloud, grouping the number of points indicated in the parameter. You can set to 1 of course, the run time will be double i think.
         max_iteration: 3 # the maximum iterations on ICP adjustment per scan, the influence is very tiny, I actually dont recommend to set it to large.
         filter_size_surf: 0.05 # I always use same one as filter_size_map but you can try to set this to a different and smaller value.
         filter_size_map: 0.05 # the voxel size in the map. for indoor small environments, you may consider to set to 0.2-0.3, but in outdoor large scale scenes, smaller than 0.4 may lead to worse performance.
@@ -48,7 +48,7 @@
             effect_map_en: false         # true: publish Effects
             map_en: true                 # true: publish Map cloud
             scan_publish_en:  true       # false: close all the point cloud output
-            dense_publish_en: false      # false: low down the points number in a global-frame point clouds scan.
+            dense_publish_en: false      # false: low down the points number in a global-frame point clouds scan. TODO: 全部设为true
             scan_bodyframe_pub_en: true  # true: output the point cloud scans in IMU-body-frame
             tf_en: false                  # false: publish the tf of odometry
 

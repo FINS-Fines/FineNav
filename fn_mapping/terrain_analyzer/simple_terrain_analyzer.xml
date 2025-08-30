@@ -1,0 +1,5 @@
+<library path="fn_terrain_analyzer_simple">
+    <class name="fn_terrain_analysis/SimpleAnalyzer" type="finenav_2d::SimpleTerrainAnalyzer" base_class_type="finenav_2d::TerrainAnalyzerBase">
+        <description>Simple Implementation of Terrain Analysis</description>
+    </class>
+</library>
