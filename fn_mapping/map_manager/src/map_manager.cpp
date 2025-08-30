@@ -95,11 +95,24 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // 改写成message_filters实现的tf接收，文档......
     // 参考octomap_server
 
+    geometry_msgs::msg::TransformStamped tf_base_to_lidar;
     geometry_msgs::msg::TransformStamped tf_base;
     try {
         tf_base = tf2_buffer_->lookupTransform(
             "base_link",   // 目标坐标系
             "odom",      // 源坐标系
+            msg->header.stamp,
+            rclcpp::Duration::from_seconds(0.1)  // 超时 100ms
+        );
+    } catch (tf2::TransformException &ex) {
+        RCLCPP_WARN(this->get_logger(), "Could not transform pointcloud: %s", ex.what());
+        return;
+    }
+
+    try {
+        tf_base_to_lidar = tf2_buffer_->lookupTransform(
+            "base_link",
+            "base_lidar",
             msg->header.stamp,
             rclcpp::Duration::from_seconds(0.1)  // 超时 100ms
         );
@@ -115,13 +128,19 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     base_link_pos.z() = tf_base.transform.translation.z;
     local_map_->moveTo(base_link_pos);
 
-    Eigen::Quaterniond rotation(
+    Position base_link_to_lidar;
+    base_link_to_lidar.x() = tf_base_to_lidar.transform.translation.x;
+    base_link_to_lidar.y() = tf_base_to_lidar.transform.translation.y;
+    base_link_to_lidar.z() = tf_base_to_lidar.transform.translation.z;         //获取base_link坐标系下base_lidar的位置
+
+    Eigen::Quaterniond base_link_rotation(
         tf_base.transform.rotation.w,
         tf_base.transform.rotation.x,
         tf_base.transform.rotation.y,
         tf_base.transform.rotation.z
     );
-    Eigen::Quaterniond inverse_rotation = rotation.inverse();
+
+    Eigen::Quaterniond inverse_base_link_rotation = base_link_rotation.inverse();
 
     std::vector<Eigen::Vector3d> points;
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
@@ -130,11 +149,13 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
         Eigen::Vector3d point_odom(*iter_x, *iter_y, *iter_z);
-        Eigen::Vector3d point_base = inverse_rotation * point_odom;
+        Eigen::Vector3d point_base = inverse_base_link_rotation * point_odom;
         points.emplace_back(point_base.x(), point_base.y(),point_base.z());
     }
 
     auto t0 = std::chrono::high_resolution_clock::now();
+    Position base_lidar;
+    base_lidar = inverse_base_link_rotation * base_link_to_lidar;
     for (const auto& p : points) {
         std::vector<Index> ray_indices;
         Position end{p.x(), p.y(), p.z()};
@@ -142,7 +163,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
             continue;
         }
         // 调用 rayCast
-        if (local_map_->rayCast(end, ray_indices)) {
+        if (!local_map_->rayCast( local_map_->getOrigin()+base_lidar, end , ray_indices) && count<5) {
             // 遍历光线上的栅格
             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
                 local_map_->at(ray_indices[i]) = NAN;   // 清除，设置为空闲
@@ -241,9 +262,9 @@ void MapManager::publishLocalMap(const rclcpp::Time& stamp) {
         Position pos,pos_rotated;
         pos_rotated = local_map_->getPosition(idx); // 获取对应的世界坐标
         pos = rotation * pos_rotated;
-        *iter_x = pos.x(); ++iter_x;
-        *iter_y = pos.y(); ++iter_y;
-        *iter_z = pos.z(); ++iter_z;
+        *iter_x = idx.x()*0.05; ++iter_x;
+        *iter_y = idx.y()*0.05; ++iter_y;
+        *iter_z = idx.z()*0.05; ++iter_z;
     }
 
     // 4. 发布点云
