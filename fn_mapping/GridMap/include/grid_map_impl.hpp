@@ -111,11 +111,11 @@ bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::
 }
 
 template <typename T>
-bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const {
+bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector<Index>& indices) const {
 
     indices.clear();
 
-    auto origin_index = Index::Zero();
+    auto origin_index = getIndex(origin);
     auto end_index = getIndex(end);
 
     // 光线超出地图范围，结束
@@ -132,10 +132,10 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
 
 
     // 初始化
-    Vector direction (end - origin_);
+    Vector direction (end - origin);
     auto length = direction.norm();
     //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
-    Index current_voxel = (origin_ / resolution_).cast<int>();
+    Index current_voxel = (origin / resolution_).cast<int>();
     Index last_voxel = (end / resolution_).cast<int>();
 
     Vector tMax, tDelta;
@@ -153,7 +153,7 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
             }
 
             // 计算到下一个边界的参数距离
-            tMax[i] = (voxelBorder - origin_[i]) / direction[i];
+            tMax[i] = (voxelBorder - origin[i]) / direction[i];
 
             // 计算穿越一个完整体素的参数距离
             tDelta[i] = resolution_ / std::abs(direction[i]);
@@ -193,7 +193,7 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
         double traveled_distance = std::min({tMax[0], tMax[1], tMax[2]});
 
         // 离散化误差保护：使用原始长度比较
-        if (traveled_distance > length) {
+        if (indices.size() > end_index.x()-origin_index.x()+end_index.y()-origin_index.y()+end_index.z()-origin_index.z()+1) {
             break;
         }
         indices.push_back(current_voxel);

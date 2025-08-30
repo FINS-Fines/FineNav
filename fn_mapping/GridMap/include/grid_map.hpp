@@ -116,11 +116,12 @@ public:
 
     /**
      * @brief 光线投射
+     * @param origin 光线的终点位置
      * @param end 光线的终点位置
      * @param indices 返回光线经过的栅格索引
      * @return 如果光线终点超出地图范围，返回false；否则返回true
      */
-    bool rayCast(const Position& end, std::vector<Index>& indices) const;
+    bool rayCast(const Position& origin,const Position& end, std::vector<Index>& indices) const;
 
     /**
      * @brief 设置地图的原点，即地图在世界坐标系中的位置
