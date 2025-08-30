@@ -217,6 +217,22 @@ void GridMap<T>::setOrigin(const Position& origin) {
 }
 
 template <typename T>
+void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::function<bool(const T&)> condition) const {
+    indices.clear();
+    Size half_size = size_ / 2;
+    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
+        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
+            for (int z = -half_size.z(); z <= half_size.z(); ++z) {
+                Index idx(x, y, z);
+                if (condition(at(idx))) {
+                    indices.push_back(idx);
+                }
+            }
+        }
+    }
+}
+
+template <typename T>
 Index GridMap<T>::getIndex(const Position& position) const {
     return getIndexFromPosition(position, resolution_, origin_);
 }
@@ -244,21 +260,6 @@ double GridMap<T>::getResolution() const {
 template <typename T>
 Position GridMap<T>::getOrigin() const {
     return origin_;
-}
-template <typename T>
-void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::function<bool(const T&)> condition) const {
-    indices.clear();
-    Size half_size = size_ / 2;
-    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
-        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
-            for (int z = -half_size.z(); z <= half_size.z(); ++z) {
-                Index idx(x, y, z);
-                if (condition(at(idx))) {
-                    indices.push_back(idx);
-                }
-            }
-        }
-    }
 }
 
 template <typename T>
