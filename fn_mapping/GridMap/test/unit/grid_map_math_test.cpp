@@ -29,68 +29,72 @@ TEST(GridMapMathTest, WrapIndexToRange) {
 
 TEST(GridMapMathTest, IndexShiftFromPositionShift) {
     const double resolution = 0.1;
+    const double inv_resolution = 1.0 / resolution;
+
     {
         Position position_shift{0.0, 0.0, 0.0};
         Index result{0, 0, 0};
-        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution));
+        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution, inv_resolution));
     }
     {
         Position position_shift{0.1, 0.4, 0.5};
         Index result{1, 4, 5};
-        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution));
+        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution, inv_resolution));
     }
     {
         Position position_shift{-1.0, -2.5, -3.0};
         Index result{-10, -25, -30};
-        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution));
+        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution, inv_resolution));
     }
     {
         Position position_shift{0.151, 0.285, 0.34567};
         Index result{2, 3, 3};
-        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution));
+        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution, inv_resolution));
     }
     {
         Position position_shift{-0.151, 0.285, -0.34567};
         Index result{-2, 3, -3};
-        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution));
+        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution, inv_resolution));
     }
     {
         Position position_shift{10.0, 50.0, 100.0};
         Index result{100, 500, 1000};
-        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution));
+        EXPECT_EQ(result, getIndexShiftFromPositionShift(position_shift, resolution, inv_resolution));
     }
 }
 
 TEST(GridMapMathTest, PositionShiftFromIndexShift) {
     const double resolution = 0.1;
+    const double inv_resolution = 1.0 / resolution;
+
     {
         Index index_shift{1, 4, 5};
         Position result{0.1, 0.4, 0.5};
-        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution)));
+        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution, inv_resolution)));
     }
     {
         Index index_shift{0, 0, 0};
         Position result{0.0, 0.0, 0.0};
-        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution)));
+        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution, inv_resolution)));
     }
     {
         Index index_shift{-10, -25, -30};
         Position result{-1.0, -2.5, -3.0};
-        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution)));
+        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution, inv_resolution)));
     }
     {
         Index index_shift{2, 3, 3};
         Position result{0.2, 0.3, 0.3};
-        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution)));
+        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution, inv_resolution)));
     }
     {
         Index index_shift{-2, 3, -3};
         Position result{-0.2, 0.3, -0.3};
-        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution)));
+        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution, inv_resolution)));
     }
     {
         Index index_shift{100, 500, 1000};
         Position result{10.0, 50.0, 100.0};
-        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution)));
+        EXPECT_TRUE(result.isApprox(getPositionShiftFromIndexShift(index_shift, resolution, inv_resolution)));
     }
 }

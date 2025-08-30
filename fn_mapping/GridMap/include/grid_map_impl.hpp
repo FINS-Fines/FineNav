@@ -38,16 +38,16 @@ T GridMap<T>::atPosition(const Position& position) const {
 
 template <typename T>
 T& GridMap<T>::at(const Index& index) {
-    if (checkIfIndexValid(index, size_)) {
-        return data_[getBufferIndex(index, size_, start_index_)];
+    if (checkIfIndexValid(index, size_, half_size_)) {
+        return data_[getBufferIndex(index, size_, half_size_, start_index_)];
     }
     throw std::out_of_range("Accessing grid out of bounds");
 }
 
 template <typename T>
 T GridMap<T>::at(const Index& index) const {
-    if (checkIfIndexValid(index, size_)) {
-        return data_[getBufferIndex(index, size_, start_index_)];
+    if (checkIfIndexValid(index, size_, half_size_)) {
+        return data_[getBufferIndex(index, size_, half_size_, start_index_)];
     }
     throw std::out_of_range("Accessing grid out of bounds");
 }
@@ -59,7 +59,7 @@ std::span<T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) {
     }
 
     Index index_start(x, y, -half_size_.z());
-    int buffer_start = getBufferIndex(index_start, size_, start_index_);
+    int buffer_start = getBufferIndex(index_start, size_, half_size_, start_index_);
     return std::span<T>(&data_[buffer_start], size_.z());
 }
 
@@ -70,7 +70,7 @@ std::span<const T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) const
     }
 
     Index index_start(x, y, -half_size_.z());
-    int buffer_start = getBufferIndex(index_start, size_, start_index_);
+    int buffer_start = getBufferIndex(index_start, size_, half_size_, start_index_);
     return std::span<T>(&data_[buffer_start], size_.z());
 }
 
@@ -90,23 +90,23 @@ template <typename T>
 bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<Index>& indices) {
 
     // 计算移动了的栅格数
-    const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_);
+    const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_, inv_resolution_);
     if (index_shift.isZero()) {
         return false; // 没有移动
     }
 
     // 更新移动后的地图状态
-    const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_);
+    const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_, inv_resolution_);
     origin_ += aligned_position_shift;
     start_index_ = wrapIndexToRange(start_index_ - index_shift, size_); // 缓冲区起始索引应当与原点反向移动
 
     // 以移动后的地图作为固定坐标系，获取受移动影响的栅格
-    getDifferenceSet(-index_shift, size_, indices);
+    getDifferenceSet(-index_shift, size_, half_size_, indices);
 
     if (!keep_removed) {
         for (const auto& index : indices) {
-            if (checkIfIndexValid(index, size_)) {
-                data_[getBufferIndex(index, size_, start_index_)] = NAN; // 清空数据
+            if (checkIfIndexValid(index, size_, half_size_)) {
+                data_[getBufferIndex(index, size_, half_size_, start_index_)] = NAN; // 清空数据
             }
         }
     }
@@ -123,8 +123,8 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
     auto end_index = getIndex(end);
 
     // 光线超出地图范围，结束
-    if (!checkIfIndexValid(end_index, size_)) {
-        return false; // TODO: 光线超出范围时，是否应该找将整条光线上的栅格记为free?即，过远的传感器数据是否可信？
+    if (!checkIfIndexValid(end_index, size_, half_size_)) {
+        return false;
     }
 
     // 光线终点为原点，结束
@@ -172,13 +172,13 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
 
     indices.push_back(current_voxel);
     while(last_voxel != current_voxel) {
-        if (!checkIfIndexValid(current_voxel, size_)) {
-        return false;
-    }
+        if (!checkIfIndexValid(current_voxel, size_, half_size_)) {
+            return false;
+        }
 
         if (tMax.x() < tMax.y()) {
             if (tMax.x() < tMax.z()) {
-                current_voxel.x() += step.x();;
+                current_voxel.x() += step.x();
                 tMax.x() += tDelta.x();
             } else {
                 current_voxel.z() += step.z();
@@ -235,12 +235,12 @@ void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::functi
 
 template <typename T>
 Index GridMap<T>::getIndex(const Position& position) const {
-    return getIndexFromPosition(position, resolution_, origin_);
+    return getIndexFromPosition(position, resolution_, inv_resolution_, origin_);
 }
 
 template <typename T>
 Position GridMap<T>::getPosition(const Index& index) const {
-    return getPositionFromIndex(index, resolution_, origin_);
+    return getPositionFromIndex(index, resolution_, inv_resolution_, origin_);
 }
 
 template <typename T>
