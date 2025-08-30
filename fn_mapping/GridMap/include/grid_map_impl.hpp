@@ -2,8 +2,7 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
-#ifndef GRID_MAP_IMPL_HPP
-#define GRID_MAP_IMPL_HPP
+#pragma once
 
 #include <limits>
 #include "grid_map.hpp"
@@ -285,5 +284,5 @@ bool GridMap<T>::isInside(const Index& idx) const {
     return checkIfIndexValid(idx, size_, half_size_);
 }
 
-}
-#endif  //GRID_MAP_IMPL_HPP
+} // namespace finenav_2d
+

@@ -2,8 +2,7 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
-#ifndef GRID_MAP_MATH_HPP
-#define GRID_MAP_MATH_HPP
+#pragma once
 
 #include <Eigen/Core>
 
@@ -236,7 +235,4 @@ inline void getDifferenceSet(const Index& index_shift, const Size& size, const S
     }
 }
 
-
 } // namespace finenav_2d
-
-#endif  //GRID_MAP_MATH_HPP

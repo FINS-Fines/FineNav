@@ -2,8 +2,7 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
-#ifndef FINENAV2D_GRID_MAP_3D_HPP
-#define FINENAV2D_GRID_MAP_3D_HPP
+#pragma once
 
 #include <vector>
 #include "grid_map_math.hpp"
@@ -217,4 +216,3 @@ private:
 } // namespace finenav_2d
 
 #include "grid_map_impl.hpp"
-#endif  //FINENAV2D_GRID_MAP_3D_HPP
