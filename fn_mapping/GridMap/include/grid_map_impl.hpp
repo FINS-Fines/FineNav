@@ -277,7 +277,12 @@ Index GridMap<T>::getMaxIndex() const{
 
 template <typename T>
 bool GridMap<T>::isInside(const Position& p) const {
-    return checkIfIndexValid(p, size_, half_size_);
+    return checkIfIndexValid(getIndex(p), size_, half_size_);
+}
+
+template <typename T>
+bool GridMap<T>::isInside(const Index& idx) const {
+    return checkIfIndexValid(idx, size_, half_size_);
 }
 
 }
