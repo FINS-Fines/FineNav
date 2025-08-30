@@ -8,6 +8,8 @@
 #include <cfloat>  // 提供 DBL_MAX
 #include "grid_map.hpp"
 
+#include <pcl/type_traits.h>
+
 namespace finenav_2d {
 template <typename T>
 GridMap<T>::GridMap(const Length& length, const double& resolution, const Position& origin)
@@ -257,6 +259,16 @@ void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::functi
             }
         }
     }
+}
+
+template <typename T>
+Index GridMap<T>::getMinIndex() const{
+    return -size_/2;
+}
+
+template <typename T>
+Index GridMap<T>::getMaxIndex() const{
+    return size_/2;
 }
 
 template <typename T>

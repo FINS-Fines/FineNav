@@ -173,6 +173,20 @@ public:
      */
     Position getOrigin() const;
 
+
+    /**
+     * @brief 地图边界框的最小索引
+     * @return min_index
+     */
+    Index getMinIndex() const;
+
+
+    /**
+     * @brief 地图边界框的最大索引
+     * @return max_index
+     */
+    Index getMaxIndex() const;
+
     /**
      * @brief 检查某个位置是否在地图范围内
      * @param p 位置坐标
