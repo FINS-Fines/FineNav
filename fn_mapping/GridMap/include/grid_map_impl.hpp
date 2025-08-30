@@ -5,7 +5,7 @@
 #ifndef GRID_MAP_IMPL_HPP
 #define GRID_MAP_IMPL_HPP
 
-#include <cfloat>  // 提供 DBL_MAX // TODO：清除这个奇怪东西
+#include <limits>
 #include "grid_map.hpp"
 
 namespace finenav_2d {
@@ -137,6 +137,8 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
 
     // 初始化
     Vector direction (end - origin_);
+    Vector inv_direction = direction.cwiseInverse();
+
     auto length = direction.norm();
     //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
     Index current_voxel = (origin_.array() * inv_resolution_).cast<int>();
@@ -157,14 +159,14 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
             }
 
             // 计算到下一个边界的参数距离
-            tMax[i] = (voxelBorder - origin_[i]) / direction[i];
+            tMax[i] = (voxelBorder - origin_[i]) * inv_direction[i];
 
             // 计算穿越一个完整体素的参数距离
-            tDelta[i] = resolution_ / std::abs(direction[i]);
+            tDelta[i] = resolution_ * std::abs(inv_direction[i]);
         }
         else{
-            tMax[i] = DBL_MAX ;
-            tDelta[i] = DBL_MAX ;
+            tMax[i] = std::numeric_limits<double>::infinity();
+            tDelta[i] = std::numeric_limits<double>::infinity();
         }
     }
 
