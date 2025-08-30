@@ -35,7 +35,7 @@ public:
   /**
   * @brief 发布局部地图
   */
-  void publishLocalMap();
+  void publishLocalMap(const rclcpp::Time& stamp);
   void publishLocalcostMap();
   void AnalyzerInit();
 

@@ -115,13 +115,23 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     base_link_pos.z() = tf_base.transform.translation.z;
     local_map_->moveTo(base_link_pos);
 
+    Eigen::Quaterniond rotation(
+        tf_base.transform.rotation.w,
+        tf_base.transform.rotation.x,
+        tf_base.transform.rotation.y,
+        tf_base.transform.rotation.z
+    );
+    Eigen::Quaterniond inverse_rotation = rotation.inverse();
+
     std::vector<Eigen::Vector3d> points;
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
     sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg, "z");
 
     for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
-        points.emplace_back(*iter_x, *iter_y, *iter_z);
+        Eigen::Vector3d point_odom(*iter_x, *iter_y, *iter_z);
+        Eigen::Vector3d point_base = inverse_rotation * point_odom;
+        points.emplace_back(point_base.x(), point_base.y(),point_base.z());
     }
 
     auto t0 = std::chrono::high_resolution_clock::now();
@@ -158,7 +168,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
 
     // 发布地图（可视化）
-    publishLocalMap();
+    publishLocalMap(rclcpp::Time(msg->header.stamp));
 
     // 地形分析
     if (terrain_analyzer_) {
@@ -167,13 +177,41 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     publishLocalcostMap();
 }
 
-void MapManager::publishLocalMap() {
+void MapManager::publishLocalMap(const rclcpp::Time& stamp) {
 
     // 获取local_map_中所有Occupied的格子
     std::vector<Index> Ocuppied_cells;
     local_map_->selectCellsByCondition(Ocuppied_cells, [](const float& value) {
         return (!std::isnan(value)); // 假设 true 表示 Ocuppied
     });
+
+    geometry_msgs::msg::TransformStamped tf_base;
+    try {
+        tf_base = tf2_buffer_->lookupTransform(
+            "base_link",   // 目标坐标系
+            "odom",      // 源坐标系
+            stamp,
+            rclcpp::Duration::from_seconds(0.1)  // 超时 100ms
+        );
+    } catch (tf2::TransformException &ex) {
+        RCLCPP_WARN(this->get_logger(), "Could not transform pointcloud: %s", ex.what());
+        return;
+    }
+
+    //move to base_link
+    Position base_link_pos;
+    base_link_pos.x() = tf_base.transform.translation.x;
+    base_link_pos.y() = tf_base.transform.translation.y;
+    base_link_pos.z() = tf_base.transform.translation.z;
+    local_map_->moveTo(base_link_pos);
+
+    Eigen::Quaterniond rotation(
+        tf_base.transform.rotation.w,
+        tf_base.transform.rotation.x,
+        tf_base.transform.rotation.y,
+        tf_base.transform.rotation.z
+    );
+    Eigen::Quaterniond inverse_rotation = rotation.inverse();
 
     //创建Pointcloud2信息
     sensor_msgs::msg::PointCloud2 cloud;
@@ -200,9 +238,9 @@ void MapManager::publishLocalMap() {
     sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
 
     for (const Index& idx : Ocuppied_cells) {
-        Position pos;
-        pos = local_map_->getPosition(idx); // 获取对应的世界坐标
-
+        Position pos,pos_rotated;
+        pos_rotated = local_map_->getPosition(idx); // 获取对应的世界坐标
+        pos = rotation * pos_rotated;
         *iter_x = pos.x(); ++iter_x;
         *iter_y = pos.y(); ++iter_y;
         *iter_z = pos.z(); ++iter_z;
