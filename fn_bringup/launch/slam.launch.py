@@ -140,6 +140,13 @@ def generate_launch_description():
         }]
     )
 
+    pointcloud2_converter = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            FindPackageShare('ign_sim_pointcloud_tool'),
+            '/launch/pointcloud_complete_launch.py'
+        ])
+    )
+
     # 启动顺序控制
     ld = LaunchDescription()
     ld.add_action(declare_use_sim_time)
@@ -147,8 +154,9 @@ def generate_launch_description():
     ld.add_action(declare_lio_type)
     ld.add_action(declare_map_save)
     ld.add_action(declare_map_load)
-
     ld.add_action(declare_nav_mode)
+
+    ld.add_action(pointcloud2_converter)
     ld.add_action(static_tf_node)
     ld.add_action(fast_lio_node)
     ld.add_action(map_manager_node)

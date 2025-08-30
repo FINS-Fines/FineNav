@@ -32,7 +32,7 @@ def generate_launch_description():
 
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='false',
+        default_value='true',
         description='Use simulation (Gazebo) clock if true'
     )
 
@@ -112,7 +112,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     ld.add_action(robot_description_launch)
     ld.add_action(serial_driver_node)
-    ld.add_action(livox_driver_node)
+  #  ld.add_action(livox_driver_node)
     ld.add_action(unitree_driver_node)
 
     return ld

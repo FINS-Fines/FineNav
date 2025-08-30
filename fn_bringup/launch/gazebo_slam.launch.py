@@ -169,7 +169,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     ld.add_action(declare_lidar_type)
     ld.add_action(declare_lio_type)
-    ld.add_action(declare_map_save)
+    ld.add_action(declare_maplidar_TF_save)
     ld.add_action(declare_map_load)
 
     ld.add_action(declare_nav_mode)

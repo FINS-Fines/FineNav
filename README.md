@@ -33,7 +33,7 @@ ifconfig
 # The default ipv4 address is 192.168.1.50, you can change it in <PROJECT_DIR>/fn_bringup/config/MID360_config.yaml
 sudo ifconfig <interface> <ip>
 # Launch FineNav2D
-ros2 launch fine_nav2d_bringup bringup_nav2_real.launch.py \
+ros2 launch fine_nav2d_bringup bringup.launch.py \
 lidar_type:=livox \
 lio_type:=fast_lio \
 enable_rviz:=true

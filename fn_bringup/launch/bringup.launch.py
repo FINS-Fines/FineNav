@@ -28,7 +28,7 @@ def generate_launch_description():
     # 1. 使用仿真时间
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='false',
+        default_value='true',
         description='Use reality (Gazebo) clock if true'
     )
     # 2. 使用雷达的IMU还是下位机的IMU
@@ -158,7 +158,7 @@ def generate_launch_description():
     ld.add_action(declare_map_load)
 
     ld.add_action(launch_group)
-    ld.add_action(foxglove_bridge)
+    #ld.add_action(foxglove_bridge)
 
     return ld
 

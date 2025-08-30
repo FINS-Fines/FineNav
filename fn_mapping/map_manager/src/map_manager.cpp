@@ -24,7 +24,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
     rclcpp::QoS qos = rclcpp::SensorDataQoS();  // 自动 BestEffort, Depth 10
-    point_sub_.subscribe(this, "/lidar", qos.get_rmw_qos_profile());
+    point_sub_.subscribe(this, "/lidar_converted", qos.get_rmw_qos_profile());
 
     tf2_filter_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
         point_sub_, *tf2_buffer_, "/base_lidar", 100, this->get_node_logging_interface(),
@@ -69,9 +69,6 @@ void MapManager::AnalyzerInit() {
 
     auto terrain_setter = [this](const size_t& idx_x, const size_t& idx_y, const float& value) {
         passability_array_(idx_x, idx_y) = value;
-        if(value>0) {
-            std::cout<<value<<std::endl;
-        }
     };
     // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
 
