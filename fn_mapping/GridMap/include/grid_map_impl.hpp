@@ -193,7 +193,7 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
         double traveled_distance = std::min({tMax[0], tMax[1], tMax[2]});
 
         // 离散化误差保护：使用原始长度比较
-        if (indices.size() > end_index.x()-origin_index.x()+end_index.y()-origin_index.y()+end_index.z()-origin_index.z()+1) {
+        if (indices.size() > abs(end_index.x()-origin_index.x())+abs(end_index.y()-origin_index.y())+abs(end_index.z()-origin_index.z())+1) {
             break;
         }
         indices.push_back(current_voxel);

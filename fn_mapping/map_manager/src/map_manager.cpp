@@ -163,10 +163,10 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
             continue;
         }
         // 调用 rayCast
-        if (!local_map_->rayCast( local_map_->getOrigin()+base_lidar, end , ray_indices) && count<5) {
+        if (local_map_->rayCast( local_map_->getOrigin()+base_lidar, end , ray_indices) ) {
             // 遍历光线上的栅格
             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                local_map_->at(ray_indices[i]) = NAN;   // 清除，设置为空闲
+                local_map_->at(ray_indices[i]) =NAN;   // 清除，设置为空闲
             }
         }
     }
