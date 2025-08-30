@@ -202,6 +202,9 @@ private:
     double resolution_;   // 栅格地图的分辨率，单位为米
     Position origin_;     // 当前栅格地图的原点，用于定义世界坐标系下地图的位置
 
+    double inv_resolution_;
+    Size half_size_;
+
 };
 
 } // namespace finenav_2d

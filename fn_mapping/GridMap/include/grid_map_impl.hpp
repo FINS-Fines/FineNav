@@ -5,20 +5,22 @@
 #ifndef GRID_MAP_IMPL_HPP
 #define GRID_MAP_IMPL_HPP
 
-#include <cfloat>  // 提供 DBL_MAX
+#include <cfloat>  // 提供 DBL_MAX // TODO：清除这个奇怪东西
 #include "grid_map.hpp"
-
-#include <pcl/type_traits.h>
 
 namespace finenav_2d {
 template <typename T>
 GridMap<T>::GridMap(const Length& length, const double& resolution, const Position& origin)
     : length_(length), resolution_(resolution), origin_(origin) {
 
-    size_ = (length.array() / resolution).ceil().cast<int>();
+    inv_resolution_ = 1.0 / resolution;
+
+    size_ = (length.array() * inv_resolution_).ceil().cast<int>();
     size_ = size_.unaryExpr([](int v) {
         return (v % 2 == 0) ? v + 1 : v; // 确保尺寸为奇数
     });
+
+    half_size_ = size_ / 2;
 
     data_.resize(size_.x() * size_.y() * size_.z(), NAN);
     start_index_ = Index::Zero();
@@ -52,22 +54,22 @@ T GridMap<T>::at(const Index& index) const {
 
 template <typename T>
 std::span<T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) {
-    if (std::abs(x) > size_.x() / 2 || std::abs(y) > size_.y() / 2) {
+    if (std::abs(x) > half_size_.x() || std::abs(y) > half_size_.y()) {
         throw std::out_of_range("Accessing grid out of bounds");
     }
 
-    Index index_start(x, y, -size_.z() / 2);
+    Index index_start(x, y, -half_size_.z());
     int buffer_start = getBufferIndex(index_start, size_, start_index_);
     return std::span<T>(&data_[buffer_start], size_.z());
 }
 
 template <typename T>
 std::span<const T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) const {
-    if (std::abs(x) > size_.x() / 2 || std::abs(y) > size_.y() / 2) {
+    if (std::abs(x) > half_size_.x() || std::abs(y) > half_size_.y()) {
         throw std::out_of_range("Accessing grid out of bounds");
     }
 
-    Index index_start(x, y, -size_.z() / 2);
+    Index index_start(x, y, -half_size_.z());
     int buffer_start = getBufferIndex(index_start, size_, start_index_);
     return std::span<T>(&data_[buffer_start], size_.z());
 }
@@ -137,8 +139,8 @@ bool GridMap<T>::rayCast(const Position& end, std::vector<Index>& indices) const
     Vector direction (end - origin_);
     auto length = direction.norm();
     //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
-    Index current_voxel = (origin_ / resolution_).cast<int>();
-    Index last_voxel = (end / resolution_).cast<int>();
+    Index current_voxel = (origin_.array() * inv_resolution_).cast<int>();
+    Index last_voxel = (end.array() * inv_resolution_).cast<int>();
 
     Vector tMax, tDelta;
     Eigen::Vector3i step;
@@ -219,10 +221,9 @@ void GridMap<T>::setOrigin(const Position& origin) {
 template <typename T>
 void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::function<bool(const T&)> condition) const {
     indices.clear();
-    Size half_size = size_ / 2;
-    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
-        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
-            for (int z = -half_size.z(); z <= half_size.z(); ++z) {
+    for (int x = -half_size_.x(); x <= half_size_.x(); ++x) {
+        for (int y = -half_size_.y(); y <= half_size_.y(); ++y) {
+            for (int z = -half_size_.z(); z <= half_size_.z(); ++z) {
                 Index idx(x, y, z);
                 if (condition(at(idx))) {
                     indices.push_back(idx);
@@ -264,18 +265,18 @@ Position GridMap<T>::getOrigin() const {
 
 template <typename T>
 Index GridMap<T>::getMinIndex() const{
-    return -size_/2;
+    return -half_size_;
 }
 
 template <typename T>
 Index GridMap<T>::getMaxIndex() const{
-    return size_/2;
+    return half_size_;
 }
 
 template <typename T>
 bool GridMap<T>::isInside(const Position& p) const {
     for (int i = 0; i < 3; ++i) {
-        double half_len = length_[i] / 2.0;          // 半边长
+        double half_len = length_[i] * 0.5;          // 使用乘法替代除法
         double min_val = origin_[i] - half_len;
         double max_val = origin_[i] + half_len;
         if (p[i] < min_val || p[i] >= max_val) return false;
