@@ -8,7 +8,7 @@
 #include <span>
 
 #include "grid_map_math.hpp"
-
+#include "grid_map_iterator.hpp"
 
 namespace finenav_2d {
 
@@ -20,10 +20,6 @@ namespace finenav_2d {
 template <typename T>
 class GridMap {
 public:
-
-    // 实际的Iterator定义，作为GridMap的成员类
-    #include "grid_map_iterator.hpp"
-
     /**
      * @brief 构造函数
      * @param length 栅格地图的尺寸，单位为米
@@ -205,10 +201,13 @@ public:
     bool isInside(const Index& idx) const;
 
 
-    /// @return 迭代器接口
+    /// @brief 迭代器接口
+    using iterator = GridMapIterator<T>;
+    using const_iterator = GridMapIterator<const T>;
+
     iterator begin() { return iterator(this, false); }
-    const_iterator begin() const { return const_iterator(this, false); }
     iterator end() { return iterator(this, true); }
+    const_iterator begin() const { return const_iterator(this, false); }
     const_iterator end() const { return const_iterator(this, true); }
 
 private:

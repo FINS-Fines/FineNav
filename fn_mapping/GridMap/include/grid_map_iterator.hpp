@@ -4,12 +4,22 @@
 
 #pragma once
 
-template <bool IsConst>
+#include <stdexcept>
+#include "grid_map_math.hpp"
+
+namespace finenav_2d {
+
+template <typename T>
+class GridMap; // 前向声明
+
+template <typename T>
 class GridMapIterator {
 public:
-    using pointer           = std::conditional_t<IsConst, const T*, T*>;
-    using reference         = std::conditional_t<IsConst, const T&, T&>;
-    using map_type          = std::conditional_t<IsConst, const GridMap<T>, GridMap<T>>;
+
+    using value_type = T;
+    using pointer = T*;
+    using reference = T&;
+    using map_type = GridMap<T>;
 
     // 仅用于创建end迭代器
     GridMapIterator() : map_(nullptr), current_index_(Index::Zero()), half_size_(Size::Zero()), is_end_(true) {}
@@ -110,6 +120,4 @@ protected:
     bool is_end_;
 };
 
-// 迭代器类型别名
-using iterator = GridMapIterator<false>;
-using const_iterator = GridMapIterator<true>;
+} // namespace finenav_2d
