@@ -2,8 +2,7 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
-#ifndef GRID_MAP_MATH_HPP
-#define GRID_MAP_MATH_HPP
+#pragma once
 
 #include <Eigen/Core>
 
@@ -63,10 +62,11 @@ inline int sign(T x) {
  * @brief 将位置偏移转换为索引偏移
  * @param position_shift 位置偏移量
  * @param resolution 栅格地图的分辨率
+ * @param inv_resolution 栅格地图的分辨率的倒数
  * @return 对应的索引偏移量
  */
-inline Index getIndexShiftFromPositionShift(const Position& position_shift, const double& resolution) {
-    Vector index_shift_vector = position_shift / resolution;
+inline Index getIndexShiftFromPositionShift(const Position& position_shift, const double& resolution, const double& inv_resolution) {
+    Vector index_shift_vector = position_shift * inv_resolution;
     return index_shift_vector.array().round().matrix().cast<int>();
 
 }
@@ -75,9 +75,10 @@ inline Index getIndexShiftFromPositionShift(const Position& position_shift, cons
  * @brief 将索引偏移转换为位置偏移
  * @param index_shift 索引偏移量
  * @param resolution 栅格地图的分辨率
+ * @param inv_resolution 栅格地图的分辨率的倒数
  * @return 对应的位移偏移量
  */
-inline Position getPositionShiftFromIndexShift(const Index& index_shift, const double& resolution) {
+inline Position getPositionShiftFromIndexShift(const Index& index_shift, const double& resolution, const double& inv_resolution) {
     return index_shift.cast<double>() * resolution;
 }
 
@@ -86,61 +87,67 @@ inline Position getPositionShiftFromIndexShift(const Index& index_shift, const d
  * @brief 将世界坐标系下的位置转换为栅格地图索引
  * @param position 访问的世界坐标系下的位置
  * @param resolution 栅格地图的分辨率
+ * @param inv_resolution 栅格地图的分辨率的倒数
  * @param origin 栅格地图的原点位置
  * @return 对应的栅格地图索引
  */
-inline Index getIndexFromPosition(const Position& position, const double& resolution, const Position& origin) {
-    return getIndexShiftFromPositionShift(position - origin, resolution);
+inline Index getIndexFromPosition(const Position& position, const double& resolution, const double& inv_resolution,
+    const Position& origin) {
+    return getIndexShiftFromPositionShift(position - origin, resolution, inv_resolution);
 }
 
 /**
  * @brief 将栅格地图索引转换为世界坐标系下的位置
  * @param[in] index 栅格地图索引
  * @param[in] resolution 栅格地图的分辨率
+ * @param inv_resolution 栅格地图的分辨率的倒数
  * @param[in] origin 栅格地图的原点位置
  * @return 对应的栅格中心在世界坐标系下的位置
  */
-inline Position getPositionFromIndex(const Index& index, const double& resolution, const Position& origin) {
-    return origin + getPositionShiftFromIndexShift(index, resolution);
+inline Position getPositionFromIndex(const Index& index, const double& resolution, const double& inv_resolution, const Position& origin) {
+    return origin + getPositionShiftFromIndexShift(index, resolution, inv_resolution);
 }
 
 /**
  * @brief 将地图索引转换为缓冲区索引
  * @param index 地图索引
- * @param buffer_size 缓冲区中地图的大小
+ * @param size 地图的大小
+ * @param half_size 地图大小的一半
  * @param buffer_start_index 循环缓冲区的起始索引
  * @return 对应的缓冲区索引
  * @note 按照z-y-x的顺序在缓冲区存储
  */
 inline int getBufferIndex(const Index& index,
-                            const Size& buffer_size,
+                            const Size& size,
+                            const Size& half_size,
                             const Index& buffer_start_index = Index::Zero()) {
-    const Index unwrapped_index = buffer_size / 2 + index;
-    const Index wrapped_index = wrapIndexToRange(unwrapped_index - buffer_start_index, buffer_size);
-    return wrapped_index.z() + wrapped_index.y() * buffer_size.z() + wrapped_index.x() * buffer_size.y() * buffer_size.z();
+    const Index unwrapped_index = half_size + index;
+    const Index wrapped_index = wrapIndexToRange(unwrapped_index - buffer_start_index, size);
+    return wrapped_index.z() + wrapped_index.y() * size.z() + wrapped_index.x() * size.y() * size.z();
 }
 
 /**
  * @brief 检查索引是否在栅格地图的有效范围内
  * @param index 栅格地图索引
  * @param size 栅格地图的大小
+ * @param half_size 栅格地图大小的一半
  * @return 如果索引在范围内返回true，否则返回false
  */
-inline bool checkIfIndexValid(const Index& index, const Size& size) {
-    return (index.cwiseAbs().array() <= size.array() / 2).all();
+inline bool checkIfIndexValid(const Index& index, const Size& size, const Size& half_size) {
+    return (index.cwiseAbs().array() <= half_size.array()).all();
 }
 
 /**
  * @brief 对于两个栅格地图A和B，计算差集A-B
  * @param[in] index_shift 相对于地图A的索引偏移量
  * @param[in] size 两个栅格地图的大小，地图大小需要为奇数
+ * @param half_size 栅格地图大小的一半
  * @param[out] difference_indices 输出的差集索引
  * @note 索引定义在地图A的坐标系下，栅格地图的原点位于地图中心
  */
-inline void getDifferenceSet(const Index& index_shift, const Size& size, std::vector<Index>& difference_indices) {
+inline void getDifferenceSet(const Index& index_shift, const Size& size, const Size& half_size, std::vector<Index>& difference_indices) {
     difference_indices.clear();
 
-    Index half_size = size / 2;
     Index a_min = -half_size;
     Index a_max = half_size;
 
@@ -228,7 +235,4 @@ inline void getDifferenceSet(const Index& index_shift, const Size& size, std::ve
     }
 }
 
-
 } // namespace finenav_2d
-
-#endif  //GRID_MAP_MATH_HPP

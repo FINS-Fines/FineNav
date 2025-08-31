@@ -2,10 +2,9 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
-#ifndef GRID_MAP_IMPL_HPP
-#define GRID_MAP_IMPL_HPP
+#pragma once
 
-#include <cfloat>  // 提供 DBL_MAX
+#include <limits>
 #include "grid_map.hpp"
 
 namespace finenav_2d {
@@ -13,10 +12,14 @@ template <typename T>
 GridMap<T>::GridMap(const Length& length, const double& resolution, const Position& origin)
     : length_(length), resolution_(resolution), origin_(origin) {
 
-    size_ = (length.array() / resolution).ceil().cast<int>();
+    inv_resolution_ = 1.0 / resolution;
+
+    size_ = (length.array() * inv_resolution_).ceil().cast<int>();
     size_ = size_.unaryExpr([](int v) {
         return (v % 2 == 0) ? v + 1 : v; // 确保尺寸为奇数
     });
+
+    half_size_ = size_ / 2;
 
     data_.resize(size_.x() * size_.y() * size_.z(), NAN);
     start_index_ = Index::Zero();
@@ -34,39 +37,39 @@ T GridMap<T>::atPosition(const Position& position) const {
 
 template <typename T>
 T& GridMap<T>::at(const Index& index) {
-    if (checkIfIndexValid(index, size_)) {
-        return data_[getBufferIndex(index, size_, start_index_)];
+    if (checkIfIndexValid(index, size_, half_size_)) {
+        return data_[getBufferIndex(index, size_, half_size_, start_index_)];
     }
     throw std::out_of_range("Accessing grid out of bounds");
 }
 
 template <typename T>
 T GridMap<T>::at(const Index& index) const {
-    if (checkIfIndexValid(index, size_)) {
-        return data_[getBufferIndex(index, size_, start_index_)];
+    if (checkIfIndexValid(index, size_, half_size_)) {
+        return data_[getBufferIndex(index, size_, half_size_, start_index_)];
     }
     throw std::out_of_range("Accessing grid out of bounds");
 }
 
 template <typename T>
 std::span<T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) {
-    if (std::abs(x) > size_.x() / 2 || std::abs(y) > size_.y() / 2) {
+    if (std::abs(x) > half_size_.x() || std::abs(y) > half_size_.y()) {
         throw std::out_of_range("Accessing grid out of bounds");
     }
 
-    Index index_start(x, y, -size_.z() / 2);
-    int buffer_start = getBufferIndex(index_start, size_, start_index_);
+    Index index_start(x, y, -half_size_.z());
+    int buffer_start = getBufferIndex(index_start, size_, half_size_, start_index_);
     return std::span<T>(&data_[buffer_start], size_.z());
 }
 
 template <typename T>
 std::span<const T> GridMap<T>::getVoxelsAlongZ(const int& x, const int& y) const {
-    if (std::abs(x) > size_.x() / 2 || std::abs(y) > size_.y() / 2) {
+    if (std::abs(x) > half_size_.x() || std::abs(y) > half_size_.y()) {
         throw std::out_of_range("Accessing grid out of bounds");
     }
 
-    Index index_start(x, y, -size_.z() / 2);
-    int buffer_start = getBufferIndex(index_start, size_, start_index_);
+    Index index_start(x, y, -half_size_.z());
+    int buffer_start = getBufferIndex(index_start, size_, half_size_, start_index_);
     return std::span<T>(&data_[buffer_start], size_.z());
 }
 
@@ -86,23 +89,23 @@ template <typename T>
 bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<Index>& indices) {
 
     // 计算移动了的栅格数
-    const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_);
+    const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_, inv_resolution_);
     if (index_shift.isZero()) {
         return false; // 没有移动
     }
 
     // 更新移动后的地图状态
-    const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_);
+    const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_, inv_resolution_);
     origin_ += aligned_position_shift;
     start_index_ = wrapIndexToRange(start_index_ - index_shift, size_); // 缓冲区起始索引应当与原点反向移动
 
     // 以移动后的地图作为固定坐标系，获取受移动影响的栅格
-    getDifferenceSet(-index_shift, size_, indices);
+    getDifferenceSet(-index_shift, size_, half_size_, indices);
 
     if (!keep_removed) {
         for (const auto& index : indices) {
-            if (checkIfIndexValid(index, size_)) {
-                data_[getBufferIndex(index, size_, start_index_)] = NAN; // 清空数据
+            if (checkIfIndexValid(index, size_, half_size_)) {
+                data_[getBufferIndex(index, size_, half_size_, start_index_)] = NAN; // 清空数据
             }
         }
     }
@@ -119,8 +122,8 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
     auto end_index = getIndex(end);
 
     // 光线超出地图范围，结束
-    if (!checkIfIndexValid(end_index, size_)) {
-        return false; // TODO: 光线超出范围时，是否应该找将整条光线上的栅格记为free?即，过远的传感器数据是否可信？
+    if (!checkIfIndexValid(end_index, size_, half_size_)) {
+        return false;
     }
 
     // 光线终点为原点，结束
@@ -133,10 +136,12 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
 
     // 初始化
     Vector direction (end - origin);
+    Vector inv_direction = direction.cwiseInverse();
+
     auto length = direction.norm();
     //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
-    Index current_voxel = (origin / resolution_).cast<int>();
-    Index last_voxel = (end / resolution_).cast<int>();
+    Index current_voxel = (origin * inv_resolution_).cast<int>();
+    Index last_voxel = (end * inv_resolution_).cast<int>();
 
     Vector tMax, tDelta;
     Eigen::Vector3i step;
@@ -153,14 +158,14 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
             }
 
             // 计算到下一个边界的参数距离
-            tMax[i] = (voxelBorder - origin[i]) / direction[i];
+            tMax[i] = (voxelBorder - origin[i]) * inv_direction[i];
 
             // 计算穿越一个完整体素的参数距离
-            tDelta[i] = resolution_ / std::abs(direction[i]);
+            tDelta[i] = resolution_ * std::abs(inv_direction[i]);
         }
         else{
-            tMax[i] = DBL_MAX ;
-            tDelta[i] = DBL_MAX ;
+            tMax[i] = std::numeric_limits<double>::infinity();
+            tDelta[i] = std::numeric_limits<double>::infinity();
         }
     }
 
@@ -168,13 +173,13 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
 
     indices.push_back(current_voxel);
     while(last_voxel != current_voxel) {
-        if (!checkIfIndexValid(current_voxel, size_)) {
-        return false;
-    }
+        if (!checkIfIndexValid(current_voxel, size_, half_size_)) {
+            return false;
+        }
 
         if (tMax.x() < tMax.y()) {
             if (tMax.x() < tMax.z()) {
-                current_voxel.x() += step.x();;
+                current_voxel.x() += step.x();
                 tMax.x() += tDelta.x();
             } else {
                 current_voxel.z() += step.z();
@@ -189,11 +194,9 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
                 tMax.z() += tDelta.z();
             }
         }
-        // 记录当前最小tMax作为已行进距离
-        double traveled_distance = std::min({tMax[0], tMax[1], tMax[2]});
 
         // 离散化误差保护：使用原始长度比较
-        if (indices.size() > end_index.x()-origin_index.x()+end_index.y()-origin_index.y()+end_index.z()-origin_index.z()+1) {
+        if (indices.size() > abs(end_index.x()-origin_index.x())+abs(end_index.y()-origin_index.y())+abs(end_index.z()-origin_index.z())+1) {
             break;
         }
         indices.push_back(current_voxel);
@@ -215,13 +218,28 @@ void GridMap<T>::setOrigin(const Position& origin) {
 }
 
 template <typename T>
+void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::function<bool(const T&)> condition) const {
+    indices.clear();
+    for (int x = -half_size_.x(); x <= half_size_.x(); ++x) {
+        for (int y = -half_size_.y(); y <= half_size_.y(); ++y) {
+            for (int z = -half_size_.z(); z <= half_size_.z(); ++z) {
+                Index idx(x, y, z);
+                if (condition(at(idx))) {
+                    indices.push_back(idx);
+                }
+            }
+        }
+    }
+}
+
+template <typename T>
 Index GridMap<T>::getIndex(const Position& position) const {
-    return getIndexFromPosition(position, resolution_, origin_);
+    return getIndexFromPosition(position, resolution_, inv_resolution_, origin_);
 }
 
 template <typename T>
 Position GridMap<T>::getPosition(const Index& index) const {
-    return getPositionFromIndex(index, resolution_, origin_);
+    return getPositionFromIndex(index, resolution_, inv_resolution_, origin_);
 }
 
 template <typename T>
@@ -243,32 +261,26 @@ template <typename T>
 Position GridMap<T>::getOrigin() const {
     return origin_;
 }
+
 template <typename T>
-void GridMap<T>::selectCellsByCondition(std::vector<Index>& indices, std::function<bool(const T&)> condition) const {
-    indices.clear();
-    Size half_size = size_ / 2;
-    for (int x = -half_size.x(); x <= half_size.x(); ++x) {
-        for (int y = -half_size.y(); y <= half_size.y(); ++y) {
-            for (int z = -half_size.z(); z <= half_size.z(); ++z) {
-                Index idx(x, y, z);
-                if (condition(at(idx))) {
-                    indices.push_back(idx);
-                }
-            }
-        }
-    }
+Index GridMap<T>::getMinIndex() const{
+    return -half_size_;
+}
+
+template <typename T>
+Index GridMap<T>::getMaxIndex() const{
+    return half_size_;
 }
 
 template <typename T>
 bool GridMap<T>::isInside(const Position& p) const {
-    for (int i = 0; i < 3; ++i) {
-        double half_len = length_[i] / 2.0;          // 半边长
-        double min_val = origin_[i] - half_len;
-        double max_val = origin_[i] + half_len;
-        if (p[i] < min_val || p[i] >= max_val) return false;
-    }
-    return true;
+    return checkIfIndexValid(getIndex(p), size_, half_size_);
 }
 
+template <typename T>
+bool GridMap<T>::isInside(const Index& idx) const {
+    return checkIfIndexValid(idx, size_, half_size_);
 }
-#endif  //GRID_MAP_IMPL_HPP
+
+} // namespace finenav_2d
+

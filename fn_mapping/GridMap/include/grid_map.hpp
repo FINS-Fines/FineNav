@@ -2,13 +2,13 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
-#ifndef FINENAV2D_GRID_MAP_3D_HPP
-#define FINENAV2D_GRID_MAP_3D_HPP
+#pragma once
 
 #include <vector>
-#include "grid_map_math.hpp"
-
 #include <span>
+
+#include "grid_map_math.hpp"
+#include "grid_map_iterator.hpp"
 
 namespace finenav_2d {
 
@@ -175,11 +175,41 @@ public:
     Position getOrigin() const;
 
     /**
+     * @brief 地图边界框的最小索引
+     * @return min_index
+     */
+    Index getMinIndex() const;
+
+
+    /**
+     * @brief 地图边界框的最大索引
+     * @return max_index
+     */
+    Index getMaxIndex() const;
+
+    /**
      * @brief 检查某个位置是否在地图范围内
      * @param p 位置坐标
      * @return 如果位置在地图范围内返回true，否则返回false
      */
     bool isInside(const Position& p) const;
+
+    /**
+     * @brief 检查某个位置是否在地图范围内
+     * @param idx 栅格索引
+     * @return 如果位置在地图范围内返回true，否则返回false
+     */
+    bool isInside(const Index& idx) const;
+
+
+    /// @brief 迭代器接口
+    using iterator = GridMapIterator<T>;
+    using const_iterator = GridMapIterator<const T>;
+
+    iterator begin() { return iterator(this, false); }
+    iterator end() { return iterator(this, true); }
+    const_iterator begin() const { return const_iterator(this, false); }
+    const_iterator end() const { return const_iterator(this, true); }
 
 private:
     std::vector<T> data_; // 存储所有栅格数据
@@ -189,9 +219,11 @@ private:
     double resolution_;   // 栅格地图的分辨率，单位为米
     Position origin_;     // 当前栅格地图的原点，用于定义世界坐标系下地图的位置
 
+    double inv_resolution_;
+    Size half_size_;
+
 };
 
 } // namespace finenav_2d
 
 #include "grid_map_impl.hpp"
-#endif  //FINENAV2D_GRID_MAP_3D_HPP

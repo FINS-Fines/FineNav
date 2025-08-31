@@ -28,6 +28,8 @@ if (BUILD_TESTING)
     add_subdirectory(test)
 endif ()
 
+add_subdirectory(demo)
+
 ament_export_dependencies(
         eigen3_cmake_module
         Eigen3
