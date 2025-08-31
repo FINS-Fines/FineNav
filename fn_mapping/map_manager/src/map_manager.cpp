@@ -82,9 +82,11 @@ void MapManager::AnalyzerInit() {
 
 void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
 
-    geometry_msgs::msg::TransformStamped tf_base;
+    // 改写成message_filters实现的tf接收，文档......
+    // 参考octomap_server
 
-    // TODO: 获取map->base_link->base_lidar的变换
+    geometry_msgs::msg::TransformStamped tf_base_to_lidar;
+    geometry_msgs::msg::TransformStamped tf_base;
     try {
         tf_base = tf2_buffer_->lookupTransform(
             "base_link", // 目标坐标系
@@ -97,46 +99,64 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         return;
     }
 
+    try {
+        tf_base_to_lidar = tf2_buffer_->lookupTransform(
+            "base_link",
+            "base_lidar",
+            msg->header.stamp,
+            rclcpp::Duration::from_seconds(0.1)  // 超时 100ms
+        );
+    } catch (tf2::TransformException &ex) {
+        RCLCPP_WARN(this->get_logger(), "Could not transform pointcloud: %s", ex.what());
+        return;
+    }
+
     pcl::PointCloud<pcl::PointXYZ> pc;
     pcl::fromROSMsg(*msg, pc);
 
-    // 局部地图跟随移动到base_link处
-    Position base_pos;
-    base_pos.x() = tf_base.transform.translation.x;
-    base_pos.y() = tf_base.transform.translation.y;
-    base_pos.z() = tf_base.transform.translation.z;
-    local_map_->moveTo(base_pos);
+    //move to base_link
+    Position base_link_pos;
+    base_link_pos.x() = tf_base.transform.translation.x;
+    base_link_pos.y() = tf_base.transform.translation.y;
+    base_link_pos.z() = tf_base.transform.translation.z;
+    local_map_->moveTo(base_link_pos);
 
-    // 点云数据旋转，与local_map对齐
-    Eigen::Quaterniond rotation(
+    Position base_link_to_lidar;
+    base_link_to_lidar.x() = tf_base_to_lidar.transform.translation.x;
+    base_link_to_lidar.y() = tf_base_to_lidar.transform.translation.y;
+    base_link_to_lidar.z() = tf_base_to_lidar.transform.translation.z;         //获取base_link坐标系下base_lidar的位置
+
+    Eigen::Quaterniond base_link_rotation(
         tf_base.transform.rotation.w,
         tf_base.transform.rotation.x,
         tf_base.transform.rotation.y,
         tf_base.transform.rotation.z
-        );
+    );
 
+    Eigen::Quaterniond inverse_base_link_rotation = base_link_rotation.inverse();
     auto sensor_to_base_rotation = Eigen::Affine3d::Identity();
-    sensor_to_base_rotation.rotate(rotation.inverse()); // 只设置旋转，不设置平移
+    sensor_to_base_rotation.rotate(base_link_rotation.inverse()); // 只设置旋转，不设置平移
     pcl::transformPointCloud(pc, pc, sensor_to_base_rotation.matrix().cast<float>());
 
+    Position base_lidar;
+    base_lidar = inverse_base_link_rotation * base_link_to_lidar;
     // Raycasting
     auto t0 = std::chrono::high_resolution_clock::now();
-
     // 先清除所用路径上的栅格
-    for (const auto& p : pc) {
-        std::vector<Index> ray_indices;
-        Position end{p.x, p.y, p.z};
+     for (const auto& p : pc) {
+         std::vector<Index> ray_indices;
+         Position end{p.x, p.y, p.z};
 
-        if (!local_map_->isInside(end)) {
-            continue;
-        }
-        if (local_map_->rayCast(end, ray_indices)) {
-            // 遍历光线上的栅格
-            for (size_t i = 0; i + 1 < ray_indices.size(); ++i) { // TODO: 这里每次需要遍历一串栅格，效率较低
-                local_map_->at(ray_indices[i]) = NAN; // TODO: 将空闲设置为宏定义
-            }
-        }
-    }
+         if (!local_map_->isInside(end)) {
+             continue;
+         }
+         if (local_map_->rayCast(local_map_->getOrigin()+base_lidar,end, ray_indices)) {
+             // 遍历光线上的栅格
+             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) { // TODO: 这里每次需要遍历一串栅格，效率较低
+                 local_map_->at(ray_indices[i]) = NAN; // TODO: 将空闲设置为宏定义
+             }
+         }
+     }
 
     // 再将点云所在栅格设置为Occupied
     for (const auto& p : pc) {
@@ -147,8 +167,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         local_map_->atPosition(end) = p.z; // 设置为点的高度
     }
 
-    auto t1 = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+    // auto t1 = std::chrono::high_resolution_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
     // RCLCPP_INFO(this->get_logger(), "Point cloud processing time: %ld ms", duration.count());
     // RCLCPP_INFO(this->get_logger(), "Received point cloud with %zu points", points.size());
 
@@ -159,7 +179,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         if (!std::isnan(*it)) {
             // 将点云转换到base_link坐标系下
             Position pt_in_map = {pos.x(), pos.y(), *it};
-            Position pt_in_base = rotation * pt_in_map;
+            Position pt_in_base = base_link_rotation * pt_in_map;
             cloud_pub_helper_.addPoint(pt_in_base.x(), pt_in_base.y(), pt_in_base.z());
         }
     }
