@@ -35,15 +35,6 @@ public:
 
 private:
     void timerCallback() {
-        /******** 模拟初始化来了一帧点云，给原点为中心的2*2*2m范围赋值为点的高度 *******/
-        for (int x = -2; x <= 2; ++x) {
-            for (int y = -2; y <= 2; ++y) {
-                for (int z = -2; z <= 2; ++z) {
-                    grid_map_.at({x, y, z}) = z * 0.05;
-                }
-            }
-        }
-
         pub_helper_.configure(grid_map_pub_, true, "base_link");
 
         // 模拟机器人发生了移动，从原点移动了(0.1, 0.1，0.1)
