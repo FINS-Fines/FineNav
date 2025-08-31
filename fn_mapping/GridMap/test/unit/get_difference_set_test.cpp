@@ -59,13 +59,14 @@ void baseline(const Index& index_shift, const Size& size, std::vector<Index>& di
 
 TEST(GetDifferenceSetTest, Simple) {
     Size size(11, 11, 11);
+    Size half_size = size / 2;
 
     {
     Index index_shift(1, 0, 0);
     std::vector<Index> method_result, baseline_result;
 
     baseline(index_shift, size, baseline_result);
-    getDifferenceSet(index_shift, size, method_result);
+    getDifferenceSet(index_shift, size, half_size, method_result);
     EXPECT_TRUE(compareVectors(method_result, baseline_result));
 
     // GTEST_LOG_(INFO) << "index nums: " << baseline_result.size();
@@ -78,7 +79,7 @@ TEST(GetDifferenceSetTest, Simple) {
         std::vector<Index> method_result, baseline_result;
 
         baseline(index_shift, size, baseline_result);
-        getDifferenceSet(index_shift, size, method_result);
+        getDifferenceSet(index_shift, size, half_size, method_result);
         EXPECT_TRUE(compareVectors(method_result, baseline_result));
 
         // GTEST_LOG_(INFO) << "index nums: " << baseline_result.size();
@@ -91,7 +92,7 @@ TEST(GetDifferenceSetTest, Simple) {
         std::vector<Index> method_result, baseline_result;
 
         baseline(index_shift, size, baseline_result);
-        getDifferenceSet(index_shift, size, method_result);
+        getDifferenceSet(index_shift, size, half_size, method_result);
         EXPECT_TRUE(compareVectors(method_result, baseline_result));
 
         // GTEST_LOG_(INFO) << "index nums: " << baseline_result.size();
@@ -103,12 +104,14 @@ TEST(GetDifferenceSetTest, Simple) {
 
 TEST(GetDifferenceSetTest, EdgeCase) {
     Size size(11, 11, 11);
+    Size half_size = size / 2;
+
     {
         Index index_shift(0, 0, 0);
         std::vector<Index> method_result, baseline_result;
 
         baseline(index_shift, size, baseline_result);
-        getDifferenceSet(index_shift, size, method_result);
+        getDifferenceSet(index_shift, size, half_size, method_result);
         EXPECT_TRUE(compareVectors(method_result, baseline_result));
 
         // GTEST_LOG_(INFO) << "index nums: " << baseline_result.size();
@@ -121,7 +124,7 @@ TEST(GetDifferenceSetTest, EdgeCase) {
         std::vector<Index> method_result, baseline_result;
 
         baseline(index_shift, size, baseline_result);
-        getDifferenceSet(index_shift, size, method_result);
+        getDifferenceSet(index_shift, size, half_size, method_result);
         EXPECT_TRUE(compareVectors(method_result, baseline_result));
 
         // GTEST_LOG_(INFO) << "index nums: " << baseline_result.size();
@@ -133,12 +136,14 @@ TEST(GetDifferenceSetTest, EdgeCase) {
 
 TEST(GetDifferenceSetTest, LargeMapCase) {
     Size size(101, 101, 51);
+    Size half_size = size / 2;
+
     {
         Index index_shift(1, 1, 0);
         std::vector<Index> method_result, baseline_result;
 
         auto start = std::chrono::high_resolution_clock::now();
-        getDifferenceSet(index_shift, size, method_result);
+        getDifferenceSet(index_shift, size, half_size, method_result);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         GTEST_LOG_(INFO) << "getDifferenceSetTest: Done in: " << duration.count() << " us";
@@ -156,7 +161,7 @@ TEST(GetDifferenceSetTest, LargeMapCase) {
         std::vector<Index> method_result, baseline_result;
 
         auto start = std::chrono::high_resolution_clock::now();
-        getDifferenceSet(index_shift, size, method_result);
+        getDifferenceSet(index_shift, size, half_size, method_result);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         GTEST_LOG_(INFO) << "getDifferenceSetTest: Done in: " << duration.count() << " ms";

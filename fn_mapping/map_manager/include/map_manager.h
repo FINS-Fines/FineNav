@@ -23,51 +23,50 @@
 #include "grid_map.hpp"
 #include "terrain_analyzer_base.hpp"
 #include "terrain_analyzer_interface.hpp"
+#include "cloud_publish_helper.hpp"
 
 
 namespace finenav_2d {
 
-
-
 class MapManager : public rclcpp::Node {
 public:
-  explicit MapManager(const rclcpp::NodeOptions& options);
-  /**
-  * @brief 发布局部地图
-  */
-  void publishLocalMap(const rclcpp::Time& stamp);
-  void publishLocalcostMap();
-  void AnalyzerInit();
-
+    explicit MapManager(const rclcpp::NodeOptions& options);
+    /**
+    * @brief 发布局部地图
+    */
+    void publishLocalMap(const rclcpp::Time& stamp);
+    void publishLocalcostMap();
+    void AnalyzerInit();
 
 private:
-  /**
-   * @brief 管理主流程
-   */
-  void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+    /**
+     * @brief 管理主流程
+     */
+    void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 
 
-  // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
-  std::shared_ptr<GridMap<float>> local_map_;
+    // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
+    std::shared_ptr<GridMap<float>> local_map_;
     std::unique_ptr<pluginlib::ClassLoader<TerrainAnalyzerBase>> terrain_analyzer_loader_; // 插件加载器需要声明在管理的动态类之前
-  std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
-  TerrainAnalyzerInterface::Ptr terrain_analyzer_interface_;
-  Eigen::ArrayXXf passability_array_;
+    std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
+    TerrainAnalyzerInterface::Ptr terrain_analyzer_interface_;
+    Eigen::ArrayXXf passability_array_;
 
-  // Input1: 监听tf，map，base_link
+    // Input1: 监听tf，map，base_link
 
-  // Input2: pcd_cbk
+    // Input2: pcd_cbk
 
 
-  std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
-  std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
-  message_filters::Subscriber<sensor_msgs::msg::PointCloud2>  point_sub_;
-  std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> > tf2_filter_;
+    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+    message_filters::Subscriber<sensor_msgs::msg::PointCloud2> point_sub_;
+    std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>> tf2_filter_;
 
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;  // 发布局部地图的点云消息
-  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr localcost_map_pub_;  // 发布局部代价地图
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;    // 发布局部地图的点云消息
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr localcost_map_pub_; // 发布局部代价地图
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr test_pub_; // 发布局部地图的点云消息
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr test_pub_;  // 发布局部地图的点云消息
+    finenav_utils::CloudPublishHelper cloud_pub_helper_;
 
 
 };
