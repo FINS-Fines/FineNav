@@ -50,21 +50,15 @@ private:
         auto new_pos = Position{0.1, 0.1, 0.1} + grid_map_.getOrigin();
         grid_map_.moveTo(new_pos);
 
-        Index min_idx = -grid_map_.getSize()/2;
-        Index max_idx = grid_map_.getSize()/2;
-        for (int x = min_idx.x(); x <= max_idx.x(); ++x) {
-            for (int y = min_idx.y(); y <= max_idx.y(); ++y) {
-                for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
-                    Index idx{x, y, z};
-                    if (!std::isnan(grid_map_.at(idx))) {
-                        auto pt_x = x * grid_map_.getResolution() + grid_map_.getOrigin().x();
-                        auto pt_y = y * grid_map_.getResolution() + grid_map_.getOrigin().y();
-                        auto pt_z = grid_map_.at(Index(x,y,z));
-                        pub_helper_.addPoint(pt_x, pt_y, pt_z);
-                    }
-                }
+        // 用迭代器遍历栅格地图
+        for (auto it = grid_map_.begin(); it != grid_map_.end(); ++it) {
+            Index idx = it.getIndex();
+            Position pos = it.getPosition();
+            if (!std::isnan(*it)) {
+                pub_helper_.addPoint(pos.x(), pos.y(), *it);
             }
         }
+
         pub_helper_.publish(this->now());
         publishOriginMarker();
     }

@@ -5,9 +5,10 @@
 #pragma once
 
 #include <vector>
+#include <span>
+
 #include "grid_map_math.hpp"
 
-#include <span>
 
 namespace finenav_2d {
 
@@ -19,6 +20,10 @@ namespace finenav_2d {
 template <typename T>
 class GridMap {
 public:
+
+    // 实际的Iterator定义，作为GridMap的成员类
+    #include "grid_map_iterator.hpp"
+
     /**
      * @brief 构造函数
      * @param length 栅格地图的尺寸，单位为米
@@ -172,7 +177,6 @@ public:
      */
     Position getOrigin() const;
 
-
     /**
      * @brief 地图边界框的最小索引
      * @return min_index
@@ -195,10 +199,17 @@ public:
 
     /**
      * @brief 检查某个位置是否在地图范围内
-     * @param p 位置坐标
+     * @param idx 栅格索引
      * @return 如果位置在地图范围内返回true，否则返回false
      */
     bool isInside(const Index& idx) const;
+
+
+    /// @return 迭代器接口
+    iterator begin() { return iterator(this, false); }
+    const_iterator begin() const { return const_iterator(this, false); }
+    iterator end() { return iterator(this, true); }
+    const_iterator end() const { return const_iterator(this, true); }
 
 private:
     std::vector<T> data_; // 存储所有栅格数据
