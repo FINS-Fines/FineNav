@@ -136,11 +136,11 @@ def generate_launch_description():
         )
     ])
 
-    # 启动foxglove_bridge
-    foxglove_dir = FindPackageShare(package='foxglove_bridge').find('foxglove_bridge')
-    foxglove_bridge = IncludeLaunchDescription(
-        PathJoinSubstitution([foxglove_dir, 'launch', 'foxglove_bridge_launch.xml'])
-    )
+    # # 启动foxglove_bridge
+    # foxglove_dir = FindPackageShare(package='foxglove_bridge').find('foxglove_bridge')
+    # foxglove_bridge = IncludeLaunchDescription(
+    #     PathJoinSubstitution([foxglove_dir, 'launch', 'foxglove_bridge_launch.xml'])
+    # )
     ################### 启动顺序编排 ###################
 
     ld = LaunchDescription()

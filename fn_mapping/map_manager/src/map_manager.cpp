@@ -26,7 +26,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
     rclcpp::QoS qos = rclcpp::SensorDataQoS(); // 自动 BestEffort, Depth 10
-    point_sub_.subscribe(this, "/lidar", qos.get_rmw_qos_profile());
+    point_sub_.subscribe(this, "/lidar_converted", qos.get_rmw_qos_profile());
 
     tf2_filter_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
         point_sub_, *tf2_buffer_, "/base_lidar", 10,

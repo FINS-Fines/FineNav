@@ -138,6 +138,10 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
     Vector direction (end - origin);
     Vector inv_direction = direction.cwiseInverse();
 
+    int conpensate_count;
+    double x_y_length =std::sqrt(std::pow(end.x()-origin.x(),2)+std::pow(end.y()-origin.y(),2));
+    conpensate_count = x_y_length / fabs(end.z()-origin.z())*2.5;
+
     auto length = direction.norm();
     //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
     Index current_voxel = (origin * inv_resolution_).cast<int>();
@@ -196,7 +200,7 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
         }
 
         // 离散化误差保护：使用原始长度比较
-        if (indices.size() > abs(end_index.x()-origin_index.x())+abs(end_index.y()-origin_index.y())+abs(end_index.z()-origin_index.z())+1) {
+        if (indices.size() > abs(end_index.x()-origin_index.x())+abs(end_index.y()-origin_index.y())+abs(end_index.z()-origin_index.z())+1-conpensate_count) {
             break;
         }
         indices.push_back(current_voxel);
