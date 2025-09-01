@@ -3,15 +3,28 @@ find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(fn_utils REQUIRED)
 
-ament_auto_add_executable(${PROJECT_NAME}_demo
-        grid_map_demo.cpp
+ament_auto_add_executable(move_demo
+        move_demo.cpp
 )
-target_include_directories(${PROJECT_NAME}_demo PRIVATE utils)
-target_link_libraries(${PROJECT_NAME}_demo fn_grid_map)
-ament_target_dependencies(${PROJECT_NAME}_demo
+target_include_directories(move_demo PRIVATE utils)
+target_link_libraries(move_demo fn_grid_map)
+ament_target_dependencies(move_demo
         rclcpp
         sensor_msgs
         visualization_msgs
         fn_utils
 )
+
+ament_auto_add_executable(raycast_demo
+        raycast_demo.cpp
+)
+target_include_directories(raycast_demo PRIVATE utils)
+target_link_libraries(raycast_demo fn_grid_map)
+ament_target_dependencies(raycast_demo
+        rclcpp
+        sensor_msgs
+        visualization_msgs
+        fn_utils
+)
+
 
