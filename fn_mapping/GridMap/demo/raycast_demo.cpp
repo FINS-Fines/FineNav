@@ -32,20 +32,16 @@ private:
         auto indices = std::vector<Index>{
             {5, 5, 0}, {0, -10, -1}, {20, 0, 0}, {50, 50, 0}
         };
-        // for (auto & idx : indices) {
-        //     grid_map_.at(idx) = 255;
-        // }
-
 
         Index sensor_index{0, 0, 5};
         auto sensor_origin = grid_map_.getPosition(sensor_index);
 
-        pub_helper_.configure(sensor_origin_pub_, true, "base_link");
+        pub_helper_.configure(sensor_origin_pub_, true, "map");
         pub_helper_.addPoint(sensor_origin.x(), sensor_origin.y(), sensor_origin.z());
         pub_helper_.publish(this->now());
 
         // raycast
-        pub_helper_.configure(ray_pub_, true, "base_link");
+        pub_helper_.configure(ray_pub_, true, "map");
         for (auto & idx : indices) {
             std::vector<Index> ray_indices;
             if (grid_map_.rayCast(sensor_origin, grid_map_.getPosition(idx), ray_indices)) {
@@ -66,7 +62,7 @@ private:
 
 
         // 可视化GridMap
-        pub_helper_.configure(grid_map_pub_, true, "base_link");
+        pub_helper_.configure(grid_map_pub_, true, "map");
         for (auto it = grid_map_.begin(); it != grid_map_.end(); ++it) {
             Index idx = it.getIndex();
             Position pos = it.getPosition();
