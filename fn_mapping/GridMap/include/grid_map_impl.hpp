@@ -272,13 +272,13 @@ Index GridMap<T>::getMaxIndex() const{
 }
 
 template <typename T>
-bool GridMap<T>::isInside(const Position& p) const {
-    return checkIfIndexValid(getIndex(p), size_, half_size_);
+bool GridMap<T>::isInside(const Position& position) const {
+    return checkIfIndexValid(getIndex(position), size_, half_size_);
 }
 
 template <typename T>
-bool GridMap<T>::isInside(const Index& idx) const {
-    return checkIfIndexValid(idx, size_, half_size_);
+bool GridMap<T>::isInside(const Index& index) const {
+    return checkIfIndexValid(index, size_, half_size_);
 }
 
 } // namespace finenav_2d

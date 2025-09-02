@@ -98,10 +98,10 @@ inline Index getIndexFromPosition(const Position& position, const double& resolu
 
 /**
  * @brief 将栅格地图索引转换为世界坐标系下的位置
- * @param[in] index 栅格地图索引
- * @param[in] resolution 栅格地图的分辨率
+ * @param index 栅格地图索引
+ * @param resolution 栅格地图的分辨率
  * @param inv_resolution 栅格地图的分辨率的倒数
- * @param[in] origin 栅格地图的原点位置
+ * @param origin 栅格地图的原点位置
  * @return 对应的栅格中心在世界坐标系下的位置
  */
 inline Position getPositionFromIndex(const Index& index, const double& resolution, const double& inv_resolution, const Position& origin) {
@@ -141,7 +141,7 @@ inline bool checkIfIndexValid(const Index& index, const Size& size, const Size& 
  * @brief 对于两个栅格地图A和B，计算差集A-B
  * @param[in] index_shift 相对于地图A的索引偏移量
  * @param[in] size 两个栅格地图的大小，地图大小需要为奇数
- * @param half_size 栅格地图大小的一半
+ * @param [in] half_size 栅格地图大小的一半
  * @param[out] difference_indices 输出的差集索引
  * @note 索引定义在地图A的坐标系下，栅格地图的原点位于地图中心
  */

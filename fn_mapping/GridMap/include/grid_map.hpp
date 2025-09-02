@@ -14,6 +14,8 @@ namespace finenav_2d {
 
 /**
  * @brief 支持滚动更新的三维栅格地图类
+ * @details 该地图维护两种索引方式，(1) Index 相对于地图原点的索引; (2) Position 相对于世界坐标系的坐标
+ * @details 地图内部通过维护地图原点在世界坐标系中的位置，实现地图的滚动更新
  * @note 该栅格地图的原点总是在地图中心
  * @note 不支持地图原点的姿态变化
  */
@@ -44,7 +46,7 @@ public:
 
     /**
      * @brief 访问某个位置的栅格数据
-     * @param position 相对于地图原点的位置
+     * @param position 世界坐标系下的位置
      * @return 对应位置的栅格数据
      * @throw
      */
@@ -52,7 +54,7 @@ public:
 
     /**
      * @brief 访问某个坐标点的栅格数据（常量版本）
-     * @param position 相对于地图原点的坐标点
+     * @param position 世界坐标系下的位置
      * @return 对应位置的栅格数据
      */
     T atPosition(const Position& position) const;
@@ -138,7 +140,7 @@ public:
 
     /**
      * @brief 获取地图中某个位置的索引
-     * @param position 相对于地图原点的位置
+     * @param position 世界坐标系下的位置
      * @return 对应的栅格地图索引
      */
     Index getIndex(const Position& position) const;
@@ -189,17 +191,17 @@ public:
 
     /**
      * @brief 检查某个位置是否在地图范围内
-     * @param p 位置坐标
+     * @param position 世界坐标系下的位置
      * @return 如果位置在地图范围内返回true，否则返回false
      */
-    bool isInside(const Position& p) const;
+    bool isInside(const Position& position) const;
 
     /**
      * @brief 检查某个位置是否在地图范围内
-     * @param idx 栅格索引
+     * @param index 栅格地图的索引
      * @return 如果位置在地图范围内返回true，否则返回false
      */
-    bool isInside(const Index& idx) const;
+    bool isInside(const Index& index) const;
 
 
     /// @brief 迭代器接口
