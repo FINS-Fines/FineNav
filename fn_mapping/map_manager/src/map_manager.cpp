@@ -145,7 +145,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     //遍历一遍，标记新增点
     for (const auto& p : pc) {
-        Position end{p.x, p.y, p.z};
+        Position end{local_map_->getOrigin().x()+p.x, local_map_->getOrigin().y()+p.y,local_map_->getOrigin().z()+p.z};
         if (!local_map_->isInside(end)) {
             continue;
         }
@@ -155,7 +155,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
      for (const auto& p : pc) {
          std::vector<Index> ray_indices;
-         Position end{p.x, p.y, p.z};
+         Position end{local_map_->getOrigin().x()+p.x, local_map_->getOrigin().y()+p.y,local_map_->getOrigin().z()+p.z};
 
          if (!local_map_->isInside(end)) {
              continue;
@@ -173,11 +173,11 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     // 再将点云所在栅格设置为Occupied
     for (const auto& p : pc) {
-        Position end{p.x, p.y, p.z};
+        Position end{local_map_->getOrigin().x()+p.x, local_map_->getOrigin().y()+p.y,local_map_->getOrigin().z()+p.z};
         if (!local_map_->isInside(end)) {
             continue;
         }
-        local_map_->atPosition(end) =p.z;
+        local_map_->atPosition(end) =local_map_->getOrigin().z()+p.z;
          // 设置为点的高度
     }
 
@@ -187,15 +187,14 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // RCLCPP_INFO(this->get_logger(), "Received point cloud with %zu points", points.size());
 
     // 发布局部地图（可视化）
-    cloud_pub_helper_.configure(local_map_pub_, true, "base_link");
+    cloud_pub_helper_.configure(local_map_pub_, true, "map");
     for (auto it = local_map_->begin(); it != local_map_->end(); ++it) {
         Position pos = it.getPosition();
         if (!std::isnan(*it)) {
             // 将点云转换到base_link坐标系下
             // Position pt_in_map = {pos.x(), pos.y(), *it};
             Position pt_in_map = {pos.x(), pos.y(), pos.z()};
-            Position pt_in_base = base_link_rotation * pt_in_map;
-            cloud_pub_helper_.addPoint(pt_in_base.x(), pt_in_base.y(), pt_in_base.z());
+            cloud_pub_helper_.addPoint(pt_in_map.x(), pt_in_map.y(), pt_in_map.z());
         }
     }
     cloud_pub_helper_.publish(msg->header.stamp);
@@ -219,7 +218,7 @@ void MapManager::publishLocalcostMap() {
     grid_msg.header.frame_id = "map"; //map的坐标系位置在哪里
     grid_msg.header.stamp = this->now();
     grid_msg.info.resolution = local_map_->getResolution();                                          // 地图分辨率
-    grid_msg.info.width = local_map_->getSize().x();                                                 // 地图宽度
+    grid_msg.info.width = local_map_->getSize().x();                                               // 地图宽度
     grid_msg.info.height = local_map_->getSize().y();                                                // 地图高度
     grid_msg.info.origin.position.x = min_pt.x();
     grid_msg.info.origin.position.y = min_pt.y();
