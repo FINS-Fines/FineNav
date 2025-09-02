@@ -81,104 +81,68 @@ void MapManager::AnalyzerInit() {
 
 void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
 
-    // 改写成message_filters实现的tf接收，文档......
-    // 参考octomap_server
+    // 获取tf
+    const std::string sensor_frame = "base_lidar";     // TODO: 这些作为参数给用户
+    const std::string base_frame = "base_link";
+    const std::string world_frame = "map";
 
-    geometry_msgs::msg::TransformStamped tf_base_to_lidar;
-    geometry_msgs::msg::TransformStamped tf_base;
+    geometry_msgs::msg::TransformStamped base_to_world_transform_stamped;
+    geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
     try {
-        tf_base = tf2_buffer_->lookupTransform(
-            "base_link", // 目标坐标系
-            "odom",      // 源坐标系
-            msg->header.stamp,
-            100ms
-            );
+        base_to_world_transform_stamped = tf2_buffer_->lookupTransform(world_frame, base_frame, msg->header.stamp, 100ms);
+        sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(world_frame, sensor_frame, msg->header.stamp, 100ms);
     } catch (tf2::TransformException& ex) {
         RCLCPP_WARN(this->get_logger(), "Could not transform pointcloud: %s", ex.what());
         return;
     }
 
-    try {
-        tf_base_to_lidar = tf2_buffer_->lookupTransform(
-            "base_link",
-            "base_lidar",
-            msg->header.stamp,
-            rclcpp::Duration::from_seconds(0.1)  // 超时 100ms
-        );
-    } catch (tf2::TransformException &ex) {
-        RCLCPP_WARN(this->get_logger(), "Could not transform pointcloud: %s", ex.what());
-        return;
-    }
+    Position base_posistion, sensor_position;
+    base_posistion.x() = base_to_world_transform_stamped.transform.translation.x;
+    base_posistion.y() = base_to_world_transform_stamped.transform.translation.y;
+    base_posistion.z() = base_to_world_transform_stamped.transform.translation.z;
+    sensor_position.x() = sensor_to_world_transform_stamped.transform.translation.x;
+    sensor_position.y() = sensor_to_world_transform_stamped.transform.translation.y;
+    sensor_position.z() = sensor_to_world_transform_stamped.transform.translation.z;
 
+    // 移动local_map_
+    local_map_->moveTo(base_posistion);
+
+    // 将点云变换到世界坐标系
     pcl::PointCloud<pcl::PointXYZ> pc;
     pcl::fromROSMsg(*msg, pc);
+    pcl_ros::transformPointCloud(pc, pc, sensor_to_world_transform_stamped);
 
-    //move to base_link
-    Position base_link_pos;
-    base_link_pos.x() = tf_base.transform.translation.x;
-    base_link_pos.y() = tf_base.transform.translation.y;
-    base_link_pos.z() = tf_base.transform.translation.z;
-    local_map_->moveTo(base_link_pos);
-
-    Position base_link_to_lidar;
-    base_link_to_lidar.x() = tf_base_to_lidar.transform.translation.x;
-    base_link_to_lidar.y() = tf_base_to_lidar.transform.translation.y;
-    base_link_to_lidar.z() = tf_base_to_lidar.transform.translation.z;         //获取base_link坐标系下base_lidar的位置
-
-    Eigen::Quaterniond base_link_rotation(
-        tf_base.transform.rotation.w,
-        tf_base.transform.rotation.x,
-        tf_base.transform.rotation.y,
-        tf_base.transform.rotation.z
-    );
-
-    Eigen::Quaterniond inverse_base_link_rotation = base_link_rotation.inverse();
-    auto sensor_to_base_rotation = Eigen::Affine3d::Identity();
-    sensor_to_base_rotation.rotate(base_link_rotation.inverse()); // 只设置旋转，不设置平移
-    pcl::transformPointCloud(pc, pc, sensor_to_base_rotation.matrix().cast<float>());
-
-    Position base_lidar;
-    base_lidar = inverse_base_link_rotation * base_link_to_lidar;
-    // Raycasting
-    auto t0 = std::chrono::high_resolution_clock::now();
-    // 先清除所用路径上的栅格
-
-    //遍历一遍，标记新增点
-    for (const auto& p : pc) {
-        Position end{local_map_->getOrigin().x()+p.x, local_map_->getOrigin().y()+p.y,local_map_->getOrigin().z()+p.z};
+    // 根据raycasting向local_map_插入点云数据
+    for (const auto& p : pc) { // 标记新增占据栅格
+        Position end{p.x, p.y,p.z};
         if (!local_map_->isInside(end)) {
             continue;
         }
-        local_map_->atPosition(end) =NEW_OCCUPIED;
+        local_map_->atPosition(end) = NEW_OCCUPIED;
     }
-
-
-     for (const auto& p : pc) {
+     for (const auto& p : pc) { // 执行raycasting
          std::vector<Index> ray_indices;
-         Position end{local_map_->getOrigin().x()+p.x, local_map_->getOrigin().y()+p.y,local_map_->getOrigin().z()+p.z};
+         Position end{p.x, p.y,p.z};
 
          if (!local_map_->isInside(end)) {
              continue;
          }
-         if (local_map_->rayCast(local_map_->getOrigin()+base_lidar,end, ray_indices)) {
+         if (local_map_->rayCast(sensor_position, end, ray_indices)) {
              // 遍历光线上的栅格
-             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) { // TODO: 这里每次需要遍历一串栅格，效率较低
-                 if(local_map_->at(ray_indices[i])==NEW_OCCUPIED) {
-                     break; // 遇到新增点截断
+             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
+                 if(local_map_->at(ray_indices[i])== NEW_OCCUPIED) { // 光线在遇到新增点截断
+                     break;
                  }
-                 local_map_->at(ray_indices[i]) = NAN; //
+                 local_map_->at(ray_indices[i]) = NAN; // 设置为Free
              }
          }
      }
-
-    // 再将点云所在栅格设置为Occupied
-    for (const auto& p : pc) {
-        Position end{local_map_->getOrigin().x()+p.x, local_map_->getOrigin().y()+p.y,local_map_->getOrigin().z()+p.z};
+    for (const auto& p : pc) { // 再将点云所在栅格设置为Occupied
+        Position end{p.x, p.y,p.z};
         if (!local_map_->isInside(end)) {
             continue;
         }
-        local_map_->atPosition(end) =local_map_->getOrigin().z()+p.z;
-         // 设置为点的高度
+        local_map_->atPosition(end) = p.z; // 栅格中存储点的实际高度
     }
 
     // auto t1 = std::chrono::high_resolution_clock::now();
@@ -187,14 +151,11 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // RCLCPP_INFO(this->get_logger(), "Received point cloud with %zu points", points.size());
 
     // 发布局部地图（可视化）
-    cloud_pub_helper_.configure(local_map_pub_, true, "map");
+    cloud_pub_helper_.configure(local_map_pub_, true, world_frame);
     for (auto it = local_map_->begin(); it != local_map_->end(); ++it) {
         Position pos = it.getPosition();
-        if (!std::isnan(*it)) {
-            // 将点云转换到base_link坐标系下
-            // Position pt_in_map = {pos.x(), pos.y(), *it};
-            Position pt_in_map = {pos.x(), pos.y(), pos.z()};
-            cloud_pub_helper_.addPoint(pt_in_map.x(), pt_in_map.y(), pt_in_map.z());
+        if (!std::isnan(*it)) { // 如果栅格被占据，则发布
+            cloud_pub_helper_.addPoint(pos.x(), pos.y(), pos.z());
         }
     }
     cloud_pub_helper_.publish(msg->header.stamp);
