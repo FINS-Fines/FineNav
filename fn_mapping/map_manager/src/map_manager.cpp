@@ -11,6 +11,8 @@
 
 namespace finenav_2d {
 
+#define NEW_OCCUPIED (std::numeric_limits<float>::infinity())
+
 using std::chrono_literals::operator"" ms;
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
@@ -29,7 +31,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     point_sub_.subscribe(this, "/lidar_converted", qos.get_rmw_qos_profile());
 
     tf2_filter_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
-        point_sub_, *tf2_buffer_, "/base_lidar", 10,
+        point_sub_, *tf2_buffer_, "/odom", 10,
         this->get_node_logging_interface(), this->get_node_clock_interface(), 100ms);
     tf2_filter_->registerCallback(&MapManager::pointcloudCallback, this);
 
@@ -62,9 +64,6 @@ void MapManager::AnalyzerInit() {
 
     auto terrain_setter = [this](const size_t& idx_x, const size_t& idx_y, const float& value) {
         passability_array_(idx_x, idx_y) = value;
-        if (value > 0) {
-            std::cout << value << std::endl;
-        }
     };
     // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
 
@@ -143,6 +142,17 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // Raycasting
     auto t0 = std::chrono::high_resolution_clock::now();
     // 先清除所用路径上的栅格
+
+    //遍历一遍，标记新增点
+    for (const auto& p : pc) {
+        Position end{p.x, p.y, p.z};
+        if (!local_map_->isInside(end)) {
+            continue;
+        }
+        local_map_->atPosition(end) =NEW_OCCUPIED;
+    }
+
+
      for (const auto& p : pc) {
          std::vector<Index> ray_indices;
          Position end{p.x, p.y, p.z};
@@ -153,7 +163,10 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
          if (local_map_->rayCast(local_map_->getOrigin()+base_lidar,end, ray_indices)) {
              // 遍历光线上的栅格
              for (size_t i = 0; i + 1 < ray_indices.size(); ++i) { // TODO: 这里每次需要遍历一串栅格，效率较低
-                 local_map_->at(ray_indices[i]) = NAN; // TODO: 将空闲设置为宏定义
+                 if(local_map_->at(ray_indices[i])==NEW_OCCUPIED) {
+                     break; // 遇到新增点截断
+                 }
+                 local_map_->at(ray_indices[i]) = NAN; //
              }
          }
      }
@@ -164,7 +177,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         if (!local_map_->isInside(end)) {
             continue;
         }
-        local_map_->atPosition(end) = p.z; // 设置为点的高度
+        local_map_->atPosition(end) =p.z;
+         // 设置为点的高度
     }
 
     // auto t1 = std::chrono::high_resolution_clock::now();
@@ -178,12 +192,13 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         Position pos = it.getPosition();
         if (!std::isnan(*it)) {
             // 将点云转换到base_link坐标系下
-            Position pt_in_map = {pos.x(), pos.y(), *it};
+            // Position pt_in_map = {pos.x(), pos.y(), *it};
+            Position pt_in_map = {pos.x(), pos.y(), pos.z()};
             Position pt_in_base = base_link_rotation * pt_in_map;
             cloud_pub_helper_.addPoint(pt_in_base.x(), pt_in_base.y(), pt_in_base.z());
         }
     }
-    cloud_pub_helper_.publish(this->now());
+    cloud_pub_helper_.publish(msg->header.stamp);
 
     // 地形分析
     if (terrain_analyzer_) {

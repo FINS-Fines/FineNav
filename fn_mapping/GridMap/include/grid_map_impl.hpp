@@ -5,6 +5,7 @@
 #pragma once
 
 #include <limits>
+#include <algorithm>
 #include "grid_map.hpp"
 
 namespace finenav_2d {
@@ -118,16 +119,17 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
 
     indices.clear();
 
-    auto origin_index = getIndex(origin);
-    auto end_index = getIndex(end);
-
+    double min_length = 0.5;
+    auto origin_voxel = getIndex(origin);
+    auto last_voxel = getIndex(end);
+    auto current_voxel = origin_voxel;
     // 光线超出地图范围，结束
-    if (!checkIfIndexValid(end_index, size_, half_size_)) {
+    if (!checkIfIndexValid(last_voxel, size_, half_size_)) {
         return false;
     }
 
     // 光线终点为原点，结束
-    //   if (origin_index == end_index) {
+    //   if (origin_index == last_index) {
     //       return true;
     //   }
 
@@ -138,18 +140,16 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
     Vector direction (end - origin);
     Vector inv_direction = direction.cwiseInverse();
 
-    int conpensate_count;
-    double x_y_length =std::sqrt(std::pow(end.x()-origin.x(),2)+std::pow(end.y()-origin.y(),2));
-    conpensate_count = x_y_length / fabs(end.z()-origin.z())*2.5;
-    if(conpensate_count >13){
-        conpensate_count =13;
-    }
-    auto length = direction.norm();
-    //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
-    Index current_voxel = (origin * inv_resolution_).cast<int>();
-    Index last_voxel = (end * inv_resolution_).cast<int>();
 
+    auto length = direction.norm();
+    if (length < min_length) {
+        return false;
+    }
+    //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
+
+    Eigen::Vector3i tMult = {0,0,0};
     Vector tMax, tDelta;
+    Vector tMax_start, tDelta_start;
     Eigen::Vector3i step;
 
     for (int i = 0; i < 3; ++i) {
@@ -164,50 +164,43 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
             }
 
             // 计算到下一个边界的参数距离
-            tMax[i] = (voxelBorder - origin[i]) * inv_direction[i];
-
+            tMax_start[i] = (voxelBorder - origin[i]) * inv_direction[i];
+			tMax[i] = tMax_start[i];
             // 计算穿越一个完整体素的参数距离
-            tDelta[i] = resolution_ * std::abs(inv_direction[i]);
+            tDelta_start[i] = resolution_ * std::abs(inv_direction[i]);
+            tDelta[i] = tDelta_start[i];
         }
         else{
+            tMax_start[i] = std::numeric_limits<double>::infinity();
             tMax[i] = std::numeric_limits<double>::infinity();
+            tDelta_start[i] = std::numeric_limits<double>::infinity();
             tDelta[i] = std::numeric_limits<double>::infinity();
         }
     }
 
     // TODO:需不需要对step为负值的情况做处理
 
-    indices.push_back(current_voxel);
-    while(last_voxel != current_voxel) {
-        if (!checkIfIndexValid(current_voxel, size_, half_size_)) {
-            return false;
-        }
 
         if (tMax.x() < tMax.y()) {
             if (tMax.x() < tMax.z()) {
-                current_voxel.x() += step.x();
-                tMax.x() += tDelta.x();
+                current_voxel.x() = origin_voxel.x() + tMult[0] * step.x();
+                tMax.x() = tMax_start.x() + tMult[0] * tDelta.x();
             } else {
-                current_voxel.z() += step.z();
-                tMax.z() += tDelta.z();
+                current_voxel.z() = origin_voxel.z() + tMult[0] * step.z();
+                tMax.z() = tMax_start.z() + tMult[2] * tDelta.z();
             }
         } else {
             if (tMax.y() < tMax.z()) {
-                current_voxel.y() += step.y();
-                tMax.y() += tDelta.y();
+                current_voxel.y() = origin_voxel.y() + tMult[1] * step.y();
+                tMax.y() = tMax_start.y() + tMult[1] * tDelta.y();
             } else {
-                current_voxel.z() += step.z();
-                tMax.z() += tDelta.z();
+                current_voxel.z() = origin_voxel.z() + tMult[0] * step.z();
+                tMax.z() = tMax_start.z() + tMult[2] * tDelta.z();
             }
-        }
-
-        // 离散化误差保护：使用原始长度比较
-        if (indices.size() > abs(end_index.x()-origin_index.x())+abs(end_index.y()-origin_index.y())+abs(end_index.z()-origin_index.z())+1-conpensate_count) {
-            break;
         }
         indices.push_back(current_voxel);
 
-    }
+
 
 
     // 光线投射算法实现
