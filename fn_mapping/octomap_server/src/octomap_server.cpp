@@ -54,65 +54,18 @@ void OctoMapServer::traverseMoveDifferenceRegionImpl(
         const BoundingRegion& region = regions[i];
         if (!region.valid) continue;
 
-        // Use leaf_bbx_iterator to traverse this region
-        for (OcTreeT::leaf_bbx_iterator it = octree_.begin_leafs_bbx(region.min, region.max, 0),
-            end = octree_.end_leafs_bbx(); it != end; ++it) {
-            if (expand_to_max_depth) {
-                expandToMaxDepth(original_min, original_max, moved_distance, it, callback);
-            } else {
-                callback(it, it.getCoordinate());
+        if (expand_to_max_depth) {
+            // 使用expand_leaf_bbx_iterator，自动展开到最大深度
+            for (OcTreeT::expand_leaf_bbx_iterator it = octree_.begin_expand_leafs_bbx(region.min, region.max, 0),
+                end = octree_.end_expand_leafs_bbx(); it != end; ++it) {
+                callback(&it);
             }
-        }
-    }
-}
-
-void OctoMapServer::expandToMaxDepth(
-        const Point& original_min,
-        const Point& original_max,
-        const Point& moved_distance,
-        OcTreeT::leaf_bbx_iterator& it,
-        const TraverseCallback& callback) {
-
-    struct NodeToExpand {
-        octomap::point3d center;
-        double size;
-        unsigned int depth;
-    };
-
-    const unsigned int max_depth = octree_.getTreeDepth();
-    std::queue<NodeToExpand> nodes_to_process; // 节点处理队列
-
-    // 初始节点入队
-    nodes_to_process.emplace(it.getCoordinate(), it.getSize(), it.getDepth());
-
-    while (!nodes_to_process.empty()) {
-        NodeToExpand current = nodes_to_process.front();
-        nodes_to_process.pop();
-
-        // 如果到达最大深度，发布节点
-        if (current.depth >= max_depth) {
-            if (isInMoveDifferenceRegion(original_min, original_max, moved_distance, current.center)) {
-                callback(it, current.center); // 在L形区域内，则调用回调
+        } else {
+            // 使用普通的leaf_bbx_iterator
+            for (OcTreeT::leaf_bbx_iterator it = octree_.begin_leafs_bbx(region.min, region.max, 0),
+                end = octree_.end_leafs_bbx(); it != end; ++it) {
+                callback(&it);
             }
-            continue;
-        }
-
-        // 计算8个子节点
-        double half_size = current.size / 2.0;
-        double quarter_size = half_size / 2.0;
-
-        static const std::vector<std::array<int, 3>> offsets = {
-            {{-1, -1, -1}}, {{1, -1, -1}}, {{-1, 1, -1}}, {{1, 1, -1}},
-            {{-1, -1, 1}}, {{1, -1, 1}}, {{-1, 1, 1}}, {{1, 1, 1}}
-        };
-
-        for (const auto& offset : offsets) {
-            octomap::point3d child_center(
-                current.center.x() + offset[0] * quarter_size,
-                current.center.y() + offset[1] * quarter_size,
-                current.center.z() + offset[2] * quarter_size
-            );
-            nodes_to_process.emplace(child_center, half_size, current.depth + 1); // TODO: 更加优化，在节点入队前检查是否与关心区域重叠
         }
     }
 }
