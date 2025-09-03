@@ -50,11 +50,13 @@ private:
     void timerCallback() {
         // 可视化removed区域
         pub_helper_.configure(test_pub, true, "map");
-        auto callback = [this](octomap::OcTree::leaf_bbx_iterator& it, const octomap::point3d& pt) {
-            if (octomap_server_.getOctree().isNodeOccupied(*it)) {
-                pub_helper_.addPoint(pt.x(), pt.y(), pt.z());
+        OctoMapServer::TraverseCallback callback;
+        callback = [this](OctoMapServer::IteratorBase* it) {
+            if (octomap_server_.getOctree().isNodeOccupied(**it)) { // 先解引用迭代器指针，再解引用迭代器得到节点
+                pub_helper_.addPoint(it->getCoordinate().x(), it->getCoordinate().y(), it->getCoordinate().z());
             }
         };
+
         octomap_server_.traverseMoveDifferenceRegion(min_pt_, max_pt_, move_step_, callback, expand_to_max_depth_);
         pub_helper_.publish(this->now());
 
