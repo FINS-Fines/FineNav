@@ -7,6 +7,8 @@
 #include <limits>
 #include <algorithm>
 #include "grid_map.hpp"
+#include <cmath>
+
 
 namespace finenav_2d {
 template <typename T>
@@ -179,28 +181,32 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
     }
 
     // TODO:需不需要对step为负值的情况做处理
-
+    indices.push_back(current_voxel);
+    while(current_voxel != last_voxel) {
+        if (!checkIfIndexValid(current_voxel, size_, half_size_)) {
+            return false;
+        }
 
         if (tMax.x() < tMax.y()) {
             if (tMax.x() < tMax.z()) {
-                current_voxel.x() = origin_voxel.x() + tMult[0] * step.x();
-                tMax.x() = tMax_start.x() + tMult[0] * tDelta.x();
+                current_voxel.x() += step.x();
+                tMax.x() += tDelta.x();
             } else {
-                current_voxel.z() = origin_voxel.z() + tMult[0] * step.z();
-                tMax.z() = tMax_start.z() + tMult[2] * tDelta.z();
+                current_voxel.z() += step.z();
+                tMax.z() += tDelta.z();
             }
         } else {
             if (tMax.y() < tMax.z()) {
-                current_voxel.y() = origin_voxel.y() + tMult[1] * step.y();
-                tMax.y() = tMax_start.y() + tMult[1] * tDelta.y();
+                current_voxel.y() += step.y();
+                tMax.y() += tDelta.y();
             } else {
-                current_voxel.z() = origin_voxel.z() + tMult[0] * step.z();
-                tMax.z() = tMax_start.z() + tMult[2] * tDelta.z();
+                current_voxel.z() += step.z();
+                tMax.z() += tDelta.z();
             }
         }
+
         indices.push_back(current_voxel);
-
-
+    }
 
 
     // 光线投射算法实现

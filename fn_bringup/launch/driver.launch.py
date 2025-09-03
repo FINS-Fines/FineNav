@@ -32,7 +32,7 @@ def generate_launch_description():
 
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='true',
+        default_value='false',
         description='Use simulation (Gazebo) clock if true'
     )
 
@@ -58,7 +58,7 @@ def generate_launch_description():
 
     ################### Livox 雷达驱动 ###################
     livox_params = [
-        {"xfer_format": 1},          # 0-PointCloud2, 1-CustomMsg, 4-AllMsg
+        {"xfer_format": 4},          # 0-PointCloud2, 1-CustomMsg, 4-AllMsg
         {"frame_id": 'base_lidar'},
         {"user_config_path": os.path.join(config_dir, 'MID360_config.json')},
         {"self_filtering_box.min_x": -0.4},
@@ -77,6 +77,7 @@ def generate_launch_description():
         condition=LaunchConfigurationEquals('lidar_type', 'livox'),
         remappings=[
             ('/livox/lidar', '/lidar'),
+            ('/livox/lidar/pointcloud', '/lidar/pointcloud'),
             ('/livox/imu', '/imu')
         ],
         output='screen'
@@ -112,7 +113,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     ld.add_action(robot_description_launch)
     ld.add_action(serial_driver_node)
-  #  ld.add_action(livox_driver_node)
+    ld.add_action(livox_driver_node)
     ld.add_action(unitree_driver_node)
 
     return ld

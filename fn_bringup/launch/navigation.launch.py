@@ -25,7 +25,7 @@ def generate_launch_description():
 
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='true',
+        default_value='false',
         description='Use reality (Gazebo) clock if true'
     )
 

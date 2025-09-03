@@ -28,7 +28,7 @@ def generate_launch_description():
     # 1. 使用仿真时间
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='true',
+        default_value='false',
         description='Use reality (Gazebo) clock if true'
     )
     # 2. 使用雷达的IMU还是下位机的IMU

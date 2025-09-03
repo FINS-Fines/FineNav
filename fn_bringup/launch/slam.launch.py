@@ -21,7 +21,7 @@ def generate_launch_description():
     # 声明参数
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='true',  # 临时修改
+        default_value='false',  # 临时修改
         description='Use simulation (Gazebo) clock if true'
     )
 
@@ -117,7 +117,7 @@ def generate_launch_description():
         name='odom_to_lidar_odom',
         arguments=[
             "--x", "0.057", "--y", "0.083", "--z", "0.31",
-            "--roll", "0.0", "--pitch", "0.0", "--yaw", "0.0",
+            "--roll", "3.1415926", "--pitch", "-2.3038346", "--yaw", "0.0",
             "--frame-id", "odom", "--child-frame-id", "lidar_odom"
         ]
     )
@@ -156,7 +156,7 @@ def generate_launch_description():
     ld.add_action(declare_map_load)
     ld.add_action(declare_nav_mode)
 
-    ld.add_action(pointcloud2_converter)
+    #ld.add_action(pointcloud2_converter)
     ld.add_action(static_tf_node)
     ld.add_action(fast_lio_node)
     ld.add_action(map_manager_node)

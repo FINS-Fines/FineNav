@@ -4,7 +4,6 @@
 
 #include <chrono>
 #include <Eigen/Core>
-
 #include <pcl_ros/transforms.hpp>
 
 #include "map_manager.h"
@@ -28,7 +27,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
     rclcpp::QoS qos = rclcpp::SensorDataQoS(); // 自动 BestEffort, Depth 10
-    point_sub_.subscribe(this, "/lidar_converted", qos.get_rmw_qos_profile());
+    point_sub_.subscribe(this, "/cloud_registered_body", qos.get_rmw_qos_profile());
 
     tf2_filter_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
         point_sub_, *tf2_buffer_, "/odom", 10,
@@ -103,7 +102,6 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     sensor_position.x() = sensor_to_world_transform_stamped.transform.translation.x;
     sensor_position.y() = sensor_to_world_transform_stamped.transform.translation.y;
     sensor_position.z() = sensor_to_world_transform_stamped.transform.translation.z;
-
     // 移动local_map_
     local_map_->moveTo(base_posistion);
 
@@ -123,16 +121,72 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
      for (const auto& p : pc) { // 执行raycasting
          std::vector<Index> ray_indices;
          Position end{p.x, p.y,p.z};
-
          if (!local_map_->isInside(end)) {
              continue;
          }
+
+         //大致判断平面方向
+         int Normal[3] = { 0 , 0 , 0 } ;   //x:0,y:1,z:2,点数稀疏，无效为-1
+         Index end_index = local_map_->getIndex(end);
+         int count_x = 0, count_y = 0 , count_z = 0;
+         for(int i = -1 ; i < 2 ; i++){
+             for(int j = -1 ; j < 2 ; j++){
+                 Index neighbor = end_index + Index(0,i,j);
+                 if(local_map_->isInside(neighbor)) {
+				     if(!std::isnan(local_map_->at(neighbor))){
+                     count_x++;
+                     }
+                 }
+             }
+         }
+
+         for(int i = -1 ; i < 2 ; i++){
+             for(int j = -1; j < 2 ; j++){
+                 Index neighbor = end_index + Index(i,0,j);
+                 if(local_map_->isInside(neighbor)) {
+				     if(!std::isnan(local_map_->at(neighbor))){
+                     count_y++;
+                     }
+                 }
+             }
+         }
+
+         for(int i = -1 ; i < 2 ; i++){
+             for(int j = -1 ; j < 2 ; j++){
+                 Index neighbor = end_index + Index(i,j,0);
+                 if(local_map_->isInside(neighbor)) {
+				     if(!std::isnan(local_map_->at(neighbor))){
+                     count_z++;
+                     }
+                 }
+             }
+         }
+         if(count_z >= count_x && count_z >= count_y){
+             Normal[2] = 1;
+         }
+         else if(count_y >= count_x && count_y >= count_z){
+             Normal[1] = 1;
+         }
+         else if(count_x >= count_y && count_x >= count_z){
+             Normal[0] = 1;
+         }
+
          if (local_map_->rayCast(sensor_position, end, ray_indices)) {
              // 遍历光线上的栅格
              for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
                  if(local_map_->at(ray_indices[i])== NEW_OCCUPIED) { // 光线在遇到新增点截断
                      break;
                  }
+                 if(Normal[0] == 1 && abs(ray_indices[i].x() - end_index.x()) <= 0) { // x平面
+                     break;
+                 }
+                 if(Normal[1] == 1 && abs(ray_indices[i].y() - end_index.y()) <= 0) { // y平面
+                     break;
+                 }
+                 if(Normal[2] == 1 && abs(ray_indices[i].z() - end_index.z()) <= 0 ) { // z平面
+                     break;
+                 }
+
                  local_map_->at(ray_indices[i]) = NAN; // 设置为Free
              }
          }
@@ -155,7 +209,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     for (auto it = local_map_->begin(); it != local_map_->end(); ++it) {
         Position pos = it.getPosition();
         if (!std::isnan(*it)) { // 如果栅格被占据，则发布
-            cloud_pub_helper_.addPoint(pos.x(), pos.y(), pos.z());
+            cloud_pub_helper_.addPoint(pos.x(), pos.y(), local_map_->atPosition(pos));
         }
     }
     cloud_pub_helper_.publish(msg->header.stamp);
