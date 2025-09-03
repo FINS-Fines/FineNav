@@ -344,6 +344,17 @@ namespace octomap {
     /// @return end of the tree as leaf iterator in a bounding box
     const leaf_bbx_iterator end_leafs_bbx() const {return leaf_iterator_bbx_end;}
 
+    /// @return beginning of the tree as expand leaf iterator in a bounding box
+    expand_leaf_bbx_iterator begin_expand_leafs_bbx(const OcTreeKey& min, const OcTreeKey& max, unsigned char maxDepth=0) {
+      return expand_leaf_bbx_iterator(this, min, max, maxDepth);
+    }
+    /// @return beginning of the tree as expand leaf iterator in a bounding box
+    expand_leaf_bbx_iterator begin_expand_leafs_bbx(const point3d& min, const point3d& max, unsigned char maxDepth=0) {
+      return expand_leaf_bbx_iterator(this, min, max, maxDepth);
+    }
+    /// @return end of the tree as expand leaf iterator in a bounding box
+    const expand_leaf_bbx_iterator end_expand_leafs_bbx() const {return expand_leaf_iterator_bbx_end;}
+
     /// @return beginning of the tree as iterator to all nodes (incl. inner)
     tree_iterator begin_tree(unsigned char maxDepth=0) const {return tree_iterator(this, maxDepth);}
     /// @return end of the tree as iterator to all nodes (incl. inner)
@@ -563,6 +574,7 @@ namespace octomap {
 
     const leaf_iterator leaf_iterator_end;
     const leaf_bbx_iterator leaf_iterator_bbx_end;
+    const expand_leaf_bbx_iterator expand_leaf_iterator_bbx_end;
     const tree_iterator tree_iterator_end;
 
 
