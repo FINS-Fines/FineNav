@@ -461,6 +461,101 @@
         }
       }
 
+      OcTreeKey minKey;
+      OcTreeKey maxKey;
+    };
+
+    /**
+     * 自定义迭代器：遍历BBX范围内所有最大深度叶子节点，遇到非最大深度叶子节点时自动expandNode()
+     */
+    class expand_leaf_bbx_iterator : public iterator_base<NodeType> {
+    public:
+      expand_leaf_bbx_iterator() : iterator_base<NodeType>() {}
+
+      expand_leaf_bbx_iterator(OcTreeBaseImpl<NodeType,INTERFACE> *ptree, const point3d& min, const point3d& max, uint8_t depth=0)
+        : iterator_base<NodeType>(ptree, depth)
+      {
+        if (this->stack.size() > 0){
+          assert(ptree);
+          if (!this->tree->coordToKeyChecked(min, minKey) || !this->tree->coordToKeyChecked(max, maxKey)){
+            this->tree = NULL;
+            this->maxDepth = 0;
+          } else{
+            this->stack.push(this->stack.top());
+            this->operator ++();
+          }
+        }
+      }
+
+      expand_leaf_bbx_iterator(OcTreeBaseImpl<NodeType,INTERFACE> *ptree, const OcTreeKey& min, const OcTreeKey& max, uint8_t depth=0)
+        : iterator_base<NodeType>(ptree, depth), minKey(min), maxKey(max)
+      {
+        if (this->stack.size() > 0){
+          this->stack.push(this->stack.top());
+          this->operator ++();
+        }
+      }
+
+      expand_leaf_bbx_iterator(const expand_leaf_bbx_iterator& other) : iterator_base<NodeType>(other) {
+        minKey = other.minKey;
+        maxKey = other.maxKey;
+      }
+
+      expand_leaf_bbx_iterator operator++(int){
+        expand_leaf_bbx_iterator result = *this;
+        ++(*this);
+        return result;
+      }
+
+      expand_leaf_bbx_iterator& operator++(){
+        if (this->stack.empty()){
+          this->tree = NULL;
+        } else {
+          this->stack.pop();
+
+          // 跳过非最大深度叶子节点，并自动扩展
+          while(!this->stack.empty()) {
+            auto& top = this->stack.top();
+            if (top.depth < this->maxDepth && !this->tree->nodeHasChildren(top.node)) {
+              // 自动扩展
+              this->tree->expandNode(top.node);
+              // singleIncrement会将新子节点压入stack
+              this->singleIncrement();
+            } else if (top.depth < this->maxDepth && this->tree->nodeHasChildren(top.node)) {
+              this->singleIncrement();
+            } else {
+              // 已经是最大深度叶子节点
+              break;
+            }
+          }
+          if (this->stack.empty())
+            this->tree = NULL;
+        }
+        return *this;
+      }
+
+    protected:
+      void singleIncrement(){
+        typename iterator_base<NodeType>::StackElement top = this->stack.top();
+        this->stack.pop();
+
+        typename iterator_base<NodeType>::StackElement s;
+        s.depth = top.depth +1;
+        key_type center_offset_key = this->tree->tree_max_val >> s.depth;
+        for (int i=7; i>=0; --i) {
+          if (this->tree->nodeChildExists(top.node, i)) {
+            computeChildKey(i, center_offset_key, top.key, s.key);
+            if ((minKey[0] <= (s.key[0] + center_offset_key)) && (maxKey[0] >= (s.key[0] - center_offset_key))
+                && (minKey[1] <= (s.key[1] + center_offset_key)) && (maxKey[1] >= (s.key[1] - center_offset_key))
+                && (minKey[2] <= (s.key[2] + center_offset_key)) && (maxKey[2] >= (s.key[2] - center_offset_key)))
+            {
+              s.node = this->tree->getNodeChild(top.node, i);
+              this->stack.push(s);
+              assert(s.depth <= this->maxDepth);
+            }
+          }
+        }
+      }
 
       OcTreeKey minKey;
       OcTreeKey maxKey;
