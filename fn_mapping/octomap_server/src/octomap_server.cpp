@@ -112,7 +112,7 @@ void OctoMapServer::expandToMaxDepth(
                 current.center.y() + offset[1] * quarter_size,
                 current.center.z() + offset[2] * quarter_size
             );
-            nodes_to_process.emplace(child_center, half_size, current.depth + 1);
+            nodes_to_process.emplace(child_center, half_size, current.depth + 1); // TODO: 更加优化，在节点入队前检查是否与关心区域重叠
         }
     }
 }

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vector>
+#include <functional>
 #include <octomap/octomap.h>
 
 namespace finenav_2d {
@@ -41,7 +42,7 @@ public:
      * @param original_max 原始边界框的最大点
      * @param moved_distance 移动向量
      * @param callback 对每个遍历到的叶子节点调用的回调函数，参数1: 叶子节点迭代器， 参数2：此时对应的体素坐标
-`    * @param expand_to_max_depth 是否展开到最大深度，在不改变八叉树结构前提下，将不到max_depth的叶子节点展开
+     * @param expand_to_max_depth 是否展开到最大深度，在不改变八叉树结构前提下，将不到max_depth的叶子节点展开
      * @param mode 遍历模式：REMOVED, ADDED, 或 BOTH
      * @note 如果不展开到最大深度，callback参数2就是参数1迭代器的中心点坐标；如果展开，则没有此对应关系
      */
