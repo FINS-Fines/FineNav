@@ -55,10 +55,12 @@ void OctoMapServer::traverseMoveDifferenceRegionImpl(
         if (!region.valid) continue;
 
         if (expand_to_max_depth) {
-            // 使用expand_leaf_bbx_iterator，自动展开到最大深度
+            // 使用expand_leaf_bbx_iterator，自动展开到最大深度,对处于L形区域内node的调用回调函数
             for (OcTreeT::expand_leaf_bbx_iterator it = octree_.begin_expand_leafs_bbx(region.min, region.max, 0),
                 end = octree_.end_expand_leafs_bbx(); it != end; ++it) {
-                callback(&it);
+                if (isInMoveDifferenceRegion(original_min, original_max, moved_distance, it.getCoordinate())) {
+                    callback(&it);
+                }
             }
         } else {
             // 使用普通的leaf_bbx_iterator
