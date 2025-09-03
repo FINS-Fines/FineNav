@@ -470,16 +470,17 @@
      */
     class expand_leaf_bbx_iterator : public iterator_base<NodeType> {
     public:
-      expand_leaf_bbx_iterator() : iterator_base<NodeType>() {}
+      expand_leaf_bbx_iterator() : iterator_base<NodeType>(), mutable_tree(nullptr) {} // 引入mutable_tree: expand_leaf_bbx_iterator需要修改树结构，而iterator_base维护的是const树指针
 
       expand_leaf_bbx_iterator(OcTreeBaseImpl<NodeType,INTERFACE> *ptree, const point3d& min, const point3d& max, uint8_t depth=0)
-        : iterator_base<NodeType>(ptree, depth)
+        : iterator_base<NodeType>(ptree, depth), mutable_tree(ptree)
       {
         if (this->stack.size() > 0){
           assert(ptree);
           if (!this->tree->coordToKeyChecked(min, minKey) || !this->tree->coordToKeyChecked(max, maxKey)){
             this->tree = NULL;
             this->maxDepth = 0;
+            mutable_tree = nullptr;
           } else{
             this->stack.push(this->stack.top());
             this->operator ++();
@@ -488,7 +489,7 @@
       }
 
       expand_leaf_bbx_iterator(OcTreeBaseImpl<NodeType,INTERFACE> *ptree, const OcTreeKey& min, const OcTreeKey& max, uint8_t depth=0)
-        : iterator_base<NodeType>(ptree, depth), minKey(min), maxKey(max)
+        : iterator_base<NodeType>(ptree, depth), minKey(min), maxKey(max), mutable_tree(ptree)
       {
         if (this->stack.size() > 0){
           this->stack.push(this->stack.top());
@@ -496,7 +497,7 @@
         }
       }
 
-      expand_leaf_bbx_iterator(const expand_leaf_bbx_iterator& other) : iterator_base<NodeType>(other) {
+      expand_leaf_bbx_iterator(const expand_leaf_bbx_iterator& other) : iterator_base<NodeType>(other), mutable_tree(other.mutable_tree) {
         minKey = other.minKey;
         maxKey = other.maxKey;
       }
@@ -510,6 +511,7 @@
       expand_leaf_bbx_iterator& operator++(){
         if (this->stack.empty()){
           this->tree = NULL;
+          mutable_tree = nullptr;
         } else {
           this->stack.pop();
 
@@ -517,8 +519,10 @@
           while(!this->stack.empty()) {
             auto& top = this->stack.top();
             if (top.depth < this->maxDepth && !this->tree->nodeHasChildren(top.node)) {
-              // 自动扩展
-              this->tree->expandNode(top.node);
+              // 自动扩展 - 使用mutable_tree
+              if (mutable_tree) {
+                mutable_tree->expandNode(top.node);
+              }
               // singleIncrement会将新子节点压入stack
               this->singleIncrement();
             } else if (top.depth < this->maxDepth && this->tree->nodeHasChildren(top.node)) {
@@ -528,8 +532,10 @@
               break;
             }
           }
-          if (this->stack.empty())
+          if (this->stack.empty()) {
             this->tree = NULL;
+            mutable_tree = nullptr;
+          }
         }
         return *this;
       }
@@ -559,6 +565,7 @@
 
       OcTreeKey minKey;
       OcTreeKey maxKey;
+      OcTreeBaseImpl<NodeType,INTERFACE>* mutable_tree; ///< 非const指针，用于修改树结构
     };
 
 
