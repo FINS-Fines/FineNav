@@ -27,9 +27,6 @@ void SimpleTerrainAnalyzer::configure(
     node->declare_parameter(name + ".example_param", 1.0);
 
     // TODO: 输入参数，决定发布字段
-
-    pub_ground_ = node->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_analyzer/debug_cloud", 10);
-
 } // namespace finenav_2d
 
 void SimpleTerrainAnalyzer::analyzeTerrain() {
@@ -41,9 +38,7 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
     size_t size_y = interface_->sizeY();
 
     Eigen::ArrayXXf ground_array = Eigen::ArrayXXf::Constant(size_x, size_y, NAN);
-    Eigen::ArrayXXf ceiling_array = Eigen::ArrayXXf::Constant(size_x, size_y, NAN);
-
-    pub_helper_.configure(pub_ground_, true, "map");
+    Eigen::ArrayXXf ceiling_array = Eigen::ArrayXXf::Constant(size_x, size_y, NAN); // TODO: 应该删掉
 
     /******** Example ************/
     for (size_t x = 0; x < size_x; ++x) {
@@ -55,7 +50,6 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
             });
 
             float nearest_ground = std::numeric_limits<float>::max(); // 距离当前位置最近的ground
-
 
             if(!z_values.empty()) {
                 for (auto it = z_values.begin(); it != z_values.end(); ++it) {
@@ -73,11 +67,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                 nearest_ground = NAN;
             }
             ground_array(x, y) = nearest_ground;   // 记录ground NAN代表全空 其他值为有效值
-            pub_helper_.addPoint(x*0.05+interface_->originX(), y*0.05+interface_->originY(), nearest_ground, {255, 0, 0});
+            interface_->setResult("valid_ground", x, y, nearest_ground);
         }
     }
-    pub_helper_.publish(node_.lock()->now());
-    int count=0;
 
     // 计算高度差以推断可通行性
     for (size_t x = 0; x < size_x; ++x) {
@@ -108,20 +100,15 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                         float gradient = fabs(current_ground - neighbor_ground)/0.05f;
                         if (gradient > MAX_GRADIENT) {
                             terrain_value = 1;
-//                            std::cout<<terrain_value<<std::endl;
                             break;
                         }
                     }
                 }
             }
-            interface_->setResult(x, y, terrain_value);
-//            std::cout<<terrain_value<<std::endl;
+            interface_->setResult("traversablilty", x, y, terrain_value); // TODO: 由用户输入一个string的SET进来，检查该字段是否在SET中，决定是否发布该字段数据
         }
     }
-
 }
-
-
 
 } // namespace finenav_2d
 
