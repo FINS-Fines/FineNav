@@ -32,7 +32,7 @@ public:
         BOTH      ///< 同时遍历REMOVED和ADDED区域
     };
 
-    OctoMapServer(): octree_(0.1) {}
+    OctoMapServer(const double& res): octree_(res) {}
 
     /**
       * @brief 构造函数，初始化八叉树
