@@ -13,6 +13,7 @@ class OctoMapServer {
 public:
     using OcTreeT = octomap::OcTree;
     using Point = octomap::point3d;
+    using TraverseCallback = std::function<void(OcTreeT::leaf_bbx_iterator&, const Point&)>;
 
     struct BoundingRegion {
         Point min, max;
@@ -35,27 +36,26 @@ public:
     OctoMapServer(const double& res): octree_(res) {}
 
     /**
-      * @brief 构造函数，初始化八叉树
-      * @param resolution 八叉树分辨率
-      */
-
-    /**
      * @brief 遍历移动差异区域 - 公共接口
      * @param original_min 原始边界框的最小点
      * @param original_max 原始边界框的最大点
      * @param moved_distance 移动向量
+     * @param callback 对每个遍历到的叶子节点调用的回调函数，参数1: 叶子节点迭代器， 参数2：此时对应的体素坐标
+`    * @param expand_to_max_depth 是否展开到最大深度，在不改变八叉树结构前提下，将不到max_depth的叶子节点展开
      * @param mode 遍历模式：REMOVED, ADDED, 或 BOTH
-     * @param callback 对每个遍历到的叶子节点调用的回调函数
+     * @note 如果不展开到最大深度，callback参数2就是参数1迭代器的中心点坐标；如果展开，则没有此对应关系
      */
     void traverseMoveDifferenceRegion(
         const Point& original_min,
         const Point& original_max,
         const Point& moved_distance,
-        const std::function<void(OcTreeT::leaf_bbx_iterator&)> &callback,
-        MoveDifferenceMode mode = MoveDifferenceMode::REMOVED);
+        const TraverseCallback& callback,
+        bool expand_to_max_depth = false,
+        MoveDifferenceMode mode = MoveDifferenceMode::REMOVED
+        );
 
     /**
-     * @brief 获取八叉树对象
+     * @brief 获取八叉树
      */
     OcTreeT& getOctree() { return octree_; }
 
@@ -66,12 +66,43 @@ private:
      * @param original_max 原始边界框的最大点
      * @param moved_distance 移动向量
      * @param callback 对每个遍历到的叶子节点调用的回调函数
+     * @param expand_to_max_depth 是否展开到最大深度，在不改变八叉树结构前提下，将不到max_depth的叶子节点展开
      */
     void traverseMoveDifferenceRegionImpl(
         const Point& original_min,
         const Point& original_max,
         const Point& moved_distance,
-        const std::function<void(OcTreeT::leaf_bbx_iterator&)> &callback);
+        const TraverseCallback& callback,
+        bool expand_to_max_depth);
+
+    /**
+     * @brief 遍历移动差异区域，返回Removed区域
+     * @param original_min 原始边界框的最小点
+     * @param original_max 原始边界框的最大点
+     * @param moved_distance 移动向量
+     * @param it 八叉树叶子节点边界框迭代器
+     * @param callback 对每个遍历到的叶子节点调用的回调函数
+     */
+    void expandToMaxDepth(
+        const Point& original_min,
+        const Point& original_max,
+        const Point& moved_distance,
+        OcTreeT::leaf_bbx_iterator& it,
+        const TraverseCallback& callback);
+
+    /**
+     * @brief 检查一个点是否在移动差异的Removed区域内
+     * @param original_min 原始边界框的最小点
+     * @param original_max 原始边界框的最大点
+     * @param moved_distance 移动向量
+     * @param point 要检查的点
+     * @return 如果点在Removed区域内返回true，否则返回false
+     */
+    bool isInMoveDifferenceRegion(
+        const Point& original_min,
+        const Point& original_max,
+        const Point& moved_distance,
+        const Point& point);
 
     /**
      * @brief 将移动差异区域划分为最多3个轴向的长方体区域

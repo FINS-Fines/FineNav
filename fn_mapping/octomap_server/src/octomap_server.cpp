@@ -2,7 +2,11 @@
 // IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
 // All rights reserved.
 
+#include <queue>
+
 #include "octomap_server.hpp"
+
+#include <oneapi/tbb/detail/_template_helpers.h>
 
 namespace finenav_2d {
 
@@ -11,21 +15,22 @@ void OctoMapServer::traverseMoveDifferenceRegion(
     const Point& original_min,
     const Point& original_max,
     const Point& moved_distance,
-    const std::function<void(OcTreeT::leaf_bbx_iterator&)> &callback,
+    const TraverseCallback& callback,
+    bool expand_to_max_depth,
     MoveDifferenceMode mode) {
 
     switch (mode) {
         case MoveDifferenceMode::REMOVED:
-            traverseMoveDifferenceRegionImpl(original_min, original_max, moved_distance, callback);
+            traverseMoveDifferenceRegionImpl(original_min, original_max, moved_distance, callback, expand_to_max_depth);
             break;
 
         case MoveDifferenceMode::ADDED:  // 将moved_distance取反，相当于反向移动
-            traverseMoveDifferenceRegionImpl(original_min, original_max, -moved_distance, callback);
+            traverseMoveDifferenceRegionImpl(original_min, original_max, -moved_distance, callback, expand_to_max_depth);
             break;
 
         case MoveDifferenceMode::BOTH:
-            traverseMoveDifferenceRegionImpl(original_min, original_max, moved_distance, callback);
-            traverseMoveDifferenceRegionImpl(original_min, original_max, -moved_distance, callback);
+            traverseMoveDifferenceRegionImpl(original_min, original_max, moved_distance, callback, expand_to_max_depth);
+            traverseMoveDifferenceRegionImpl(original_min, original_max, -moved_distance, callback, expand_to_max_depth);
             break;
 
         default:
@@ -34,37 +39,105 @@ void OctoMapServer::traverseMoveDifferenceRegion(
 }
 
 
-
 void OctoMapServer::traverseMoveDifferenceRegionImpl(
     const Point& original_min,
     const Point& original_max,
     const Point& moved_distance,
-    const std::function<void(OcTreeT::leaf_bbx_iterator&)> &callback) {
+    const TraverseCallback& callback,
+    bool expand_to_max_depth) {
 
     // Calculate the difference regions
     std::vector<BoundingRegion> regions = calculateMoveDifferenceRegions(
         original_min, original_max, moved_distance);
 
-    std::cout << "Found " << regions.size() << " regions to traverse" << std::endl;
-
     for (size_t i = 0; i < regions.size(); ++i) {
         const BoundingRegion& region = regions[i];
         if (!region.valid) continue;
 
-        // std::cout << "Traversing region " << i + 1 << ": ("
-        //           << region.min.x() << "," << region.min.y() << "," << region.min.z()
-        //           << ") to ("
-        //           << region.max.x() << "," << region.max.y() << "," << region.max.z()
-        //           << ")" << std::endl;
-
         // Use leaf_bbx_iterator to traverse this region
         for (OcTreeT::leaf_bbx_iterator it = octree_.begin_leafs_bbx(region.min, region.max, 0),
             end = octree_.end_leafs_bbx(); it != end; ++it) {
-            callback(it);
+            if (expand_to_max_depth) {
+                expandToMaxDepth(original_min, original_max, moved_distance, it, callback);
+            } else {
+                callback(it, it.getCoordinate());
             }
+        }
     }
 }
 
+void OctoMapServer::expandToMaxDepth(
+        const Point& original_min,
+        const Point& original_max,
+        const Point& moved_distance,
+        OcTreeT::leaf_bbx_iterator& it,
+        const TraverseCallback& callback) {
+
+    struct NodeToExpand {
+        octomap::point3d center;
+        double size;
+        unsigned int depth;
+    };
+
+    const unsigned int max_depth = octree_.getTreeDepth();
+    std::queue<NodeToExpand> nodes_to_process; // 节点处理队列
+
+    // 初始节点入队
+    nodes_to_process.emplace(it.getCoordinate(), it.getSize(), it.getDepth());
+
+    while (!nodes_to_process.empty()) {
+        NodeToExpand current = nodes_to_process.front();
+        nodes_to_process.pop();
+
+        // 如果到达最大深度，发布节点
+        if (current.depth >= max_depth) {
+            if (isInMoveDifferenceRegion(original_min, original_max, moved_distance, current.center)) {
+                callback(it, current.center); // 在L形区域内，则调用回调
+            }
+            continue;
+        }
+
+        // 计算8个子节点
+        double half_size = current.size / 2.0;
+        double quarter_size = half_size / 2.0;
+
+        static const std::vector<std::array<int, 3>> offsets = {
+            {{-1, -1, -1}}, {{1, -1, -1}}, {{-1, 1, -1}}, {{1, 1, -1}},
+            {{-1, -1, 1}}, {{1, -1, 1}}, {{-1, 1, 1}}, {{1, 1, 1}}
+        };
+
+        for (const auto& offset : offsets) {
+            octomap::point3d child_center(
+                current.center.x() + offset[0] * quarter_size,
+                current.center.y() + offset[1] * quarter_size,
+                current.center.z() + offset[2] * quarter_size
+            );
+            nodes_to_process.emplace(child_center, half_size, current.depth + 1);
+        }
+    }
+}
+
+bool OctoMapServer::isInMoveDifferenceRegion(
+        const Point& original_min,
+        const Point& original_max,
+        const Point& moved_distance,
+        const Point& point) {
+
+    // 移动后的包围盒
+    octomap::point3d moved_min = original_min + moved_distance;
+    octomap::point3d moved_max = original_max + moved_distance;
+
+    // 检查点是否在原始包围盒内但不在移动后包围盒内（即removed区域）
+    bool in_original = (point.x() >= original_min.x() && point.x() <= original_max.x()) &&
+                      (point.y() >= original_min.y() && point.y() <= original_max.y()) &&
+                      (point.z() >= original_min.z() && point.z() <= original_max.z());
+
+    bool in_moved = (point.x() >= moved_min.x() && point.x() <= moved_max.x()) &&
+                   (point.y() >= moved_min.y() && point.y() <= moved_max.y()) &&
+                   (point.z() >= moved_min.z() && point.z() <= moved_max.z());
+
+    return in_original && !in_moved;  // L形区域 = 原始区域 - 移动后区域
+}
 
 std::vector<OctoMapServer::BoundingRegion> OctoMapServer::calculateMoveDifferenceRegions(
     const Point& original_min,
