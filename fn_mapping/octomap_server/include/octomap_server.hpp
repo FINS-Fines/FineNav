@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <memory>
+#include <vector>
 #include <octomap/octomap.h>
 
 namespace finenav_2d {
