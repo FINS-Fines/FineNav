@@ -12,11 +12,10 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     //TODO: FOR DEBUG
-    pcd_file_path_ = "/home/huigg/Desktop/nav_ws/FineNav2D/pcd/building.pcd";
+    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/building.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
-    TomographyConfig tomography_config;
     this->declare_parameter("resolution", tomography_config.resolution);
     this->declare_parameter("slice_dh", tomography_config.slice_dh);
     this->declare_parameter("ground_h", tomography_config.ground_h);
@@ -49,7 +48,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
     initPlanner();
 
     // TODO: topic name 参数
-    path_pub_ = this->create_publisher<nav_msgs::msg::Path>("planned_path", 10);
+    path_pub_ = this->create_publisher<nav_msgs::msg::Path>("planned_path", rclcpp::QoS(1).transient_local());
     goal_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
         "goal_pose_3d", 10, std::bind(&PctPlanner::goalCallback, this, std::placeholders::_1));
 
@@ -63,18 +62,19 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
 
 void PctPlanner::initPlanner() const {
     // 加载PCD文件
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
         RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
         rclcpp::shutdown();
         return;
     }
-    RCLCPP_INFO_STREAM(this->get_logger(), "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
+    RCLCPP_INFO_STREAM(this->get_logger(),
+                       "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
 
     // voxel滤波
     pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
     voxel_filter.setInputCloud(cloud);
-    voxel_filter.setLeafSize(0.1f, 0.1f, 0.1f); // 设置体素大小
+    voxel_filter.setLeafSize(0.1f, 0.1f, 0.1f);  // 设置体素大小
     voxel_filter.filter(*cloud);
     RCLCPP_INFO_STREAM(this->get_logger(), "Filtered cloud has " << cloud->size() << " points");
 
@@ -84,8 +84,8 @@ void PctPlanner::initPlanner() const {
 
     // 创建Astar
     auto layers = tomography_->getOutputLayers();
-    int a_star_cost_threshold = 20; // TODO: 参数
-    int safe_cost_margin = 15; // 用于轨迹后端优化 ，无用
+    int a_star_cost_threshold = 20;  // TODO: 参数
+    int safe_cost_margin = 15;       // 用于轨迹后端优化 ，无用
     double step_cost_weight = 0.2;
 
     // TODO: 只需要三个参数，a_star_cost_threshold，layer, resolution
@@ -112,17 +112,29 @@ void PctPlanner::publishTomography() const {
 
         float r, g, b;
         if (hue < 60) {
-            r = c; g = x; b = 0;
+            r = c;
+            g = x;
+            b = 0;
         } else if (hue < 120) {
-            r = x; g = c; b = 0;
+            r = x;
+            g = c;
+            b = 0;
         } else if (hue < 180) {
-            r = 0; g = c; b = x;
+            r = 0;
+            g = c;
+            b = x;
         } else if (hue < 240) {
-            r = 0; g = x; b = c;
+            r = 0;
+            g = x;
+            b = c;
         } else if (hue < 300) {
-            r = x; g = 0; b = c;
+            r = x;
+            g = 0;
+            b = c;
         } else {
-            r = c; g = 0; b = x;
+            r = c;
+            g = 0;
+            b = x;
         }
 
         // 转换为0-255范围
@@ -132,12 +144,16 @@ void PctPlanner::publishTomography() const {
 
         for (int x = 0; x < tomography_->getMapDimX(); ++x) {
             for (int y = 0; y < tomography_->getMapDimY(); ++y) {
-                if (std::isnan(layers.ground(x, y, k))) { continue; }
+                if (std::isnan(layers.ground(x, y, k))) {
+                    continue;
+                }
 
                 pcl::PointXYZRGB point;
                 // 坐标转换
-                point.x = tomography_->getCenter()[0] + (x - tomography_->getMapDimX() / 2) * tomography_->getResolution();
-                point.y = tomography_->getCenter()[1] + (y - tomography_->getMapDimY() / 2) * tomography_->getResolution();
+                point.x =
+                    tomography_->getCenter()[0] + (x - tomography_->getMapDimX() / 2) * tomography_->getResolution();
+                point.y =
+                    tomography_->getCenter()[1] + (y - tomography_->getMapDimY() / 2) * tomography_->getResolution();
                 point.z = layers.ground(x, y, k);
 
                 // set color option
@@ -153,7 +169,7 @@ void PctPlanner::publishTomography() const {
     // 3. 转换并发布点云
     sensor_msgs::msg::PointCloud2 cloud_msg;
     pcl::toROSMsg(*colored_cloud, cloud_msg);
-    cloud_msg.header.frame_id = "map"; // 设置坐标系     // TODO: frame_id 参数
+    cloud_msg.header.frame_id = "map";  // 设置坐标系     // TODO: frame_id 参数
     cloud_msg.header.stamp = this->now();
 
     // TODO: 专门设置存储results的pcd
@@ -167,11 +183,45 @@ void PctPlanner::publishTomography() const {
     tomography_pub_->publish(cloud_msg);
 }
 
-
 void PctPlanner::goalCallback(const geometry_msgs::msg::PoseStamped& msg) {
-    // TODO: 规划流程
-}
+    RCLCPP_INFO(this->get_logger(), "Received new goal");
+    // 我需要一个起点和终点
 
+    path_finder_->search(Eigen::Vector3i(0, 50, 50), Eigen::Vector3i(1, 27, 52));
+
+    auto path = path_finder_->getPath();
+
+    // 发布路径
+    nav_msgs::msg::Path path_msg;
+    path_msg.header.frame_id = "map";  // TODO: frame_id 参数
+    path_msg.header.stamp = this->now();
+    for (const auto& idx : path) {
+        geometry_msgs::msg::PoseStamped pose;
+        pose.header = path_msg.header;
+        pose.pose.position.x = static_cast<double>(idx[2]) * tomography_config.resolution ;
+        pose.pose.position.y = static_cast<double>(idx[1]) * tomography_config.resolution ; 
+        pose.pose.position.z = static_cast<double>(idx[0]) / 100.0; // TODO 传递高度信息的时候由于idx不得不为整数，保留两位小数
+        pose.pose.orientation.w = 1.0;  // 无旋转
+        printf("path point: [%.2f, %.2f, %.2f]\n", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z);
+        path_msg.poses.push_back(pose);
+    }
+    path_pub_->publish(path_msg);
+
+    // 保存路径
+    // std::ofstream ofs("/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/planned_path.txt");
+    // if (ofs.is_open()) {
+    //     for (const auto& idx : path) {
+    //         ofs << idx[0] << " " << idx[1] << " " << idx[2] << "\n";
+    //     }
+    //     ofs.close();
+    //     RCLCPP_INFO(this->get_logger(), "Planned path saved to planned_path.txt");
+    // } else {
+    //     RCLCPP_ERROR(this->get_logger(), "Failed to save planned path!");
+    // }
+
+    // TODO: 规划流程
+    // layer 0, row 114, col 222, g 206.17
+}
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);

@@ -65,13 +65,13 @@ class Astar {
 
   bool Search(const Eigen::Vector3i& start, const Eigen::Vector3i& goal);
 
-  std::vector<PathPoint> GetPathPoints() const;
+  // std::vector<PathPoint> GetPathPoints() const;
 
-  Eigen::MatrixXd GetResultMatrix() const;
-  Eigen::MatrixXi GetVisitedSet() const { return visited_set_; }
+  // Eigen::MatrixXd GetResultMatrix() const;
+  // Eigen::MatrixXi GetVisitedSet() const { return visited_set_; }
 
-  Eigen::MatrixXd GetCostLayer(int layer) const;
-  Eigen::MatrixXd GetEleLayer(int layer) const;
+  // Eigen::MatrixXd GetCostLayer(int layer) const;
+  // Eigen::MatrixXd GetEleLayer(int layer) const;
 
  private:
   double CalculateStepCost(const Node* node1, const Node* node2) const;

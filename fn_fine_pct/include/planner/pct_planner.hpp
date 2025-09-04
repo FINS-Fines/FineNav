@@ -38,6 +38,7 @@ private:
 
     std::string pcd_file_path_;
     bool tomography_visualize_;
+    TomographyConfig tomography_config; // 由于我需要在planner中也使用这个config，因此我需要声明为成员变量
 
 
     std::unique_ptr<Tomography> tomography_; // TODO：暂时设置，tomography完后销毁

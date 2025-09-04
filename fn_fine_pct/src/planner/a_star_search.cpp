@@ -27,16 +27,16 @@ static std::vector<Eigen::Vector2i> kNeighbors = std::vector<Eigen::Vector2i>{
  * @brief 初始化A*的地图
  */
 void Astar::Init(const double cost_threshold, const double resolution, const double step_cost_weight, const std::vector<TomographyLayer>& layers) {
-    auto t0 = std::chrono::high_resolution_clock::now();
+    auto t0 = std::chrono::high_resolution_clock::now(); // 计时
 
-    cost_threshold_ = cost_threshold;
-    step_cost_weight_ = step_cost_weight;
-    resolution_ = resolution;
+    cost_threshold_ = cost_threshold; // 可通行的代价阈值
+    step_cost_weight_ = step_cost_weight;  // 跨层代价权重
+    resolution_ = resolution;  
 
     max_layers_ = layers.size();
     max_x_ = layers[0].trav_cost.cols();
     max_y_ = layers[0].trav_cost.rows();
-    xy_size_ = max_x_ * max_y_;
+    // xy_size_ = max_x_ * max_y_;
 
     // 初始化 grid_map_
     grid_map_.resize(max_layers_);
@@ -79,8 +79,8 @@ void Astar::Init(const double cost_threshold, const double resolution, const dou
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::high_resolution_clock::now() - t0);
 
-    search_layers_offset_.clear();
-    search_layers_offset_.emplace_back(0);
+    search_layers_offset_.clear(); 
+    search_layers_offset_.emplace_back(0); // 包括当前层
     for (int i = 0; i < search_layer_depth_; ++i) {
         search_layers_offset_.emplace_back(-(i + 1));
         search_layers_offset_.emplace_back(i + 1);
@@ -105,12 +105,12 @@ int Astar::GetHash(const Eigen::Vector3i& idx) const {
 }
 
 bool Astar::Search(const Eigen::Vector3i& start, const Eigen::Vector3i& goal) {
-  auto t0 = std::chrono::high_resolution_clock::now();
+  auto t0 = std::chrono::high_resolution_clock::now();// 计时
 
   if (!search_result_.empty()) {
     Reset();
     search_result_.clear();
-  }
+  } // 清空上次搜索结果
 
   auto start_node = &grid_map_[start[0]][start[2]][start[1]];
   auto goal_node = &grid_map_[goal[0]][goal[2]][goal[1]];
@@ -255,7 +255,7 @@ int Astar::DecideLayer(const Node* cur_node) const {
     if (search_node.ele > 0.5) {
       true_layer = std::min(cur_layer + 1, max_layers_ - 1);
       break;
-    } else if (search_node.ele < -0.5) {
+    } else if (search_node.ele < -0.5) { // 哪来的 -0.5
       true_layer = std::max(cur_layer - 1, 0);
       break;
     }

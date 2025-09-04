@@ -33,6 +33,7 @@ public:
 
     void reset() {
         g = std::numeric_limits<double>::max();
+        f = std::numeric_limits<double>::max();
         parent = nullptr;
     }
 
@@ -41,7 +42,20 @@ public:
     Index idx = Index(0, 0, 0);  // layer, row, col
     Node* parent = nullptr;
     double g = std::numeric_limits<double>::max(); // 累积到该节点的g(n)
+    double f = std::numeric_limits<double>::max(); // 估计的总代价f(n) = g(n) + h(n)
+
+    // 真的需要吗？
+
+    double height = 0.0; // 高度
+    double cost = 0.0; // 代价
+    int layer = 0;
 };
+
+struct NodeCompare {
+  bool operator()(const Node* a, const Node* b) const { return a->f > b->f; }
+};
+
+using MultiLayerGridMap = std::vector<std::vector<std::vector<Node>>>;
 
 class Astar {
 public:
@@ -65,19 +79,27 @@ private:
     double getHeuristic(const Node* node1, const Node* node2) const;
 
     int getHash(const Index idx) const;
+    int decideLayer(const Node* cur_node) const;
+    void reset();
 
 
 
     int max_x_ = 0;
     int max_y_ = 0;
     int max_layers_ = 0;
+    double cost_threshold_ = 35;
+    double step_cost_weight_ = 1.0;
+
+    MultiLayerGridMap grid_map_;
 
     int search_layer_depth_ = 1;
+    std::vector<int> search_layers_offset_;
     std::vector<Index> nearby_cells_offset_;
     std::vector<Index> nearby_layers_offset_;
+    
 
 
-    HeuristicType h_type_ = kDiagonal;
+    HeuristicType h_type_ = kEuclidean;
 
     TomographyLayers tomography_;
     Path path_;
