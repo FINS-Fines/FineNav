@@ -22,35 +22,32 @@ public:
         grid_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("grid_map", 10 );
         origin_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("map_origin", 10);
 
-        /******** 模拟初始化来了一帧点云，给原点为中心的2*2*2m范围赋值为点的高度 *******/
-        // 固定位置在x轴上有一面墙
+        insertPointCloud();
+    }
+
+private:
+    void insertPointCloud() {
+        // 模拟世界坐标系中 x=0 位置有一面固定的墙，假设点云已经转换到世界坐标系下
         for (int y = -20; y <= 20; ++y) {
             for (int z = -20; z <= 20; ++z) {
-                auto pos = grid_map_.getPosition({0, y, z});
+                Position pos = {0.0, y*0.1, z*0.1};
                 grid_map_.atPosition(pos) = 255;
             }
         }
     }
 
-private:
     void timerCallback() {
-        static Position accum_pos{0.0, 0.0, 0.0};
-        Position step_pos{0.2, 0.0, 0.0};
+        static Position accum_pos{0, 0, 0};
+        Position step_pos{0.06, 0.0, 0.0};
 
-        auto new_pos = grid_map_.getOrigin() + step_pos;
-        grid_map_.moveTo(new_pos);
-
-        // 模拟新的点云输入
         accum_pos += step_pos;
-        for (int y = -20; y <= 20; ++y) {
-            for (int z = -20; z <= 20; ++z) {
-                auto pos = grid_map_.getPosition({0, y, z});
-                grid_map_.atPosition(pos - accum_pos) = 255;
-            }
-        }
+        grid_map_.moveTo(accum_pos);
+
+        // 模拟新的点云输入，
+        // insertPointCloud();
 
         // 用迭代器遍历栅格地图
-        pub_helper_.configure(grid_map_pub_, true, "base_link");
+        pub_helper_.configure(grid_map_pub_, true, "map");
         for (auto it = grid_map_.begin(); it != grid_map_.end(); ++it) {
             Index idx = it.getIndex();
             Position pos = it.getPosition();
@@ -61,7 +58,7 @@ private:
         pub_helper_.publish(this->now());
 
         // 发布地图原点
-        pub_helper_.configure(origin_pub_, true, "base_link");
+        pub_helper_.configure(origin_pub_, true, "map");
         auto origin = grid_map_.getOrigin();
         pub_helper_.addPoint(origin.x(), origin.y(), origin.z());
         pub_helper_.publish(this->now());

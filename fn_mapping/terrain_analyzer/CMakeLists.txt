@@ -10,9 +10,9 @@ endif ()
 find_package(ament_cmake_auto REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
-find_package(fn_terrain_analysis_core REQUIRED)
-find_package(fn_utils REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(fn_terrain_analysis_core REQUIRED)
+
 
 ament_auto_find_build_dependencies()
 

@@ -122,7 +122,7 @@ inline int getBufferIndex(const Index& index,
                             const Size& half_size,
                             const Index& buffer_start_index = Index::Zero()) {
     const Index unwrapped_index = half_size + index;
-    const Index wrapped_index = wrapIndexToRange(unwrapped_index - buffer_start_index, size);
+    const Index wrapped_index = wrapIndexToRange(unwrapped_index + buffer_start_index, size);
     return wrapped_index.z() + wrapped_index.y() * size.z() + wrapped_index.x() * size.y() * size.z();
 }
 
