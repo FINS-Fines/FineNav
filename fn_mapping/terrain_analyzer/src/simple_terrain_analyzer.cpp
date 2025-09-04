@@ -31,8 +31,8 @@ void SimpleTerrainAnalyzer::configure(
 
 void SimpleTerrainAnalyzer::analyzeTerrain() {
 
-    const float MAX_GRADIENT = 0.3f;            // 最大允许坡度（梯度阈值）
-    const float ROBOT_HEIGHT = 0.6f;            // 机器人最小通过高度
+    const float MAX_GRADIENT = 0.9f;            // 最大允许坡度（梯度阈值）
+    const float ROBOT_HEIGHT = 0.4f;            // 机器人最小通过高度
 
     size_t size_x = interface_->sizeX();
     size_t size_y = interface_->sizeY();

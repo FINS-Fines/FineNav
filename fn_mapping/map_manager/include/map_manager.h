@@ -51,7 +51,7 @@ private:
     std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
     TerrainAnalyzerInterface::Ptr terrain_analyzer_interface_;
     Eigen::ArrayXXf passability_array_;
-
+    Eigen::ArrayXXf ground_array_;
     // Input1: 监听tf，map，base_link
 
     // Input2: pcd_cbk
@@ -63,6 +63,7 @@ private:
     std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>> tf2_filter_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;    // 发布局部地图的点云消息
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pub_;      // 发布分析后的ground信息
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr localcost_map_pub_; // 发布局部代价地图
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr test_pub_; // 发布局部地图的点云消息
 

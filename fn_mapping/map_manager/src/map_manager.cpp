@@ -36,6 +36,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
 
     // 初始化发布器
     local_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("local_map", 10);
+    ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("ground", 10);
     localcost_map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("local_cost_map", 10);
     test_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_test", 10);
 
@@ -55,21 +56,28 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
 
 void MapManager::AnalyzerInit() {
     passability_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x(), local_map_->getSize().y(), 0);
+    ground_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x(), local_map_->getSize().y(), NAN);
 
     TerrainAnalyzerInterface::Getter gridmap_getter = [this](const size_t& x, const size_t& y) -> std::span<float> {
         return local_map_->getVoxelsAlongZ(static_cast<int>(x) - local_map_->getSize().x() / 2,
                                            static_cast<int>(y) - local_map_->getSize().y() / 2);
     };
 
-    auto terrain_setter = [this](const size_t& idx_x, const size_t& idx_y, const float& value) {
-        passability_array_(idx_x, idx_y) = value;
+    auto terrain_setter = [this](const std::string& field, const size_t& idx_x, const size_t& idx_y, const float& value) {
+        if (field == "traversablilty") {
+            passability_array_(idx_x, idx_y) = value;
+        } else if (field == "valid_ground") {
+            ground_array_(idx_x, idx_y) = value;
+        } else {
+            RCLCPP_WARN(get_logger(), "Unknown field name: %s", field.c_str());
+        }
     };
     // TODO: 目前只能支持将是否通行写出来，后续可以考虑是否要给出中间结果，例如ground和ceiling
 
     auto min_pt = local_map_->getPosition(local_map_->getMinIndex());
     auto map_size = local_map_->getSize();
     terrain_analyzer_interface_ = std::make_shared<TerrainAnalyzerInterface>(
-        map_size.x(), map_size.y(), min_pt.x(), min_pt.y(),
+        map_size.x(), map_size.y(),
         gridmap_getter, terrain_setter);
 
     terrain_analyzer_->configure(shared_from_this(), "terrain_analysis", terrain_analyzer_interface_);
@@ -218,6 +226,20 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     if (terrain_analyzer_) {
         terrain_analyzer_->analyzeTerrain();
     }
+
+    //发布ground分析结果
+    cloud_pub_helper_.configure(ground_pub_, true, world_frame);
+    for(int x = 0 ; x < local_map_->getSize().x() ; x++){
+        for(int y = 0 ; y <local_map_->getSize().y() ; y++){
+            if(!std::isnan(ground_array_(x,y))){
+                Position pos = local_map_->getPosition(Index(x - local_map_->getSize().x() / 2,
+                                                            y - local_map_->getSize().y() / 2,0));
+                cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{255,0,0});
+            }
+        }
+    }
+    cloud_pub_helper_.publish(msg->header.stamp);
+
     publishLocalcostMap();
 }
 
