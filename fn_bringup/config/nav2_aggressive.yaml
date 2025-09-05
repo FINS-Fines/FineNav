@@ -9,7 +9,7 @@ bt_navigator:
     odom_topic: /Odometry
     bt_loop_duration: 10
     default_server_timeout: 20
-    default_nav_to_pose_bt_xml: $(find-pkg-share fine_nav2d_bringup)/behavior_tree/random_goal.xml
+    #default_nav_to_pose_bt_xml: $(find-pkg-share fine_nav2d_bringup)/behavior_tree/random_goal.xml
     plugin_lib_names:
       - nav2_compute_path_to_pose_action_bt_node
       - nav2_compute_path_through_poses_action_bt_node
@@ -133,8 +133,8 @@ global_costmap:
 
       pointcloud_projection_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
-        map_topic: /projected_map
-        subscribe_to_updates: False
+        map_topic: /local_cost_map
+        subscribe_to_updates: True
         map_subscribe_transient_local: False # QoS settings for map topic.
         footprint_clearing_enabled: True # Clear any occupied cells under robot footprint.
 
@@ -218,12 +218,12 @@ local_costmap:
       #****************************************************************************************************************
       use_maximum: False # Whether when combining costmaps to use the maximum cost or override.
 
-      plugins: ["stvl_layer","inflation_layer"]
+      plugins: ["pointcloud_projection_layer","inflation_layer"]
 
       pointcloud_projection_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
-        map_topic: /projected_map
-        subscribe_to_updates: False
+        map_topic: /local_cost_map
+        subscribe_to_updates: True
         map_subscribe_transient_local: False # QoS settings for map topic.
         footprint_clearing_enabled: False # Clear any occupied cells under robot footprint.
 
@@ -363,7 +363,7 @@ controller_server:
       # 动力学约束
       #****************************************************************************************************************
       motion_model: "DiffDrive"
-      vx_max: 2.0
+      vx_max: 0.5
       vx_min: 0.0
       vy_max: 0.5 # Max VY in either direction, if holonomic
       wz_max: 3.5
@@ -378,7 +378,7 @@ controller_server:
       time_steps: 30 # 每个待选轨迹的时间步数
       model_dt: 0.05 # 每个时间步的时间间隔
       iteration_count: 1 # 为了实时性考虑，基本上设置为1
-      batch_size: 2000 # 采样的待选轨迹数量	
+      batch_size: 2000 # 采样的待选轨迹数量
       vx_std: 0.5 # 采样Vx的标准差
       vy_std: 0.2 # 采样Vy的标准差
       wz_std: 0.4 # 采样Wz的标准差
