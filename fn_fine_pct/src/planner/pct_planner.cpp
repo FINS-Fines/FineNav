@@ -187,7 +187,27 @@ void PctPlanner::goalCallback(const geometry_msgs::msg::PoseStamped& msg) {
     RCLCPP_INFO(this->get_logger(), "Received new goal");
     // 我需要一个起点和终点
 
-    path_finder_->search(Eigen::Vector3i(0, 50, 50), Eigen::Vector3i(1, 27, 52));
+    // 创造一个实际系下的起点和终点
+    Eigen::Vector3d start_real = Eigen::Vector3d(5.0, 5.0, 0.0); // 这里用的就是 x y z的输入数据格式
+    Eigen::Vector3d goal_real = Eigen::Vector3d(-6.0, -3.8, 3.0); 
+    
+    // 创造实际系到地图系的转换
+    Eigen::Vector3i start_map, goal_map; // 这里用的格式是 layer, row, col
+    // tomography_config.slice_dh 看一下这个值
+    // printf("Tomography resolution: %.2f, slice_dh: %.2f\n", tomography_config.resolution, tomography_config.slice_dh);
+
+    start_map[0] = start_real[2] / tomography_config.slice_dh; // layer
+    start_map[1] = static_cast<int>(std::round((start_real[1] - tomography_->getCenter()[1]) / tomography_config.resolution)) + tomography_->getMapDimY() / 2; // row
+    start_map[2] = static_cast<int>(std::round((start_real[0] - tomography_->getCenter()[0]) / tomography_config.resolution)) + tomography_->getMapDimX() / 2; // col
+    
+    goal_map[0] = goal_real[2] / tomography_config.slice_dh; // layer
+    goal_map[1] = static_cast<int>(std::round((goal_real[1] - tomography_->getCenter()[1]) / tomography_config.resolution)) + tomography_->getMapDimY() / 2; // row
+    goal_map[2] = static_cast<int>(std::round((goal_real[0] - tomography_->getCenter()[0]) / tomography_config.resolution)) + tomography_->getMapDimX() / 2; // col
+    
+    // RCLCPP_INFO(this->get_logger(), "Start map idx: layer %d, row %d, col %d", start_map[0], start_map[1], start_map[2]);
+    // RCLCPP_INFO(this->get_logger(), "Goal map idx: layer %d, row %d, col %d", goal_map[0], goal_map[1], goal_map[2]);
+    // search 所使用的是地图系下的 idx 
+    path_finder_->search(start_map, goal_map);
 
     auto path = path_finder_->getPath();
 
@@ -198,29 +218,15 @@ void PctPlanner::goalCallback(const geometry_msgs::msg::PoseStamped& msg) {
     for (const auto& idx : path) {
         geometry_msgs::msg::PoseStamped pose;
         pose.header = path_msg.header;
-        pose.pose.position.x = static_cast<double>(idx[2]) * tomography_config.resolution ;
-        pose.pose.position.y = static_cast<double>(idx[1]) * tomography_config.resolution ; 
-        pose.pose.position.z = static_cast<double>(idx[0]) / 100.0; // TODO 传递高度信息的时候由于idx不得不为整数，保留两位小数
+        // 实现从地图系到实际系的转换
+        pose.pose.position.x = (static_cast<double>(idx[2]) - tomography_->getMapDimX() / 2) * tomography_config.resolution + tomography_->getCenter()[0];
+        pose.pose.position.y = (static_cast<double>(idx[1]) - tomography_->getMapDimY() / 2) * tomography_config.resolution + tomography_->getCenter()[1];
+        pose.pose.position.z = static_cast<double>(idx[0]) / 100.0;
         pose.pose.orientation.w = 1.0;  // 无旋转
-        printf("path point: [%.2f, %.2f, %.2f]\n", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z);
+        // printf("path point: [%.2f, %.2f, %.2f]\n", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z);
         path_msg.poses.push_back(pose);
     }
     path_pub_->publish(path_msg);
-
-    // 保存路径
-    // std::ofstream ofs("/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/planned_path.txt");
-    // if (ofs.is_open()) {
-    //     for (const auto& idx : path) {
-    //         ofs << idx[0] << " " << idx[1] << " " << idx[2] << "\n";
-    //     }
-    //     ofs.close();
-    //     RCLCPP_INFO(this->get_logger(), "Planned path saved to planned_path.txt");
-    // } else {
-    //     RCLCPP_ERROR(this->get_logger(), "Failed to save planned path!");
-    // }
-
-    // TODO: 规划流程
-    // layer 0, row 114, col 222, g 206.17
 }
 
 int main(int argc, char** argv) {

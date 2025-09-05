@@ -116,11 +116,27 @@ bool Astar::search(const Index& start, const Index& goal) {
   printf("Astar searching...\n");
     path_.clear(); // 清空上次搜索结果
 
-    auto start_node = &grid_map_[start[0]][start[1]][start[2]]; // TODO: 这里的索引顺序可能有问题，需要确认
-    auto goal_node = &grid_map_[goal[0]][goal[1]][goal[2]];     // TODO: 增加一个逻辑可以将start和goal的z标定到合理的高度上去, 这里将点直接固定到每个层中的一个小节点中
+    Index start_deal = start; 
+    Index goal_deal = goal;
+    for (int layer = 0; layer < max_layers_; ++layer) {
+        if (start_deal[0] >= tomography_.ground.layers[layer](start_deal[1], start_deal[2]) &&
+            start_deal[0] <= tomography_.ceiling.layers[layer](start_deal[1], start_deal[2])) {
+            start_deal[0] = layer;
+            break;
+        }
+    }
+    for (int layer = 0; layer < max_layers_; ++layer) {
+        if (goal_deal[0] >= tomography_.ground.layers[layer](goal_deal[1], goal_deal[2]) &&
+            goal_deal[0] <= tomography_.ceiling.layers[layer](goal_deal[1], goal_deal[2])) {
+            goal_deal[0] = layer;
+            break;
+        }
+    }
+    auto start_node = &grid_map_[start_deal[0]][start_deal[1]][start_deal[2]]; 
+    auto goal_node = &grid_map_[goal_deal[0]][goal_deal[1]][goal_deal[2]];     
     // 需要把目标转换到我的grid——map中的一个指定node上去，这里的resolution是相当于你输入的z坐标落到的层上，就是每一层的高度
-    printf("Astar start node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", start_node->idx[0], start_node->idx[1], start_node->idx[2], start_node->cost, start_node->height);
-    printf("Astar goal node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", goal_node->idx[0], goal_node->idx[1], goal_node->idx[2], goal_node->cost, goal_node->height);
+    // printf("Astar start node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", start_node->idx[0], start_node->idx[1], start_node->idx[2], start_node->cost, start_node->height);
+    // printf("Astar goal node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", goal_node->idx[0], goal_node->idx[1], goal_node->idx[2], goal_node->cost, goal_node->height);
     start_node->g = 0.0;
 
     if (start_node->cost > cost_threshold_ || goal_node->cost > cost_threshold_) {
@@ -139,9 +155,14 @@ bool Astar::search(const Index& start, const Index& goal) {
   while (!open_set.empty()) {
     // 1. 取出最优节点
     Node* current_node = open_set.top();
+    // printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
+    //        current_node->idx[0], current_node->idx[1], current_node->idx[2],
+    //        current_node->g, current_node->f, current_node->cost, current_node->height);
+    if (current_node->height > 0.3) {
     printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
            current_node->idx[0], current_node->idx[1], current_node->idx[2],
            current_node->g, current_node->f, current_node->cost, current_node->height);
+    }
     open_set.pop();
 
     // 2. 检查是否到达目标，若到达了则从fringe中回溯路径
@@ -164,15 +185,6 @@ bool Astar::search(const Index& start, const Index& goal) {
     // 3. 记录该节点已被访问
     closed_set[getHash(current_node->idx)] = current_node;
 
-    // 4. 决定Layer
-    // int layer = current_node->layer;
-    // if (current_node->ele > 0.5) {
-    //   layer = std::min(layer + 1, max_layers_ - 1);
-    // } else if (current_node->ele < -0.5) {
-    //   layer = std::max(layer - 1, 0);
-    // }
-
-
     // 5. 拓展邻居节点
     int i, j, layer = 0;
     double height_current = current_node->height;
@@ -190,23 +202,11 @@ bool Astar::search(const Index& start, const Index& goal) {
 
       auto neighbor_node = &grid_map_[layer][i][j];
 
-      // TODO: 完全不明所以的配置逻辑
-    //   if (neighbor_node->cost > cost_threshold_) { // 邻居节点的代价是否超过阈值
-    //     if (abs(neighbor_node->ele) < 0.5) { // 如果代价超过了，��且高度差0.5？？？？？
-    //       continue;
-    //     } else {
-    //       if (std::abs(neighbor_node->height - current_node->height) > 0.3) {
-    //         continue;
-    //       }
-    //     }
-    //   }
-
       if ((neighbor_node->cost > cost_threshold_) ||
-          std::abs(neighbor_node->height - current_node->height) > 1.5) {
+          std::abs(neighbor_node->height - current_node->height) > 0.2) {
         continue;
       }
 
-      // TODO: 这个step_cost在这也是奇怪，tentative_g是啥也不清楚
       auto diff = neighbor_node->idx - current_node->idx;
       double step_cost = step_cost_weight_ * neighbor_node->cost;
       if (step_cost < 5) step_cost = 0.0;
@@ -214,8 +214,6 @@ bool Astar::search(const Index& start, const Index& goal) {
           current_node->g +
           std::sqrt(diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) +
           step_cost;
-
-      // 这里的逻辑大概是这样的：比如说走对角线时候，你需要考虑到斜边的距离，以及地块的cost。因此你要考虑的就会更多
 
       // 如果邻居节点已经在closed_set中，且g值更大，则跳过
       auto p_neighbor = closed_set.find(getHash(neighbor_node->idx));
@@ -239,44 +237,6 @@ bool Astar::search(const Index& start, const Index& goal) {
 
 }
 
-// int Astar::decideLayer(const Node* cur_node) const {
-//   int layer = cur_node->layer;
-//   int i = cur_node->idx[1];
-//   int j = cur_node->idx[2];
-//   double cur_height = cur_node->height;
-
-//   int true_layer = layer;
-
-//   for (const auto offset : search_layers_offset_) {
-//     printf("  trying layer offset: %d\n", offset);
-//     int cur_layer = layer + offset;
-
-//     if (cur_layer < 0 || cur_layer >= max_layers_) {
-//       continue;
-//     }
-
-//     const Node& search_node = grid_map_[cur_layer][i][j];
-
-//     if (abs(search_node.height - cur_height) > 0.2) {
-//       continue;
-//     }
-
-//     true_layer = cur_layer;
-//     break;
-
-//     // 直接变换层数，应该就可以
-
-//     // if (search_node.ele > 0.5) {
-//     //   true_layer = std::min(cur_layer + 1, max_layers_ - 1);
-//     //   break;
-//     // } else if (search_node.ele < -0.5) {
-//     //   true_layer = std::max(cur_layer - 1, 0);
-//     //   break;
-//     // }
-//   }
-
-//   return true_layer;
-// }
 // TODO: 检查这里的启发函数实现是否正确
 double Astar::getHeuristic(const Node* node1, const Node* node2) const {
     double cost = 0.0;
@@ -300,7 +260,6 @@ double Astar::getHeuristic(const Node* node1, const Node* node2) const {
         assert(false && "not implemented");
     }
 
-    // cost += std::abs(node1->idx[0] - node2->idx[0]) * 10;
     return cost;
 }
 
