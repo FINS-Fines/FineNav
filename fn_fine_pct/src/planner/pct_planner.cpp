@@ -185,6 +185,9 @@ void PctPlanner::publishTomography() const {
 
 void PctPlanner::goalCallback(const geometry_msgs::msg::PoseStamped& msg) {
     RCLCPP_INFO(this->get_logger(), "Received new goal");
+    // 还需要知道的是我机器人自己在哪里，作为路径的起点
+    // Eigen::Vector3d goal_real = Eigen::Vector3d(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
+
     // 我需要一个起点和终点
 
     // 创造一个实际系下的起点和终点

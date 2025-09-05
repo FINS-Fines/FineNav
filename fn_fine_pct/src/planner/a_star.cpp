@@ -14,8 +14,7 @@ namespace finenav_2d {
 
 
 Astar::Astar(){
-
-    nearby_cells_offset_ = { // 8 neighbors in 2D
+    nearby_cells_offset_ = { // 26 neighbors in 2D
         Index(0, -1, -1), Index(0, -1, 0), Index(0, -1, 1),
         Index(0, 0, -1),  Index(0, 0, 1), Index(0, 1, -1),
         Index(0, 1, 0),   Index(0, 1, 1), 
@@ -27,10 +26,9 @@ Astar::Astar(){
         Index(-1, 0, -1), Index(-1, 0, 1), Index(-1, -1, -1),
         Index(-1, -1, 1), Index(-1, 1, -1), Index(-1, 1, 1)
     };
-
     nearby_layers_offset_ = { // 3 layers in 3D
         Index(0, 0, 0), Index(1, 0, 0), Index(-1, 0, 0),
-    }; // TODO: 需要包括自己吗
+    }; 
 }
 
 /**
@@ -44,7 +42,7 @@ void Astar::initialize(const double cost_threshold, const double step_cost_weigh
     max_y_ = tomography.trav_cost.layers[0].rows();
 
     h_type_ = h_type;
-    // printf("Astar max_layers_: %d, max_x_: %d, max_y_: %d\n", max_layers_, max_x_, max_y_);
+
     grid_map_.resize(max_layers_);
     for (size_t i = 0; i < max_layers_; ++i) {
         grid_map_[i].resize(max_y_);
@@ -60,42 +58,18 @@ void Astar::initialize(const double cost_threshold, const double step_cost_weigh
                 if (std::isnan(ground_height)) { ground_height = std::numeric_limits<float>::lowest(); }
                 if (std::isnan(ceiling_height)) { ceiling_height =  std::numeric_limits<float>::max(); }
 
-                // 计算离散化的高度索引
-                // double z = static_cast<int>(ground_height / resolution_); // 这里是因为xy是已经被index化了，这里需要把z也给同样index化
-                // Astar max_layers_: 8, max_x_: 150, max_y_: 285
-                // 创建节点
-                // grid_map_[i][j][k] = Node(Eigen::Vector3i(z, j, k), nullptr); // 这里的i是layer，j是row，k是col，z是高度
                 grid_map_[i][j][k] = Node(Eigen::Vector3i(i, j, k), nullptr); // 这里的i是layer，j是row，k是col，z是高度
                 grid_map_[i][j][k].cost = cost;
                 grid_map_[i][j][k].height = ground_height;
                 grid_map_[i][j][k].layer = i;
-                // if (ground_height > 0 && cost < 20 && i == 1)
-                // {
-                //   printf("Node at layer %d, row %d, col %d initialized with cost %.2f and height %.2f\n", i, j, k, cost, ground_height);
-                // }
-                
-                
-                // 计算 ele (高程差信息)
-                // 使用天花板和地面的高度差作为 ele
-                // double interval = ceiling_height - ground_height;
-                // if (std::isfinite(interval) && interval > 0) {
-                //     grid_map_[i][j][k].ele = interval;
-                // } else {
-                //     grid_map_[i][j][k].ele = 0.0;
-                // }
             }
         }
     }
-
     search_layers_offset_.clear(); 
-    // search_layers_offset_.emplace_back(0); // 包括当前层
     for (int i = 0; i < search_layer_depth_; ++i) {
         search_layers_offset_.emplace_back(-(i + 1));
         search_layers_offset_.emplace_back(i + 1);
     }
-
-
-    // TODO: 搜索过程中单独判断NAN
 }
 
 void Astar::reset() {
@@ -134,7 +108,7 @@ bool Astar::search(const Index& start, const Index& goal) {
     }
     auto start_node = &grid_map_[start_deal[0]][start_deal[1]][start_deal[2]]; 
     auto goal_node = &grid_map_[goal_deal[0]][goal_deal[1]][goal_deal[2]];     
-    // 需要把目标转换到我的grid——map中的一个指定node上去，这里的resolution是相当于你输入的z坐标落到的层上，就是每一层的高度
+    // DEBUG 信息, 打印起点和终点信息
     // printf("Astar start node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", start_node->idx[0], start_node->idx[1], start_node->idx[2], start_node->cost, start_node->height);
     // printf("Astar goal node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", goal_node->idx[0], goal_node->idx[1], goal_node->idx[2], goal_node->cost, goal_node->height);
     start_node->g = 0.0;
@@ -144,7 +118,7 @@ bool Astar::search(const Index& start, const Index& goal) {
         return false;
     }
 
-    std::priority_queue<Node*, std::vector<Node*>, NodeCompare> open_set;
+    std::priority_queue<Node*, std::vector<Node*>, NodeCompare> open_set; // 优先队列，存储待访问节点
     std::unordered_map<int, Node*> closed_set; // 已访问节点
 
     open_set.push(start_node);
@@ -155,9 +129,8 @@ bool Astar::search(const Index& start, const Index& goal) {
   while (!open_set.empty()) {
     // 1. 取出最优节点
     Node* current_node = open_set.top();
-    // printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
-    //        current_node->idx[0], current_node->idx[1], current_node->idx[2],
-    //        current_node->g, current_node->f, current_node->cost, current_node->height);
+
+    // DEBUG用
     if (current_node->height > 0.3) {
     printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
            current_node->idx[0], current_node->idx[1], current_node->idx[2],
@@ -168,10 +141,6 @@ bool Astar::search(const Index& start, const Index& goal) {
     // 2. 检查是否到达目标，若到达了则从fringe中回溯路径
     if (current_node->idx == goal_node->idx) {
       while (current_node->parent != nullptr) {
-        // search_result_.emplace_back(Eigen::Vector3i(
-        //     current_node->layer, current_node->idx[1],
-        //     current_node->idx[2]));
-        // 将idx中的layer值修改为height值
         current_node->idx[0] = static_cast<int>(current_node->height * 100);
         path_.emplace_back(current_node->idx);
         current_node = current_node->parent;
@@ -185,7 +154,7 @@ bool Astar::search(const Index& start, const Index& goal) {
     // 3. 记录该节点已被访问
     closed_set[getHash(current_node->idx)] = current_node;
 
-    // 5. 拓展邻居节点
+    // 4. 拓展邻居节点
     int i, j, layer = 0;
     double height_current = current_node->height;
     double tentative_g = 0.0;
@@ -194,7 +163,6 @@ bool Astar::search(const Index& start, const Index& goal) {
       i = current_node->idx[1] + neighbor[1]; // x 方向偏移
       j = current_node->idx[2] + neighbor[2]; // y 方向偏移
       layer = current_node->idx[0] + neighbor[0]; // layer 方向偏移
-
 
       if (i < 0 || i >= max_y_ || j < 0 || j >= max_x_ || layer < 0 || layer >= max_layers_) {
         continue;
@@ -262,8 +230,4 @@ double Astar::getHeuristic(const Node* node1, const Node* node2) const {
 
     return cost;
 }
-
-
-
-
 }
