@@ -36,7 +36,6 @@ public:
         f = std::numeric_limits<double>::max();
         parent = nullptr;
     }
-
     // TODO: tomography的idx是layer, col, row，必须保持一致；顺便给MapLayers做一个Index索引的接口
 
     Index idx = Index(0, 0, 0);  // layer, row, col
@@ -44,11 +43,8 @@ public:
     double g = std::numeric_limits<double>::max(); // 累积到该节点的g(n)
     double f = std::numeric_limits<double>::max(); // 估计的总代价f(n) = g(n) + h(n)
 
-    // 真的需要吗？
-
     double height = 0.0; // 高度
     double cost = 0.0; // 代价
-    int layer = 0;
 };
 
 struct NodeCompare {
@@ -79,10 +75,7 @@ private:
     double getHeuristic(const Node* node1, const Node* node2) const;
 
     int getHash(const Index idx) const;
-    int decideLayer(const Node* cur_node) const;
     void reset();
-
-
 
     int max_x_ = 0;
     int max_y_ = 0;
@@ -95,20 +88,11 @@ private:
     int search_layer_depth_ = 1;
     std::vector<int> search_layers_offset_;
     std::vector<Index> nearby_cells_offset_;
-    std::vector<Index> nearby_layers_offset_;
     
-
-
     HeuristicType h_type_ = kEuclidean;
 
     TomographyLayers tomography_;
     Path path_;
-
-
 };
-
 }
-
-
-
 #endif //FINENAV2D_A_STAR_HPP

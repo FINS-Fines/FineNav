@@ -100,51 +100,77 @@ void PctPlanner::publishTomography() const {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     colored_cloud->reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers_num);
 
-    // 2. 填充点云数据（按高度着色）
+    // // 2. 填充点云数据（按高度着色）
+    // for (size_t k = 0; k < layers_num; ++k) {
+    //     // 分层着色
+    //     float hue = static_cast<float>(k) / layers_num * 360.0f;
+
+    //     // 将HSV转换为RGB (H:0-360, S:1.0, V:1.0)
+    //     float c = 1.0f;
+    //     float x = c * (1.0f - fabs(fmod(hue / 60.0f, 2.0f) - 1.0f));
+    //     float m = 0.0f;
+
+    //     float r, g, b;
+    //     if (hue < 60) {
+    //         r = c;
+    //         g = x;
+    //         b = 0;
+    //     } else if (hue < 120) {
+    //         r = x;
+    //         g = c;
+    //         b = 0;
+    //     } else if (hue < 180) {
+    //         r = 0;
+    //         g = c;
+    //         b = x;
+    //     } else if (hue < 240) {
+    //         r = 0;
+    //         g = x;
+    //         b = c;
+    //     } else if (hue < 300) {
+    //         r = x;
+    //         g = 0;
+    //         b = c;
+    //     } else {
+    //         r = c;
+    //         g = 0;
+    //         b = x;
+    //     }
+
+    //     // 转换为0-255范围
+    //     uint8_t R = static_cast<uint8_t>((r + m) * 255);
+    //     uint8_t G = static_cast<uint8_t>((g + m) * 255);
+    //     uint8_t B = static_cast<uint8_t>((b + m) * 255);
+
+    //     for (int x = 0; x < tomography_->getMapDimX(); ++x) {
+    //         for (int y = 0; y < tomography_->getMapDimY(); ++y) {
+    //             if (std::isnan(layers.ground(x, y, k))) {
+    //                 continue;
+    //             }
+
+    //             pcl::PointXYZRGB point;
+    //             // 坐标转换
+    //             point.x =
+    //                 tomography_->getCenter()[0] + (x - tomography_->getMapDimX() / 2) * tomography_->getResolution();
+    //             point.y =
+    //                 tomography_->getCenter()[1] + (y - tomography_->getMapDimY() / 2) * tomography_->getResolution();
+    //             point.z = layers.ground(x, y, k);
+
+    //             // set color option
+    //             point.r = R;
+    //             point.g = G;
+    //             point.b = B;
+
+    //             colored_cloud->push_back(point);
+    //         }
+    //     }
+    // }
+
+    // 2.2 按照cost着色点云，高cost红色，低cost蓝色
     for (size_t k = 0; k < layers_num; ++k) {
-        // 分层着色
-        float hue = static_cast<float>(k) / layers_num * 360.0f;
-
-        // 将HSV转换为RGB (H:0-360, S:1.0, V:1.0)
-        float c = 1.0f;
-        float x = c * (1.0f - fabs(fmod(hue / 60.0f, 2.0f) - 1.0f));
-        float m = 0.0f;
-
-        float r, g, b;
-        if (hue < 60) {
-            r = c;
-            g = x;
-            b = 0;
-        } else if (hue < 120) {
-            r = x;
-            g = c;
-            b = 0;
-        } else if (hue < 180) {
-            r = 0;
-            g = c;
-            b = x;
-        } else if (hue < 240) {
-            r = 0;
-            g = x;
-            b = c;
-        } else if (hue < 300) {
-            r = x;
-            g = 0;
-            b = c;
-        } else {
-            r = c;
-            g = 0;
-            b = x;
-        }
-
-        // 转换为0-255范围
-        uint8_t R = static_cast<uint8_t>((r + m) * 255);
-        uint8_t G = static_cast<uint8_t>((g + m) * 255);
-        uint8_t B = static_cast<uint8_t>((b + m) * 255);
-
         for (int x = 0; x < tomography_->getMapDimX(); ++x) {
             for (int y = 0; y < tomography_->getMapDimY(); ++y) {
-                if (std::isnan(layers.ground(x, y, k))) {
+                if (std::isnan(layers.trav_cost(x, y, k))) {
                     continue;
                 }
 
@@ -156,7 +182,18 @@ void PctPlanner::publishTomography() const {
                     tomography_->getCenter()[1] + (y - tomography_->getMapDimY() / 2) * tomography_->getResolution();
                 point.z = layers.ground(x, y, k);
 
-                // set color option
+                // cost to color
+                float cost = layers.trav_cost(x, y, k);
+                if (cost > tomography_config.cost_barrier) {
+                    cost = tomography_config.cost_barrier;
+                }
+                float ratio = cost / tomography_config.cost_barrier;
+
+                // 高cost红色，低cost蓝色
+                uint8_t R = static_cast<uint8_t>(ratio * 255);
+                uint8_t G = static_cast<uint8_t>(0);
+                uint8_t B = static_cast<uint8_t>((1 - ratio) * 255);
+
                 point.r = R;
                 point.g = G;
                 point.b = B;
@@ -165,6 +202,8 @@ void PctPlanner::publishTomography() const {
             }
         }
     }
+
+
 
     // 3. 转换并发布点云
     sensor_msgs::msg::PointCloud2 cloud_msg;
