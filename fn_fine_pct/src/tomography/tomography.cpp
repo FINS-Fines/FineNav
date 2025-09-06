@@ -170,12 +170,13 @@ void Tomography::computeGradients() {
  *
  *
  */
+// TODO: 重写COST逻辑
 void Tomography::computeTraversability() {
-    float step_stand = 1.2f * config_.resolution * std::tan(config_.slope_max * M_PI / 180.0f);
-    float step_stand_sq = step_stand * step_stand;
-    float step_cross_sq = config_.step_max * config_.step_max;
-    int standable_th = static_cast<int>(config_.standable_ratio *
-        (2 * config_.half_kernel_size + 1) * (2 * config_.half_kernel_size + 1)) - 1;
+    // float step_stand = 1.2f * config_.resolution * std::tan(config_.slope_max * M_PI / 180.0f); // 这个 1.2 是啥？
+    // float step_stand_sq = step_stand * step_stand;
+    // float step_cross_sq = config_.step_max * config_.step_max;
+    // int standable_th = static_cast<int>(config_.standable_ratio *
+    //     (2 * config_.half_kernel_size + 1) * (2 * config_.half_kernel_size + 1)) - 1;
 
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
@@ -189,37 +190,15 @@ void Tomography::computeTraversability() {
                     continue;
                 }
 
-                // Add cost based on interval
-                trav_cost_(i, j, s) += std::max(0.0f, 20.0f * (config_.interval_free - interval));
-
-                // Check standable condition
-                if (grad_mag_sq_(i, j, s) <= step_stand_sq) {
-                    trav_cost_(i, j, s) += 15.0f * grad_mag_sq_(i, j, s) / step_stand_sq;
-                    continue;
-                }
-
-                // Check crossable condition
-                if (grad_mag_max_(i, j, s) <= step_cross_sq) {
-                    int standable_grids = 0;
-                    for (int dy = -config_.half_kernel_size; dy <= config_.half_kernel_size; ++dy) {
-                        for (int dx = -config_.half_kernel_size; dx <= config_.half_kernel_size; ++dx) {
-                            int ni = i + dx;
-                            int nj = j + dy;
-                            if (ni < 0 || ni >= map_dim_x_ || nj < 0 || nj >= map_dim_y_) {
-                                continue;
-                            }
-                            if (grad_mag_sq_(ni, nj, s) < step_stand_sq) {
-                                standable_grids++;
-                            }
-                        }
-                    }
-                    if (standable_grids < standable_th) {
-                        trav_cost_(i, j, s) = config_.cost_barrier;
-                    } else {
-                        trav_cost_(i, j, s) += 20.0f * grad_mag_max_(i, j, s) / step_cross_sq;
-                    }
+                // Add cost based on slope
+                float tan_theta_sq = grad_mag_sq_(i, j, s);
+                float tan_max_sq = std::tan(config_.slope_max) * std::tan(config_.slope_max);
+                if (tan_theta_sq <= tan_max_sq) {
+                    trav_cost_(i, j, s) += config_.slope_cost_ratio * (tan_theta_sq / tan_max_sq);
+                    // Grad_map_sq_ 为  单位距离内的高度变化率的平方 
                 } else {
                     trav_cost_(i, j, s) = config_.cost_barrier;
+                    continue;
                 }
             }
         }

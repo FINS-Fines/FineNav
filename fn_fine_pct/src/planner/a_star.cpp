@@ -105,8 +105,8 @@ bool Astar::search(const Index& start, const Index& goal) {
     auto start_node = &grid_map_[start_deal[0]][start_deal[1]][start_deal[2]];
     auto goal_node = &grid_map_[goal_deal[0]][goal_deal[1]][goal_deal[2]];
     // DEBUG 信息, 打印起点和终点信息
-    // printf("Astar start node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", start_node->idx[0], start_node->idx[1], start_node->idx[2], start_node->cost, start_node->height);
-    // printf("Astar goal node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", goal_node->idx[0], goal_node->idx[1], goal_node->idx[2], goal_node->cost, goal_node->height);
+    printf("Astar start node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", start_node->idx[0], start_node->idx[1], start_node->idx[2], start_node->cost, start_node->height);
+    printf("Astar goal node: layer %d, row %d, col %d, cost %.2f, height %.2f\n", goal_node->idx[0], goal_node->idx[1], goal_node->idx[2], goal_node->cost, goal_node->height);
     start_node->g = 0.0;
 
     if (start_node->cost > cost_threshold_ || goal_node->cost > cost_threshold_) {
