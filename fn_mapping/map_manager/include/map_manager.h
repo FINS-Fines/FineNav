@@ -19,11 +19,17 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 
 #include <pluginlib/class_loader.hpp>
-
+#include "octomap_server.hpp"
 #include "grid_map.hpp"
 #include "terrain_analyzer_base.hpp"
 #include "terrain_analyzer_interface.hpp"
 #include "cloud_publish_helper.hpp"
+#include "octomap_msgs/msg/octomap.hpp"
+#include "octomap_msgs/srv/get_octomap.hpp"
+#include "octomap_msgs/srv/bounding_box_query.hpp"
+#include "octomap_msgs/conversions.h"
+
+#include "octomap_ros/conversions.hpp"
 
 
 namespace finenav_2d {
@@ -37,6 +43,7 @@ public:
     void publishLocalMap(const rclcpp::Time& stamp);
     void publishLocalcostMap();
     void AnalyzerInit();
+    void publishBinaryOctoMap(const rclcpp::Time& rostime) const;
 
 private:
     /**
@@ -47,6 +54,7 @@ private:
 
     // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
     std::shared_ptr<GridMap<float>> local_map_;
+    std::shared_ptr<OctoMapServer> global_map_;
     std::unique_ptr<pluginlib::ClassLoader<TerrainAnalyzerBase>> terrain_analyzer_loader_; // 插件加载器需要声明在管理的动态类之前
     std::shared_ptr<TerrainAnalyzerBase> terrain_analyzer_;
     TerrainAnalyzerInterface::Ptr terrain_analyzer_interface_;
@@ -66,6 +74,8 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pub_;      // 发布分析后的ground信息
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr localcost_map_pub_; // 发布局部代价地图
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr test_pub_; // 发布局部地图的点云消息
+    rclcpp::Publisher<octomap_msgs::msg::Octomap>::SharedPtr binary_map_pub_;
+    rclcpp::Publisher< octomap_msgs::msg::Octomap>::SharedPtr full_map_pub_;
 
     finenav_utils::CloudPublishHelper cloud_pub_helper_;
 

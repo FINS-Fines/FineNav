@@ -8,6 +8,7 @@
 #include <functional>
 #include <octomap/octomap.h>
 
+
 namespace finenav_2d {
 
 class OctoMapServer {
@@ -106,6 +107,7 @@ private:
         const Point& original_min,
         const Point& original_max,
         const Point& moved_distance);
+
 
     OcTreeT octree_;
 

@@ -137,7 +137,6 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
 
     // TODO:要不要先把原点放进来
 
-
     // 初始化
     Vector direction (end - origin);
     Vector inv_direction = direction.cwiseInverse();

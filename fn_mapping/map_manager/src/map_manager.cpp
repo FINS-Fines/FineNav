@@ -12,13 +12,21 @@ namespace finenav_2d {
 
 #define NEW_OCCUPIED (std::numeric_limits<float>::infinity())
 
-using std::chrono_literals::operator"" ms;
+using std::chrono_literals::operator"" ms;            //Index比较器
+struct Vector3iCompare {
+    bool operator()(const Eigen::Vector3i& a, const Eigen::Vector3i& b) const {
+        if (a.x() != b.x()) return a.x() < b.x();
+        if (a.y() != b.y()) return a.y() < b.y();
+        return a.z() < b.z();
+    }
+};
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
-    local_map_ = std::make_shared<GridMap<float>>(Length{10.0, 10.0, 10.0}, 0.05);
+    local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
+    global_map_ = std::make_shared<OctoMapServer>(0.05);
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -39,6 +47,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("ground", 10);
     localcost_map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("local_cost_map", 10);
     test_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_test", 10);
+    binary_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_binary", qos);
 
     // 地形分析
     terrain_analyzer_loader_ = std::make_unique<pluginlib::ClassLoader<TerrainAnalyzerBase>>(
@@ -103,6 +112,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         return;
     }
 
+    std::vector<Index> Octomap_indices;           //获取移动后需要处理的栅格索引
+    std::map<Index, float,  Vector3iCompare> temporary_local_map;          //临时存储现在的需要处理的localmap信息
     Position base_posistion, sensor_position;
     base_posistion.x() = base_to_world_transform_stamped.transform.translation.x;
     base_posistion.y() = base_to_world_transform_stamped.transform.translation.y;
@@ -110,9 +121,55 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     sensor_position.x() = sensor_to_world_transform_stamped.transform.translation.x;
     sensor_position.y() = sensor_to_world_transform_stamped.transform.translation.y;
     sensor_position.z() = sensor_to_world_transform_stamped.transform.translation.z;
-    // 移动local_map_
-    local_map_->moveTo(base_posistion);
 
+    //定义回调函数
+    auto callback_in = [&](finenav_2d::OctoMapServer::IteratorBase* it) {              //将local_map_的信息读入global_map_
+        std::cout<<"22222222222"<<std::endl;
+        auto pt = it->getCoordinate();
+        Index idx = local_map_->getIndex(Position(pt.x(),pt.y(),pt.z()));
+        if(!std::isnan(temporary_local_map[idx])) {
+			global_map_->getOctree().updateNode(pt, true);                    // 将Octomap中对应位置设置为占据
+        }else{
+            global_map_->getOctree().updateNode(pt, false);
+        }
+    };
+
+    auto callback_out = [&](finenav_2d::OctoMapServer::IteratorBase* it) {             //将global_map_的信息读入local_map_
+		auto tree = global_map_->getOctree();
+        auto pt = it->getCoordinate();
+        if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
+        	local_map_->atPosition(Position(pt.x(),pt.y(),pt.z()))= pt.z() ;
+        }else{
+            local_map_->atPosition(Position(pt.x(),pt.y(),pt.z())) = NAN ;
+        }
+    };
+
+    OctoMapServer::Point moved_distance(base_posistion.x() - local_map_->getOrigin().x(),               //移动的向量
+                         base_posistion.y() - local_map_->getOrigin().y(),
+                         base_posistion.z() - local_map_->getOrigin().z());
+
+    OctoMapServer::Point original_min(local_map_->getOrigin().x() - local_map_->getLength().x() / 2,         //移动前的地图下边界
+                       local_map_->getOrigin().y() - local_map_->getLength().y() / 2,
+                       local_map_->getOrigin().z() - local_map_->getLength().z() / 2);
+
+    OctoMapServer::Point original_max(local_map_->getOrigin().x() + local_map_->getLength().x() / 2,         //移动前的地图上边界
+                       local_map_->getOrigin().y() + local_map_->getLength().y() / 2,
+                       local_map_->getOrigin().z() + local_map_->getLength().z() / 2);
+
+
+    global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::REMOVED);
+
+    // 移动local_map_
+    local_map_->moveTo(base_posistion , true , Octomap_indices);
+
+    //临时存储
+    for(Index idx : Octomap_indices) {
+        temporary_local_map.insert({idx, local_map_->at(idx)});
+    }
+    //local_map_从global内获取信息
+    global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::REMOVED);
+
+    //进行raycast
     // 将点云变换到世界坐标系
     pcl::PointCloud<pcl::PointXYZ> pc;
     pcl::fromROSMsg(*msg, pc);
@@ -241,6 +298,11 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     cloud_pub_helper_.publish(msg->header.stamp);
 
     publishLocalcostMap();
+
+    //将local_map_出界的数据读入global_map_
+    global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::ADDED);
+    publishBinaryOctoMap(msg->header.stamp);
+
 }
 
 void MapManager::publishLocalcostMap() {
@@ -268,4 +330,16 @@ void MapManager::publishLocalcostMap() {
     }
     localcost_map_pub_->publish(grid_msg);
 }
+
+void MapManager::publishBinaryOctoMap(const rclcpp::Time& rostime) const {
+    octomap_msgs::msg::Octomap map;
+    map.header.frame_id = "map";
+    map.header.stamp = rostime;
+    if (octomap_msgs::binaryMapToMsg(global_map_->getOctree(), map)) {
+        binary_map_pub_->publish(map);
+    } else {
+        RCLCPP_ERROR(get_logger(), "Error serializing OctoMap");
+    }
+}
+
 }
