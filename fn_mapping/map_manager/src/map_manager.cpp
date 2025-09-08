@@ -96,6 +96,8 @@ void MapManager::AnalyzerInit() {
 
 
 void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    // Debug
+    static bool is_globalmap_initialized = false;
 
     // 获取tf
     const std::string sensor_frame = "base_lidar";     // TODO: 这些作为参数给用户
@@ -122,9 +124,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     sensor_position.y() = sensor_to_world_transform_stamped.transform.translation.y;
     sensor_position.z() = sensor_to_world_transform_stamped.transform.translation.z;
 
-    //定义回调函数
-    auto callback_in = [&](finenav_2d::OctoMapServer::IteratorBase* it) {              //将local_map_的信息读入global_map_
-        std::cout<<"22222222222"<<std::endl;
+   //定义回调函数
+    auto callback_in = [&](finenav_2d::OctoMapServer::IteratorBase* it) {              //将local_map_的信息读入global_m
         auto pt = it->getCoordinate();
         Index idx = local_map_->getIndex(Position(pt.x(),pt.y(),pt.z()));
         if(!std::isnan(temporary_local_map[idx])) {
@@ -135,6 +136,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     };
 
     auto callback_out = [&](finenav_2d::OctoMapServer::IteratorBase* it) {             //将global_map_的信息读入local_map_
+        std::cout<<"33333333333333"<<std::endl;
 		auto tree = global_map_->getOctree();
         auto pt = it->getCoordinate();
         if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
@@ -157,17 +159,17 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                        local_map_->getOrigin().z() + local_map_->getLength().z() / 2);
 
 
-    global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::REMOVED);
-
-    // 移动local_map_
-    local_map_->moveTo(base_posistion , true , Octomap_indices);
-
-    //临时存储
-    for(Index idx : Octomap_indices) {
-        temporary_local_map.insert({idx, local_map_->at(idx)});
+    if (is_globalmap_initialized) {
+        global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::REMOVED);
     }
-    //local_map_从global内获取信息
-    global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::REMOVED);
+
+  // 移动local_map_
+  local_map_->moveTo(base_posistion, true, Octomap_indices);
+
+  // //临时存储
+  for(Index idx : Octomap_indices) {
+      temporary_local_map.insert({idx, local_map_->at(idx)});
+  }
 
     //进行raycast
     // 将点云变换到世界坐标系
@@ -183,78 +185,98 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         }
         local_map_->atPosition(end) = NEW_OCCUPIED;
     }
-     for (const auto& p : pc) { // 执行raycasting
+     for (const auto& p : pc) {
+         // 执行raycasting
          std::vector<Index> ray_indices;
          Position end{p.x, p.y,p.z};
-         if (!local_map_->isInside(end)) {
-             continue;
-         }
-
-         //大致判断平面方向
-         int Normal[3] = { 0 , 0 , 0 } ;   //x:0,y:1,z:2,点数稀疏，无效为-1
-         Index end_index = local_map_->getIndex(end);
-         int count_x = 0, count_y = 0 , count_z = 0;
-         for(int i = -1 ; i < 2 ; i++){
-             for(int j = -1 ; j < 2 ; j++){
-                 Index neighbor = end_index + Index(0,i,j);
-                 if(local_map_->isInside(neighbor)) {
-				     if(!std::isnan(local_map_->at(neighbor))){
-                     count_x++;
+         if (local_map_->isInside(end)) {
+             //大致判断平面方向
+             int Normal[3] = { 0 , 0 , 0 } ;   //x:0,y:1,z:2,点数稀疏，无效为-1
+             Index end_index = local_map_->getIndex(end);
+             int count_x = 0, count_y = 0 , count_z = 0;
+             for(int i = -1 ; i < 2 ; i++){
+                 for(int j = -1 ; j < 2 ; j++){
+                     Index neighbor = end_index + Index(0,i,j);
+                     if(local_map_->isInside(neighbor)) {
+                         if(!std::isnan(local_map_->at(neighbor))){
+                             count_x++;
+                         }
                      }
                  }
              }
-         }
 
-         for(int i = -1 ; i < 2 ; i++){
-             for(int j = -1; j < 2 ; j++){
-                 Index neighbor = end_index + Index(i,0,j);
-                 if(local_map_->isInside(neighbor)) {
-				     if(!std::isnan(local_map_->at(neighbor))){
-                     count_y++;
+             for(int i = -1 ; i < 2 ; i++){
+                 for(int j = -1; j < 2 ; j++){
+                     Index neighbor = end_index + Index(i,0,j);
+                     if(local_map_->isInside(neighbor)) {
+                         if(!std::isnan(local_map_->at(neighbor))){
+                             count_y++;
+                         }
                      }
                  }
              }
-         }
 
-         for(int i = -1 ; i < 2 ; i++){
-             for(int j = -1 ; j < 2 ; j++){
-                 Index neighbor = end_index + Index(i,j,0);
-                 if(local_map_->isInside(neighbor)) {
-				     if(!std::isnan(local_map_->at(neighbor))){
-                     count_z++;
+             for(int i = -1 ; i < 2 ; i++){
+                 for(int j = -1 ; j < 2 ; j++){
+                     Index neighbor = end_index + Index(i,j,0);
+                     if(local_map_->isInside(neighbor)) {
+                         if(!std::isnan(local_map_->at(neighbor))){
+                             count_z++;
+                         }
                      }
                  }
              }
-         }
-         if(count_z >= count_x && count_z >= count_y){
-             Normal[2] = 1;
-         }
-         else if(count_y >= count_x && count_y >= count_z){
-             Normal[1] = 1;
-         }
-         else if(count_x >= count_y && count_x >= count_z){
-             Normal[0] = 1;
-         }
+             if(count_z >= count_x && count_z >= count_y){
+                 Normal[2] = 1;
+             }
+             else if(count_y >= count_x && count_y >= count_z){
+                 Normal[1] = 1;
+             }
+             else if(count_x >= count_y && count_x >= count_z){
+                 Normal[0] = 1;
+             }
 
-         if (local_map_->rayCast(sensor_position, end, ray_indices)) {
-             // 遍历光线上的栅格
-             for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                 if(local_map_->at(ray_indices[i])== NEW_OCCUPIED) { // 光线在遇到新增点截断
-                     break;
-                 }
-                 if(Normal[0] == 1 && abs(ray_indices[i].x() - end_index.x()) <= 0) { // x平面
-                     break;
-                 }
-                 if(Normal[1] == 1 && abs(ray_indices[i].y() - end_index.y()) <= 0) { // y平面
-                     break;
-                 }
-                 if(Normal[2] == 1 && abs(ray_indices[i].z() - end_index.z()) <= 0 ) { // z平面
-                     break;
-                 }
+             if (local_map_->rayCast(sensor_position, end, ray_indices)) {
+                 // 遍历光线上的栅格
+                 for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
+                     if(local_map_->at(ray_indices[i])== NEW_OCCUPIED) { // 光线在遇到新增点截断
+                         break;
+                     }
+                     if(Normal[0] == 1 && abs(ray_indices[i].x() - end_index.x()) <= 0) { // x平面
+                         break;
+                     }
+                     if(Normal[1] == 1 && abs(ray_indices[i].y() - end_index.y()) <= 0) { // y平面
+                         break;
+                     }
+                     if(Normal[2] == 1 && abs(ray_indices[i].z() - end_index.z()) <= 0 ) { // z平面
+                         break;
+                     }
 
-                 local_map_->at(ray_indices[i]) = NAN; // 设置为Free
+                     local_map_->at(ray_indices[i]) = NAN; // 设置为Free
+                 }
+             }
+         }else {
+
+             local_map_->rayCast(sensor_position, end, ray_indices);
+                 // 遍历光线上的栅格
+             if (!ray_indices.empty()) {
+             Index border_index = ray_indices.back();
+             Position border_position = local_map_->getPosition(border_index);
+                 for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
+                     if (fabs(p.x-border_position.x()) < 0.05 && abs(ray_indices[i].x() - border_index.x() <=0) ) { // 终点与边界高度差过小需要保护
+                         break;
+                     }
+                     if (fabs(p.y-border_position.y()) < 0.05 && abs(ray_indices[i].y() - border_index.y() <=0 )) { // 终点与边界高度差过小需要保护
+                         break;
+                     }
+                     if (fabs(p.z-border_position.z()) < 0.05 && abs(ray_indices[i].z() - border_index.z() <=0 )) { // 终点与边界高度差过小需要保护
+                         break;
+                     }
+                     local_map_->at(ray_indices[i]) = NAN; // 设置为Free
+                 }
              }
          }
+
      }
     for (const auto& p : pc) { // 再将点云所在栅格设置为Occupied
         Position end{p.x, p.y,p.z};
@@ -262,7 +284,35 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
             continue;
         }
         local_map_->atPosition(end) = p.z; // 栅格中存储点的实际高度
+        //
+        // if (!is_globalmap_initialized) {
+        //     // 初始化global_map_，将local_map_内的点读入
+        //     octomap::point3d point = {p.x, p.y, p.z};
+        //     global_map_->getOctree().updateNode(point, true);
+        // }
     }
+
+    if (!is_globalmap_initialized) {
+        auto min_idx = local_map_->getMinIndex();
+        auto max_idx = local_map_->getMaxIndex();
+        for (int x = min_idx.x(); x <= max_idx.x(); ++x) {
+            for (int y = min_idx.y(); y <= max_idx.y(); ++y) {
+                for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
+                    Index idx(x, y, z);
+                    Position pos = local_map_->getPosition(idx);
+                    if (!std::isnan(local_map_->at(idx))) { // 如果local_map_中该位置为占据
+                        global_map_->getOctree().updateNode(octomap::point3d(pos.x(), pos.y(), pos.z()), true); // 将Octomap中对应位置设置为占据
+                    } else {
+                        global_map_->getOctree().updateNode(octomap::point3d(pos.x(), pos.y(), pos.z()), false); // 将Octomap中对应位置设置为free
+                    }
+                }
+            }
+        }
+
+        is_globalmap_initialized = true;
+    }
+
+
 
     // auto t1 = std::chrono::high_resolution_clock::now();
     // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
@@ -299,7 +349,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     publishLocalcostMap();
 
-    //将local_map_出界的数据读入global_map_
+    // // //将local_map_出界的数据读入global_map_
     global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::ADDED);
     publishBinaryOctoMap(msg->header.stamp);
 

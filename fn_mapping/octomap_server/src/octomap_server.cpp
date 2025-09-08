@@ -50,6 +50,7 @@ void OctoMapServer::traverseMoveDifferenceRegionImpl(
     std::vector<BoundingRegion> regions = calculateMoveDifferenceRegions(
         original_min, original_max, moved_distance);
 
+    static int counter = 0;
     for (size_t i = 0; i < regions.size(); ++i) {
         const BoundingRegion& region = regions[i];
         if (!region.valid) continue;
@@ -60,6 +61,7 @@ void OctoMapServer::traverseMoveDifferenceRegionImpl(
                 end = octree_.end_expand_leafs_bbx(); it != end; ++it) {
                 if (isInMoveDifferenceRegion(original_min, original_max, moved_distance, it.getCoordinate())) {
                     callback(&it);
+                    ++counter;
                 }
             }
         } else {
@@ -67,9 +69,13 @@ void OctoMapServer::traverseMoveDifferenceRegionImpl(
             for (OcTreeT::leaf_bbx_iterator it = octree_.begin_leafs_bbx(region.min, region.max, 0),
                 end = octree_.end_leafs_bbx(); it != end; ++it) {
                 callback(&it);
+                ++counter;
             }
         }
     }
+    std::cout << "=======================================" << std::endl;
+    std::cout << "OctoMapServer::traverseMoveDifferenceRegionImpl()" << "Counter: " << counter << std::endl;
+    std::cout << "========================================" << std::endl;
 }
 
 bool OctoMapServer::isInMoveDifferenceRegion(
