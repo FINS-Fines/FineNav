@@ -85,23 +85,12 @@ int Astar::getHash(const Index idx) const {
 bool Astar::search(const Index& start, const Index& goal) {
     printf("Astar searching...\n");
     path_.clear();  // 清空上次搜索结果
+    // 重置节点状态
+    reset();
 
     Index start_deal = start;
     Index goal_deal = goal;
-    // for (int layer = 0; layer < max_layers_; ++layer) {
-    //     if (start_deal[2] >= tomography_.ground.layers[layer](start_deal[1], start_deal[0]) &&
-    //         start_deal[2] <= tomography_.ceiling.layers[layer](start_deal[1], start_deal[0])) {
-    //         start_deal[2] = layer;
-    //         break;
-    //     }
-    // }
-    // for (int layer = 0; layer < max_layers_; ++layer) {
-    //     if (goal_deal[2] >= tomography_.ground.layers[layer](goal_deal[1], goal_deal[0]) &&
-    //         goal_deal[2] <= tomography_.ceiling.layers[layer](goal_deal[1], goal_deal[0])) {
-    //         goal_deal[2] = layer;
-    //         break;
-    //     }
-    // }
+
     auto start_node = &grid_map_[start_deal[0]][start_deal[1]][start_deal[2]];
     auto goal_node = &grid_map_[goal_deal[0]][goal_deal[1]][goal_deal[2]];
     // DEBUG 信息, 打印起点和终点信息
@@ -125,26 +114,15 @@ bool Astar::search(const Index& start, const Index& goal) {
     while (!open_set.empty()) {
         // 1. 取出最优节点
         Node* current_node = open_set.top();
-
-        // DEBUG用
-        // if (current_node->cost = 0.5) {
-        // printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
-        //        current_node->idx[0], current_node->idx[1], current_node->idx[2],
-        //        current_node->g, current_node->f, current_node->cost, current_node->height);
-        // }
         open_set.pop();
 
         // 2. 检查是否到达目标，若到达了则从fringe中回溯路径
         if (current_node->idx == goal_node->idx) {
             while (current_node->parent != nullptr) {
-                current_node->idx[0] = static_cast<int>(current_node->height * 100);
-                path_.emplace_back(current_node->idx);
+                Index path_idx = current_node->idx;
+                path_idx[0] = static_cast<int>(current_node->height * 100);
+                path_.emplace_back(path_idx);
                 current_node = current_node->parent;
-                // if (current_node->cost = 0.5) {
-                //     printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
-                //            current_node->idx[0], current_node->idx[1], current_node->idx[2], current_node->g,
-                //            current_node->f, current_node->cost, current_node->height);
-                // }
             }
             // 从终点开始回溯，逆转下从起点开始排序
             std::reverse(path_.begin(), path_.end());
@@ -203,6 +181,7 @@ bool Astar::search(const Index& start, const Index& goal) {
     printf("no path found\n");
     return false;
 }
+
 
 // TODO: 检查这里的启发函数实现是否正确
 double Astar::getHeuristic(const Node* node1, const Node* node2) const {
