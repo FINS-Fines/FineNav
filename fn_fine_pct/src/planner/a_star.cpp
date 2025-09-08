@@ -88,20 +88,20 @@ bool Astar::search(const Index& start, const Index& goal) {
 
     Index start_deal = start;
     Index goal_deal = goal;
-    for (int layer = 0; layer < max_layers_; ++layer) {
-        if (start_deal[2] >= tomography_.ground.layers[layer](start_deal[1], start_deal[0]) &&
-            start_deal[2] <= tomography_.ceiling.layers[layer](start_deal[1], start_deal[0])) {
-            start_deal[2] = layer;
-            break;
-        }
-    }
-    for (int layer = 0; layer < max_layers_; ++layer) {
-        if (goal_deal[2] >= tomography_.ground.layers[layer](goal_deal[1], goal_deal[0]) &&
-            goal_deal[2] <= tomography_.ceiling.layers[layer](goal_deal[1], goal_deal[0])) {
-            goal_deal[2] = layer;
-            break;
-        }
-    }
+    // for (int layer = 0; layer < max_layers_; ++layer) {
+    //     if (start_deal[2] >= tomography_.ground.layers[layer](start_deal[1], start_deal[0]) &&
+    //         start_deal[2] <= tomography_.ceiling.layers[layer](start_deal[1], start_deal[0])) {
+    //         start_deal[2] = layer;
+    //         break;
+    //     }
+    // }
+    // for (int layer = 0; layer < max_layers_; ++layer) {
+    //     if (goal_deal[2] >= tomography_.ground.layers[layer](goal_deal[1], goal_deal[0]) &&
+    //         goal_deal[2] <= tomography_.ceiling.layers[layer](goal_deal[1], goal_deal[0])) {
+    //         goal_deal[2] = layer;
+    //         break;
+    //     }
+    // }
     auto start_node = &grid_map_[start_deal[0]][start_deal[1]][start_deal[2]];
     auto goal_node = &grid_map_[goal_deal[0]][goal_deal[1]][goal_deal[2]];
     // DEBUG 信息, 打印起点和终点信息
@@ -172,7 +172,7 @@ bool Astar::search(const Index& start, const Index& goal) {
             auto neighbor_node = &grid_map_[layer][i][j];
 
             if ((neighbor_node->cost > cost_threshold_) ||
-                std::abs(neighbor_node->height - current_node->height) > 1.5) {
+                std::abs(neighbor_node->height - current_node->height) > 0.1) {
                 continue;
             }
 

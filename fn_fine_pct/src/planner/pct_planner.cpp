@@ -12,7 +12,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node(options.argume
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     //TODO: FOR DEBUG
-    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/garage.pcd";
+    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/fine.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
@@ -68,7 +68,7 @@ void PctPlanner::initPlanner() const {
     // voxel滤波
     pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
     voxel_filter.setInputCloud(cloud);
-    voxel_filter.setLeafSize(0.1f, 0.1f, 0.1f);  // 设置体素大小
+    voxel_filter.setLeafSize(tomography_config.resolution/2, tomography_config.resolution/2, tomography_config.resolution/2); // /2 防止出现有地图的点出现 0 0 0 的bug影响效果
     voxel_filter.filter(*cloud);
     RCLCPP_INFO_STREAM(this->get_logger(), "Filtered cloud has " << cloud->size() << " points");
 
@@ -94,7 +94,7 @@ void PctPlanner::publishTomography() const {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     colored_cloud->reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers_num);
 
-    // // 2. 填充点云数据（按高度着色）
+    // 2. 填充点云数据（按高度着色）
     // for (size_t k = 0; k < layers_num; ++k) {
     //     // 分层着色
     //     float hue = static_cast<float>(k) / layers_num * 360.0f;
@@ -224,8 +224,8 @@ void PctPlanner::goalCallback(const geometry_msgs::msg::PoseStamped& msg) {
     // 我需要一个起点和终点
 
     // 创造一个实际系下的起点和终点
-    Eigen::Vector3d start_real = Eigen::Vector3d(21.0, 31.8, 10.0); // 这里用的就是 x y z的输入数据格式
-    Eigen::Vector3d goal_real = Eigen::Vector3d(-21.0, -27.0, 15.0); 
+    Eigen::Vector3d start_real = Eigen::Vector3d(1.45, 1.46, 0.0); // 这里用的就是 x y z的输入数据格式
+    Eigen::Vector3d goal_real = Eigen::Vector3d(0.5, -0.8, 0.6); 
     
     // 创造实际系到地图系的转换
     Eigen::Vector3i start_map, goal_map; // 这里用的格式是 layer, row, col

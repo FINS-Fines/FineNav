@@ -155,12 +155,17 @@ void Tomography::computeGradients() {
                 float diff_y_sq = std::max(diff_y1 * diff_y1, diff_y2 * diff_y2);
 
                 // Store results
-                grad_mag_sq_(i, j, s) = diff_x_sq + diff_y_sq;
-                grad_mag_max_(i, j, s) = std::max(diff_x_sq, diff_y_sq);
+                grad_mag_sq_(i, j, s) = (diff_x_sq + diff_y_sq) / ( 2 * config_.resolution * config_.resolution);
+                // grad_mag_max_(i, j, s) = std::max(diff_x_sq, diff_y_sq)/ (config_.resolution * config_.resolution);
+
+                // if (grad_mag_max_(i, j, s) >= 0.0000 && grad_mag_max_(i, j, s) < 0.30) {
+                //     printf("diff_x_sq: %.3f, diff_y_sq: %.3f\n", diff_x_sq, diff_y_sq);
+                //     printf("slice %d, cell (%d, %d), grad_mag_max: %.3f\n", s, i, j, grad_mag_max_(i, j, s));
+                // }
             }
         }
     }
-}
+}// TODO 之前理解错了
 
 /**
  * @brief 遍历每一个栅格，地形分析
@@ -172,12 +177,9 @@ void Tomography::computeGradients() {
  */
 // TODO: 重写COST逻辑
 void Tomography::computeTraversability() {
-    // float step_stand = 1.2f * config_.resolution * std::tan(config_.slope_max * M_PI / 180.0f); // 这个 1.2 是啥？
-    // float step_stand_sq = step_stand * step_stand;
-    // float step_cross_sq = config_.step_max * config_.step_max;
-    // int standable_th = static_cast<int>(config_.standable_ratio *
-    //     (2 * config_.half_kernel_size + 1) * (2 * config_.half_kernel_size + 1)) - 1;
 
+    float tan_max_sq = std::tan(config_.slope_max) * std::tan(config_.slope_max);
+    printf("Max traversable slope (tan^2): %.3f\n", tan_max_sq);
     for (int s = 0; s < n_slice_init_; ++s) {
         for (int i = 0; i < map_dim_x_; ++i) {
             for (int j = 0; j < map_dim_y_; ++j) {
@@ -193,7 +195,7 @@ void Tomography::computeTraversability() {
                 // 此处存在问题
                 // Add cost based on slope
                 float tan_theta_sq = grad_mag_sq_(i, j, s);
-                float tan_max_sq = std::tan(config_.slope_max) * std::tan(config_.slope_max);
+                
                 if (tan_theta_sq <= tan_max_sq) {
                     trav_cost_(i, j, s) += config_.slope_cost_ratio * (tan_theta_sq / tan_max_sq);
                     // Grad_map_sq_ 为  单位距离内的高度变化率的平方 
