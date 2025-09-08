@@ -26,7 +26,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
     local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
-    global_map_ = std::make_shared<OctoMapServer>(0.05);
+    global_map_ = std::make_shared<OctoMapServer>(0.1);
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -305,13 +305,17 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                     if (!std::isnan(local_map_->at(idx))) { // 如果local_map_中该位置为占据
                         global_map_->getOctree().updateNode(octomap::point3d(pos.x(), pos.y(), pos.z()), true); // 将Octomap中对应位置设置为占据
                     } else {
-                        global_map_->getOctree().updateNode(octomap::point3d(pos.x(), pos.y(), pos.z()), false); // 将Octomap中对应位置设置为free
+                        // global_map_->getOctree().updateNode(octomap::point3d(pos.x(), pos.y(), pos.z()), false); // 将Octomap中对应位置设置为free
                     }
                 }
             }
         }
+        static int initital_counter = 0;
+        initital_counter++;
+        if (initital_counter >= 10) { // 累积一段时间点云
+            is_globalmap_initialized = true;
+        }
 
-        is_globalmap_initialized = true;
     }
 
 
