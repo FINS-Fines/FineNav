@@ -13,9 +13,25 @@ using PointCloud = pcl::PointCloud<Point>;
  *  @brief tomography算法参数配置
  *  @details 在Tomography初始化时从ROS2参数服务器读取
  */
+
+
+ // Fines 配置使用
+// struct TomographyConfig {
+//     float resolution = 0.1f;       // Map resolution (meters)
+//     float slice_dh = 0.5f;         // Height interval between slices // TODO: 它是如何影响的
+//     float ground_h = 0.0f;         // Ground height
+//     float interval_min = 0.50f;     // Minimum traversable interval
+//     float slope_max = 0.4f;      // Maximum traversable slope (degrees)
+//     float slope_cost_ratio = 10.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的能力
+//     float cost_barrier = 50.0f;  // Cost for non-traversable areas
+//     float safe_margin = 0.2f;      // Safe margin around obstacles // TODO:硬安全边界?
+//     float inflation = 0.1f;        // Inflation radius // TODO:膨胀层？
+// };
+
+// Garage 配置使用
 struct TomographyConfig {
-    float resolution = 0.1f;       // Map resolution (meters)
-    float slice_dh = 0.5f;         // Height interval between slices // TODO: 它是如何影响的
+    float resolution = 0.2f;       // Map resolution (meters) 
+    float slice_dh = 4.0f;         // Height interval between slices // TODO: 它是如何影响的 这个值最好和物理意义上的一个楼层高度相近
     float ground_h = 0.0f;         // Ground height
     float interval_min = 0.50f;     // Minimum traversable interval
     float slope_max = 0.4f;      // Maximum traversable slope (degrees)
@@ -24,7 +40,6 @@ struct TomographyConfig {
     float safe_margin = 0.2f;      // Safe margin around obstacles // TODO:硬安全边界?
     float inflation = 0.1f;        // Inflation radius // TODO:膨胀层？
 };
-
 
 /**
  *  @brief 多层Layer结构

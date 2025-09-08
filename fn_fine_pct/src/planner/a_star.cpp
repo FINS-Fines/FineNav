@@ -89,16 +89,16 @@ bool Astar::search(const Index& start, const Index& goal) {
     Index start_deal = start;
     Index goal_deal = goal;
     for (int layer = 0; layer < max_layers_; ++layer) {
-        if (start_deal[0] >= tomography_.ground.layers[layer](start_deal[1], start_deal[2]) &&
-            start_deal[0] <= tomography_.ceiling.layers[layer](start_deal[1], start_deal[2])) {
-            start_deal[0] = layer;
+        if (start_deal[2] >= tomography_.ground.layers[layer](start_deal[1], start_deal[0]) &&
+            start_deal[2] <= tomography_.ceiling.layers[layer](start_deal[1], start_deal[0])) {
+            start_deal[2] = layer;
             break;
         }
     }
     for (int layer = 0; layer < max_layers_; ++layer) {
-        if (goal_deal[0] >= tomography_.ground.layers[layer](goal_deal[1], goal_deal[2]) &&
-            goal_deal[0] <= tomography_.ceiling.layers[layer](goal_deal[1], goal_deal[2])) {
-            goal_deal[0] = layer;
+        if (goal_deal[2] >= tomography_.ground.layers[layer](goal_deal[1], goal_deal[0]) &&
+            goal_deal[2] <= tomography_.ceiling.layers[layer](goal_deal[1], goal_deal[0])) {
+            goal_deal[2] = layer;
             break;
         }
     }
@@ -140,11 +140,11 @@ bool Astar::search(const Index& start, const Index& goal) {
                 current_node->idx[0] = static_cast<int>(current_node->height * 100);
                 path_.emplace_back(current_node->idx);
                 current_node = current_node->parent;
-                if (current_node->cost = 0.5) {
-                    printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
-                           current_node->idx[0], current_node->idx[1], current_node->idx[2], current_node->g,
-                           current_node->f, current_node->cost, current_node->height);
-                }
+                // if (current_node->cost = 0.5) {
+                //     printf("current node: layer %d, row %d, col %d, g %.2f, f %.2f, cost %.2f, height %.2f\n",
+                //            current_node->idx[0], current_node->idx[1], current_node->idx[2], current_node->g,
+                //            current_node->f, current_node->cost, current_node->height);
+                // }
             }
             // 从终点开始回溯，逆转下从起点开始排序
             std::reverse(path_.begin(), path_.end());
@@ -172,7 +172,7 @@ bool Astar::search(const Index& start, const Index& goal) {
             auto neighbor_node = &grid_map_[layer][i][j];
 
             if ((neighbor_node->cost > cost_threshold_) ||
-                std::abs(neighbor_node->height - current_node->height) > 0.1) {
+                std::abs(neighbor_node->height - current_node->height) > 1.5) {
                 continue;
             }
 

@@ -190,6 +190,7 @@ void Tomography::computeTraversability() {
                     continue;
                 }
 
+                // 此处存在问题
                 // Add cost based on slope
                 float tan_theta_sq = grad_mag_sq_(i, j, s);
                 float tan_max_sq = std::tan(config_.slope_max) * std::tan(config_.slope_max);
