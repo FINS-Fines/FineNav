@@ -26,7 +26,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
     local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
-    global_map_ = std::make_shared<OctoMapServer>(0.1);
+    global_map_ = std::make_shared<OctoMapServer>(0.1); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -137,17 +137,16 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     };
 
     auto callback_out = [&](finenav_2d::OctoMapServer::IteratorBase* it) {             //将global_map_的信息读入local_map_
-  //
-		// auto tree = global_map_->getOctree();
-  //       auto pt = it->getCoordinate();
-  //       Position pos(pt.x(), pt.y(), pt.z());
-  //       if (local_map_->isInside(pos)) { // 八叉树的node中心可能在local_map_外面
-  //           if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
-  //       	    local_map_->atPosition(Position(pos))= pt.z();
-  //           } else {
-  //               local_map_->atPosition(Position(pos)) = NAN;
-  //           }
-  //       }
+		auto tree = global_map_->getOctree();
+        auto pt = it->getCoordinate();
+        Position pos(pt.x(), pt.y(), pt.z());
+        if (local_map_->isInside(pos)) { // 八叉树的node中心可能在local_map_外面
+            if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
+        	    local_map_->atPosition(Position(pos))= pt.z();
+            } else {
+                local_map_->atPosition(Position(pos)) = NAN;
+            }
+        }
     };
 
     OctoMapServer::Point moved_distance(base_posistion.x() - local_map_->getOrigin().x(),               //移动的向量
@@ -165,7 +164,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
   // 移动local_map_
   auto is_localmap_moved = local_map_->moveTo(base_posistion, true, Octomap_indices);
     if (is_globalmap_initialized && is_localmap_moved) { // TODO: 不应该是与边界框有重叠的区域，而应该是完全在边界框内部的区域，内部逻辑需要优化，这样也不需要is_localmap_moved
-        global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::REMOVED);
+        global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::ADDED);
     }
 
   // //临时存储
@@ -357,7 +356,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     //将local_map_出界的数据读入global_map_
     if (is_localmap_moved) {
-        // global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::ADDED);
+        // global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::REMOVED);
     }
     // publishBinaryOctoMap(msg->header.stamp);
     // publishFullOctoMap(msg->header.stamp);
