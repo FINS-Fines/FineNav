@@ -7,15 +7,16 @@
 #include <vector>
 #include <functional>
 #include <octomap/octomap.h>
+#include <octomap/HeightOcTree.h>
 
 
 namespace finenav_2d {
 
 class OctoMapServer {
 public:
-    using OcTreeT = octomap::OcTree;
+    using OcTreeT = octomap::HeightOcTree;
     using Point = octomap::point3d;
-    using IteratorBase = octomap::OcTreeBaseImpl<octomap::OcTreeNode,octomap::AbstractOccupancyOcTree>::iterator_base<octomap::OcTreeNode>;
+    using IteratorBase = octomap::OcTreeBaseImpl<octomap::OcTreeNodeHeight,octomap::AbstractOccupancyOcTree>::iterator_base<octomap::OcTreeNodeHeight>;
     using TraverseCallback = std::function<void(IteratorBase*)>;
 
     struct BoundingRegion {
