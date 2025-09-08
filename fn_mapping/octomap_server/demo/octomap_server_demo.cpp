@@ -6,6 +6,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <octomap/HeightOcTree.h>
 
 #include "octomap_server.hpp"
 #include "cloud_publish_helper.hpp"
@@ -39,11 +40,11 @@ public:
                         static_cast<float>(y)*0.05f,
                         static_cast<float>(z)*0.05f
                         );
-                    octomap_server_.getOctree().updateNode(endpoint, true);
+                    octomap_server_.getOctree().updateNodeHeight(endpoint, endpoint.z()); // 此时已经设置为占据
                 }
             }
         }
-        // octomap_server_.getOctree().prune(); // 剪枝，删除那些8个子节点都是相同状态的父节点
+        octomap_server_.getOctree().prune(); // 剪枝，删除那些8个子节点都是相同状态的父节点
     }
 
 private:
@@ -55,6 +56,11 @@ private:
             if (octomap_server_.getOctree().isNodeOccupied(**it)) { // 先解引用迭代器指针，再解引用迭代器得到节点
                 pub_helper_.addPoint(it->getCoordinate().x(), it->getCoordinate().y(), it->getCoordinate().z());
             }
+            auto max_depth = octomap_server_.getOctree().getTreeDepth();
+            if ((*it)->isHeightSet() && it->getDepth() == max_depth) {
+                float height = (*it)->getHeight();
+                // Do something
+            }
         };
 
         octomap_server_.traverseMoveDifferenceRegion(min_pt_, max_pt_, move_step_, callback, expand_to_max_depth_);
@@ -62,11 +68,15 @@ private:
 
         // 发布地图
         pub_helper_.configure(map_pub_, true, "map");
-        auto tree = octomap_server_.getOctree();
-        for(octomap::OcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
+        const auto& tree = octomap_server_.getOctree();
+        for(octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
         {
             if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
-                pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
+                // 这里也可以获取高度值
+                if (it->isHeightSet() && it.getDepth() == tree.getTreeDepth()) {
+                    pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it->getHeight());
+                }
+
             }
         }
         pub_helper_.publish(this->now());
