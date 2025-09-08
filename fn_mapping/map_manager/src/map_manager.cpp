@@ -48,6 +48,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     localcost_map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("local_cost_map", 10);
     test_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_test", 10);
     binary_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_binary", qos);
+    full_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_full", qos);
 
     // 地形分析
     terrain_analyzer_loader_ = std::make_unique<pluginlib::ClassLoader<TerrainAnalyzerBase>>(
@@ -351,8 +352,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     // // //将local_map_出界的数据读入global_map_
     global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::ADDED);
-    publishBinaryOctoMap(msg->header.stamp);
-
+    // publishBinaryOctoMap(msg->header.stamp);
+    publishFullOctoMap(msg->header.stamp);
 }
 
 void MapManager::publishLocalcostMap() {
@@ -387,6 +388,17 @@ void MapManager::publishBinaryOctoMap(const rclcpp::Time& rostime) const {
     map.header.stamp = rostime;
     if (octomap_msgs::binaryMapToMsg(global_map_->getOctree(), map)) {
         binary_map_pub_->publish(map);
+    } else {
+        RCLCPP_ERROR(get_logger(), "Error serializing OctoMap");
+    }
+}
+
+void MapManager::publishFullOctoMap(const rclcpp::Time& rostime) const {
+    octomap_msgs::msg::Octomap map;
+    map.header.frame_id = "map";;
+    map.header.stamp = rostime;
+    if (octomap_msgs::fullMapToMsg(global_map_->getOctree(), map)) {
+        full_map_pub_->publish(map);
     } else {
         RCLCPP_ERROR(get_logger(), "Error serializing OctoMap");
     }

@@ -6,31 +6,31 @@
 #define FINENAV2D_MAP_MANAGER_H
 
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <pluginlib/class_loader.hpp>
+#include <message_filters/subscriber.h>
+
 #include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
-#include <message_filters/subscriber.h>
-#include <Eigen/Geometry>
+#include <tf2_ros/create_timer_ros.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
-#include <rclcpp/qos.hpp>
-#include <tf2_ros/create_timer_ros.h>
-#include <nav_msgs/msg/occupancy_grid.hpp>
 
-#include <pluginlib/class_loader.hpp>
-#include "octomap_server.hpp"
-#include "grid_map.hpp"
-#include "terrain_analyzer_base.hpp"
-#include "terrain_analyzer_interface.hpp"
-#include "cloud_publish_helper.hpp"
+#include <Eigen/Core>
+#include <pcl_ros/transforms.hpp>
+
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
 #include "octomap_msgs/msg/octomap.hpp"
 #include "octomap_msgs/srv/get_octomap.hpp"
 #include "octomap_msgs/srv/bounding_box_query.hpp"
 #include "octomap_msgs/conversions.h"
-
 #include "octomap_ros/conversions.hpp"
 
+#include "grid_map.hpp"
+#include "octomap_server.hpp"
+#include "terrain_analyzer_base.hpp"
+#include "cloud_publish_helper.hpp"
 
 namespace finenav_2d {
 
@@ -44,6 +44,7 @@ public:
     void publishLocalcostMap();
     void AnalyzerInit();
     void publishBinaryOctoMap(const rclcpp::Time& rostime) const;
+    void publishFullOctoMap(const rclcpp::Time& rostime) const;
 
 private:
     /**
