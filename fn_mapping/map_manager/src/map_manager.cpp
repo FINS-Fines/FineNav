@@ -137,13 +137,15 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     };
 
     auto callback_out = [&](finenav_2d::OctoMapServer::IteratorBase* it) {             //将global_map_的信息读入local_map_
-        std::cout<<"33333333333333"<<std::endl;
 		auto tree = global_map_->getOctree();
         auto pt = it->getCoordinate();
-        if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
-        	local_map_->atPosition(Position(pt.x(),pt.y(),pt.z()))= pt.z() ;
-        }else{
-            local_map_->atPosition(Position(pt.x(),pt.y(),pt.z())) = NAN ;
+        Position pos(pt.x(), pt.y(), pt.z());
+        if (local_map_->isInside(pos)) { // 八叉树的node中心可能在local_map_外面
+            if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
+        	    local_map_->atPosition(Position(pos))= pt.z();
+            } else {
+                local_map_->atPosition(Position(pos)) = NAN;
+            }
         }
     };
 
