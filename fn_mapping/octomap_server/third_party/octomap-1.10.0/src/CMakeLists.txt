@@ -8,6 +8,7 @@ SET (octomap_SRCS
   OcTreeNode.cpp
   OcTreeStamped.cpp
   ColorOcTree.cpp
+  HeightOcTree.cpp
   )
 
 # dynamic and static libs, see CMake FAQ:
@@ -85,4 +86,3 @@ install(TARGETS
 	compare_octrees
 	${INSTALL_TARGETS_DEFAULT_ARGS}
 )
-
