@@ -53,7 +53,7 @@ public:
     virtual bool isNodeCollapsible(const OcTreeNodeHeight* node) const override;
 
     //! Update node with height information
-    void updateNodeHeight(OcTreeNodeHeight* node, float height) const;
+    void updateNodeHeight(const point3d& value, float height);
 
     protected:
     /**
@@ -86,4 +86,3 @@ public:
 } // end namespace
 
 #endif
-
