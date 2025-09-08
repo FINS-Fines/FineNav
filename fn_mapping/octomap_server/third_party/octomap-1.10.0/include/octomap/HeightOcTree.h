@@ -3,7 +3,7 @@
 
 #include <octomap/OcTreeNode.h>
 #include <octomap/OccupancyOcTreeBase.h>
-#include <cfloat>
+#include <iostream>
 
 namespace octomap {
 
@@ -26,6 +26,10 @@ public:
     inline bool isHeightSet() const { return !std::isnan(height); }
     inline float getHeight() const { return height; }
     inline void setHeight(const float h) { height = h; }
+
+    // file I/O
+    std::istream& readData(std::istream &s);
+    std::ostream& writeData(std::ostream &s) const;
 
 protected:
     float height;

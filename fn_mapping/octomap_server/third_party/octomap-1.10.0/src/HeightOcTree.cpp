@@ -3,6 +3,22 @@
 
 namespace octomap {
 
+// node implementation  --------------------------------------
+std::ostream& OcTreeNodeHeight::writeData(std::ostream &s) const {
+    s.write((const char*) &value, sizeof(value)); // occupancy
+    s.write((const char*) &height, sizeof(height)); // height
+
+    return s;
+}
+
+std::istream& OcTreeNodeHeight::readData(std::istream &s) {
+    s.read((char*) &value, sizeof(value)); // occupancy
+    s.read((char*) &height, sizeof(height)); // height
+
+    return s;
+}
+
+// tree implementation  --------------------------------------
 HeightOcTree::HeightOcTree(double in_resolution)
 : OccupancyOcTreeBase<OcTreeNodeHeight>(in_resolution) {
     heightOcTreeMemberInit.ensureLinking();
