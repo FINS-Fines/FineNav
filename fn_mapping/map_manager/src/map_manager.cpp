@@ -137,16 +137,17 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     };
 
     auto callback_out = [&](finenav_2d::OctoMapServer::IteratorBase* it) {             //将global_map_的信息读入local_map_
-		auto tree = global_map_->getOctree();
-        auto pt = it->getCoordinate();
-        Position pos(pt.x(), pt.y(), pt.z());
-        if (local_map_->isInside(pos)) { // 八叉树的node中心可能在local_map_外面
-            if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
-        	    local_map_->atPosition(Position(pos))= pt.z();
-            } else {
-                local_map_->atPosition(Position(pos)) = NAN;
-            }
-        }
+  //
+		// auto tree = global_map_->getOctree();
+  //       auto pt = it->getCoordinate();
+  //       Position pos(pt.x(), pt.y(), pt.z());
+  //       if (local_map_->isInside(pos)) { // 八叉树的node中心可能在local_map_外面
+  //           if (tree.isNodeOccupied(**it)) { // 如果为占据则发布
+  //       	    local_map_->atPosition(Position(pos))= pt.z();
+  //           } else {
+  //               local_map_->atPosition(Position(pos)) = NAN;
+  //           }
+  //       }
     };
 
     OctoMapServer::Point moved_distance(base_posistion.x() - local_map_->getOrigin().x(),               //移动的向量
@@ -161,13 +162,11 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                        local_map_->getOrigin().y() + local_map_->getLength().y() / 2,
                        local_map_->getOrigin().z() + local_map_->getLength().z() / 2);
 
-
-    if (is_globalmap_initialized) {
+  // 移动local_map_
+  auto is_localmap_moved = local_map_->moveTo(base_posistion, true, Octomap_indices);
+    if (is_globalmap_initialized && is_localmap_moved) { // TODO: 不应该是与边界框有重叠的区域，而应该是完全在边界框内部的区域，内部逻辑需要优化，这样也不需要is_localmap_moved
         global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, false, OctoMapServer::MoveDifferenceMode::REMOVED);
     }
-
-  // 移动local_map_
-  local_map_->moveTo(base_posistion, true, Octomap_indices);
 
   // //临时存储
   for(Index idx : Octomap_indices) {
@@ -337,31 +336,44 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         terrain_analyzer_->analyzeTerrain();
     }
 
-    //发布ground分析结果
-    cloud_pub_helper_.configure(ground_pub_, true, world_frame);
-    for(int x = 0 ; x < local_map_->getSize().x() ; x++){
-        for(int y = 0 ; y <local_map_->getSize().y() ; y++){
-            if(!std::isnan(ground_array_(x,y))){
-                Position pos = local_map_->getPosition(Index(x - local_map_->getSize().x() / 2,
-                                                            y - local_map_->getSize().y() / 2,0));
-                cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{255,0,0});
-            }
-        }
-    }
-    cloud_pub_helper_.publish(msg->header.stamp);
+    // //发布ground分析结果
+    // cloud_pub_helper_.configure(ground_pub_, true, world_frame);
+    // for(int x = 0 ; x < local_map_->getSize().x() ; x++){
+    //     for(int y = 0 ; y <local_map_->getSize().y() ; y++){
+    //         if(!std::isnan(ground_array_(x,y))){
+    //             Position pos = local_map_->getPosition(Index(x - local_map_->getSize().x() / 2,
+    //                                                         y - local_map_->getSize().y() / 2,0));
+    //             cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{255,0,0});
+    //         }
+    //     }
+    // }
+    // cloud_pub_helper_.publish(msg->header.stamp);
 
     publishLocalcostMap();
 
-    // // //将local_map_出界的数据读入global_map_
-    global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::ADDED);
+    //将local_map_出界的数据读入global_map_
+    if (is_localmap_moved) {
+        // global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::ADDED);
+    }
     // publishBinaryOctoMap(msg->header.stamp);
-    publishFullOctoMap(msg->header.stamp);
+    // publishFullOctoMap(msg->header.stamp);
+
+    cloud_pub_helper_.configure(ground_pub_, true, "map");
+    auto tree = global_map_->getOctree();
+    for(octomap::OcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
+    {
+        if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
+            cloud_pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
+        }
+    }
+    cloud_pub_helper_.publish(this->now());
+
 }
 
 void MapManager::publishLocalcostMap() {
     std::vector<Index> Ocuppied_cells;
     local_map_->selectCellsByCondition(Ocuppied_cells, [](const float& value) {
-        return value == 1; // 假设 true 表示 Ocuppied
+        return value == 1; // 假设 true 表示 Ocuppied // TODO: 用GridMapIterator实现
     });
 
     auto min_pt = local_map_->getPosition(local_map_->getMinIndex());
