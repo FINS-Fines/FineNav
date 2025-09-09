@@ -344,7 +344,7 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker" # 1. SimpleGoalChecker; 2. StoppedGoalChecker
-      xy_goal_tolerance: 0.05 # Tolerance to meet goal completion criteria (m).
+      xy_goal_tolerance: 0.20 # Tolerance to meet goal completion criteria (m).
       yaw_goal_tolerance: 0.25 # Tolerance to meet goal completion criteria (rad).
 
     FollowPath:
