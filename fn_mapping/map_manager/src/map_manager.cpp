@@ -5,6 +5,7 @@
 #include <chrono>
 #include <Eigen/Core>
 #include <pcl_ros/transforms.hpp>
+#include <unordered_map>
 
 #include "map_manager.h"
 
@@ -13,13 +14,16 @@ namespace finenav_2d {
 #define NEW_OCCUPIED (std::numeric_limits<float>::infinity())
 
 using std::chrono_literals::operator"" ms;            //Index比较器
-struct Vector3iCompare {
-    bool operator()(const Eigen::Vector3i& a, const Eigen::Vector3i& b) const {
-        if (a.x() != b.x()) return a.x() < b.x();
-        if (a.y() != b.y()) return a.y() < b.y();
-        return a.z() < b.z();
+// 为Eigen::Vector3i定义哈希函数
+struct Vector3iHash {
+    std::size_t operator()(const Eigen::Vector3i& v) const {
+        std::size_t h1 = std::hash<int>{}(v.x());
+        std::size_t h2 = std::hash<int>{}(v.y());
+        std::size_t h3 = std::hash<int>{}(v.z());
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
     }
 };
+
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
@@ -116,7 +120,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     }
 
     std::vector<Index> Octomap_indices;           //获取移动后需要处理的栅格索引
-    std::map<Index, float,  Vector3iCompare> temporary_local_map;          //临时存储现在的需要处理的localmap信息
+    std::unordered_map<Index, float, Vector3iHash> temporary_local_map; //临时存储现在的需要处理的localmap信息
     Position base_posistion, sensor_position;
     base_posistion.x() = base_to_world_transform_stamped.transform.translation.x;
     base_posistion.y() = base_to_world_transform_stamped.transform.translation.y;
@@ -357,13 +361,15 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     //将local_map_出界的数据读入global_map_
     if (is_localmap_moved) {
         // global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_in, true, OctoMapServer::MoveDifferenceMode::REMOVED);
+
     }
     // publishBinaryOctoMap(msg->header.stamp);
     // publishFullOctoMap(msg->header.stamp);
 
+
     cloud_pub_helper_.configure(ground_pub_, true, "map");
     auto tree = global_map_->getOctree();
-    for(octomap::OcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
+    for(OctoMapServer::OcTreeT::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
     {
         if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
             cloud_pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
