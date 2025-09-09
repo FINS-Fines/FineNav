@@ -122,13 +122,14 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
     indices.clear();
 
     double min_length = 0.5;
+    double max_length = 5.0;
     auto origin_voxel = getIndex(origin);
     auto last_voxel = getIndex(end);
     auto current_voxel = origin_voxel;
-    // 光线超出地图范围，结束
-    if (!checkIfIndexValid(last_voxel, size_, half_size_)) {
-        return false;
-    }
+//    // 光线超出地图范围，结束
+//    if (!checkIfIndexValid(last_voxel, size_, half_size_)) {
+//        return false;
+//    }
 
     // 光线终点为原点，结束
     //   if (origin_index == last_index) {
@@ -146,6 +147,9 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
     if (length < min_length) {
         return false;
     }
+//    if (length > max_length) {
+//        return false;
+//    }
     //   direction = direction/length;   对方向向量归一化会引入无理数可能导致浮点数精度造成误差
 
     Eigen::Vector3i tMult = {0,0,0};
