@@ -104,6 +104,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // Debug
     static bool is_globalmap_initialized = false;
 
+    auto t0 = std::chrono::high_resolution_clock::now();
+    /************************* 处理点云数据 **************************/
     // 获取tf
     const std::string sensor_frame = "base_lidar";     // TODO: 这些作为参数给用户
     const std::string base_frame = "base_link";
@@ -137,6 +139,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         }
     };
 
+    auto t1 = std::chrono::high_resolution_clock::now();
+    /************************* 移动局部地图 **************************/
     OctoMapServer::Point moved_distance(base_posistion.x() - local_map_->getOrigin().x(),               //移动的向量
                          base_posistion.y() - local_map_->getOrigin().y(),
                          base_posistion.z() - local_map_->getOrigin().z());
@@ -159,10 +163,12 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     }
 
     // 临时存储
-    for(Index idx : moved_indices) { // idx是Removed区域的index，相对于移动后的local_map_原点
+    for(const Index& idx : moved_indices) { // idx是Removed区域的index，相对于移动后的local_map_原点
         temporary_local_map.insert({idx, local_map_->at(idx)});
     }
 
+    auto t2 = std::chrono::high_resolution_clock::now();
+    /************************* 更新局部地图 **************************/
     // 进行raycast
     // 将点云变换到世界坐标系
     pcl::PointCloud<pcl::PointXYZ> pc;
@@ -296,10 +302,28 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         }
     }
 
-    // auto t1 = std::chrono::high_resolution_clock::now();
-    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
-    // RCLCPP_INFO(this->get_logger(), "Point cloud processing time: %ld ms", duration.count());
-    // RCLCPP_INFO(this->get_logger(), "Received point cloud with %zu points", points.size());
+    auto t3 = std::chrono::high_resolution_clock::now();
+    /************************* 地形分析 **************************/
+    // 地形分析
+    if (terrain_analyzer_) {
+        terrain_analyzer_->analyzeTerrain();
+    }
+    publishLocalcostMap(); // 向下游发布占据栅格地图
+
+    auto t4 = std::chrono::high_resolution_clock::now();
+    /************************* 更新全局地图 **************************/
+    //将local_map_出界的数据读入global_map_
+    if (is_localmap_moved) {
+        for (const auto& [idx, value] : temporary_local_map) {
+            Position pos = local_map_->getPosition(idx);
+            global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
+        }
+    }
+
+    auto t5 = std::chrono::high_resolution_clock::now();
+    /************************* 可视化 **************************/
+    // publishBinaryOctoMap(msg->header.stamp);
+    // publishFullOctoMap(msg->header.stamp);
 
     // 发布局部地图（可视化）
     cloud_pub_helper_.configure(local_map_pub_, true, world_frame);
@@ -310,11 +334,6 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         }
     }
     cloud_pub_helper_.publish(msg->header.stamp);
-
-    // 地形分析
-    if (terrain_analyzer_) {
-        terrain_analyzer_->analyzeTerrain();
-    }
 
     // //发布ground分析结果
     // cloud_pub_helper_.configure(ground_pub_, true, world_frame);
@@ -329,20 +348,6 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // }
     // cloud_pub_helper_.publish(msg->header.stamp);
 
-    publishLocalcostMap();
-
-    //将local_map_出界的数据读入global_map_
-    if (is_localmap_moved) {
-        for (const auto& [idx, value] : temporary_local_map) {
-            Position pos = local_map_->getPosition(idx);
-            global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
-        }
-    }
-
-    // publishBinaryOctoMap(msg->header.stamp);
-    // publishFullOctoMap(msg->header.stamp);
-
-
     cloud_pub_helper_.configure(ground_pub_, true, "map");
     auto tree = global_map_->getOctree();
     for(OctoMapServer::OcTreeT::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
@@ -353,6 +358,18 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     }
     cloud_pub_helper_.publish(this->now());
 
+    auto t6 = std::chrono::high_resolution_clock::now();
+
+    RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (ms): \n"
+        << "  TF lookup: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "\n"
+        << "  Move local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "\n"
+        << "  Update local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\n"
+        << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\n"
+        << "  Update global map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"
+        << "  Visualization: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count() << "\n"
+        << " From Input to Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t0).count() << "\n"
+        << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
+    );
 }
 
 void MapManager::publishLocalcostMap() {
