@@ -19,7 +19,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
     local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
-    global_map_ = std::make_shared<OctoMapServer>(0.1); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率
+    global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -123,7 +123,6 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         Position pos(pt.x(), pt.y(), pt.z());
         if (local_map_->isInside(pos)) {  // 八叉树的node中心可能在local_map_外面
             local_map_->atPosition(Position(pos))= (*it)->getHeight();
-            float height = (*it)->getHeight();
         }
     };
 
@@ -150,6 +149,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, true, OctoMapServer::MoveDifferenceMode::ADDED);
     }
 
+    auto t1_b = std::chrono::high_resolution_clock::now();
     // 临时存储
     for(const Index& idx : moved_indices) { // idx是Removed区域的index，相对于移动后的local_map_原点
         temporary_local_map.emplace_back(idx, local_map_->at(idx));
@@ -341,23 +341,26 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     for(OctoMapServer::OcTreeT::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
     {
         if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
-            cloud_pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
+            cloud_pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it->getHeight());
         }
     }
     cloud_pub_helper_.publish(this->now());
 
     auto t6 = std::chrono::high_resolution_clock::now();
 
-    RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (us): \n"
-        << "  TF lookup: " << std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() << "\n"
-        << "  Move local map: " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n"
-        << "  Update local map: " << std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count() << "\n"
-        << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count() << "\n"
-        << "  Update global map: " << std::chrono::duration_cast<std::chrono::microseconds>(t5 - t4).count() << "\n"
-        << "  Visualization: " << std::chrono::duration_cast<std::chrono::microseconds>(t6 - t5).count() << "\n"
-        << " From Input to Output: " << std::chrono::duration_cast<std::chrono::microseconds>(t5 - t0).count() << "\n"
-        << " Total: " << std::chrono::duration_cast<std::chrono::microseconds>(t6 - t0).count() << "\n"
-    );
+    if (is_localmap_moved) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (ms): \n"
+            << "  TF lookup: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "\n"
+            << "  Move local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1_b - t1).count() << "\n"
+            << "  Copy Redundant Data: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1_b).count() << "\n"
+            << "  Update local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\n"
+            << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\n"
+            << "  Update global map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"
+            << "  Visualization: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count() << "\n"
+            << " From Input to Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t0).count() << "\n"
+            << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
+        );
+    }
 }
 
 void MapManager::publishLocalcostMap() {
