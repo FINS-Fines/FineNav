@@ -360,15 +360,15 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     auto t6 = std::chrono::high_resolution_clock::now();
 
-    RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (ms): \n"
-        << "  TF lookup: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "\n"
-        << "  Move local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "\n"
-        << "  Update local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\n"
-        << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\n"
-        << "  Update global map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"
-        << "  Visualization: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count() << "\n"
-        << " From Input to Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t0).count() << "\n"
-        << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
+    RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (us): \n"
+        << "  TF lookup: " << std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() << "\n"
+        << "  Move local map: " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n"
+        << "  Update local map: " << std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count() << "\n"
+        << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count() << "\n"
+        << "  Update global map: " << std::chrono::duration_cast<std::chrono::microseconds>(t5 - t4).count() << "\n"
+        << "  Visualization: " << std::chrono::duration_cast<std::chrono::microseconds>(t6 - t5).count() << "\n"
+        << " From Input to Output: " << std::chrono::duration_cast<std::chrono::microseconds>(t5 - t0).count() << "\n"
+        << " Total: " << std::chrono::duration_cast<std::chrono::microseconds>(t6 - t0).count() << "\n"
     );
 }
 
