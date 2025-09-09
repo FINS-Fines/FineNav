@@ -129,13 +129,12 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     sensor_position.y() = sensor_to_world_transform_stamped.transform.translation.y;
     sensor_position.z() = sensor_to_world_transform_stamped.transform.translation.z;
 
-    auto callback_out = [&](finenav_2d::OctoMapServer::IteratorBase* it) {             //将global_map_的信息读入local_map_
-		auto tree = global_map_->getOctree();
+    auto callback_out = [&](OctoMapServer::IteratorBase* it) { //将global_map_的信息读入local_map_
         auto pt = it->getCoordinate();
         Position pos(pt.x(), pt.y(), pt.z());
-        if (local_map_->isInside(pos)) {
-            // 八叉树的node中心可能在local_map_外面
+        if (local_map_->isInside(pos)) {  // 八叉树的node中心可能在local_map_外面
             local_map_->atPosition(Position(pos))= (*it)->getHeight();
+            float height = (*it)->getHeight();
         }
     };
 
@@ -349,7 +348,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // cloud_pub_helper_.publish(msg->header.stamp);
 
     cloud_pub_helper_.configure(ground_pub_, true, "map");
-    auto tree = global_map_->getOctree();
+    const auto& tree = global_map_->getOctree();
     for(OctoMapServer::OcTreeT::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
     {
         if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
