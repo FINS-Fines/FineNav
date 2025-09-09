@@ -248,20 +248,19 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                  }
              }
          }else {
-
              local_map_->rayCast(sensor_position, end, ray_indices);
-                 // 遍历光线上的栅格
+             // 遍历光线上的栅格
              if (!ray_indices.empty()) {
-             Index border_index = ray_indices.back();
-             Position border_position = local_map_->getPosition(border_index);
+                 Index border_index = ray_indices.back();
+                 Position border_position = local_map_->getPosition(border_index);
                  for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                     if (fabs(p.x-border_position.x()) < 0.05 && abs(ray_indices[i].x() - border_index.x() <=0) ) { // 终点与边界高度差过小需要保护
+                     if (fabs(p.x-border_position.x()) < 0.15 && abs(ray_indices[i].x() - border_index.x() <=1) ) { // 终点与边界高度差过小需要保护
                          break;
                      }
-                     if (fabs(p.y-border_position.y()) < 0.05 && abs(ray_indices[i].y() - border_index.y() <=0 )) { // 终点与边界高度差过小需要保护
+                     if (fabs(p.y-border_position.y()) < 0.15 && abs(ray_indices[i].y() - border_index.y() <=1 )) { // 终点与边界高度差过小需要保护
                          break;
                      }
-                     if (fabs(p.z-border_position.z()) < 0.05 && abs(ray_indices[i].z() - border_index.z() <=0 )) { // 终点与边界高度差过小需要保护
+                     if (fabs(p.z-border_position.z()) < 0.15 && abs(ray_indices[i].z() - border_index.z() <=1 )) { // 终点与边界高度差过小需要保护
                          break;
                      }
                      local_map_->at(ray_indices[i]) = NAN; // 设置为Free
