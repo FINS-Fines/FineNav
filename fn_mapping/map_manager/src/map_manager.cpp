@@ -5,7 +5,6 @@
 #include <chrono>
 #include <Eigen/Core>
 #include <pcl_ros/transforms.hpp>
-#include <unordered_map>
 
 #include "map_manager.h"
 
@@ -13,17 +12,7 @@ namespace finenav_2d {
 
 #define NEW_OCCUPIED (std::numeric_limits<float>::infinity())
 
-using std::chrono_literals::operator"" ms;            //Index比较器
-// 为Eigen::Vector3i定义哈希函数
-struct Vector3iHash {
-    std::size_t operator()(const Eigen::Vector3i& v) const {
-        std::size_t h1 = std::hash<int>{}(v.x());
-        std::size_t h2 = std::hash<int>{}(v.y());
-        std::size_t h3 = std::hash<int>{}(v.z());
-        return h1 ^ (h2 << 1) ^ (h3 << 2);
-    }
-};
-
+using std::chrono_literals::operator"" ms;
 
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
@@ -154,7 +143,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     // 移动local_map_
     std::vector<Index> moved_indices;           //获取移动后需要处理的栅格索引
-    std::unordered_map<Index, float, Vector3iHash> temporary_local_map; //临时存储现在的需要处理的localmap信息
+    std::vector<std::pair<Index, float>> temporary_local_map; //临时存储现在的需要处理的localmap信息
 
     auto is_localmap_moved = local_map_->moveTo(base_posistion, true, moved_indices);
     if (is_globalmap_initialized && is_localmap_moved) { // TODO: 不应该是与边界框有重叠的区域，而应该是完全在边界框内部的区域，内部逻辑需要优化，这样也不需要is_localmap_moved
@@ -163,7 +152,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     // 临时存储
     for(const Index& idx : moved_indices) { // idx是Removed区域的index，相对于移动后的local_map_原点
-        temporary_local_map.insert({idx, local_map_->at(idx)});
+        temporary_local_map.emplace_back(idx, local_map_->at(idx));
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -259,13 +248,13 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                  Index border_index = ray_indices.back();
                  Position border_position = local_map_->getPosition(border_index);
                  for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                     if (fabs(p.x-border_position.x()) < 0.15 && abs(ray_indices[i].x() - border_index.x() <=1) ) { // 终点与边界高度差过小需要保护
+                     if (fabs(p.x-border_position.x()) < 0.15 && abs(ray_indices[i].x() - border_index.x() <=1)) { // 终点与边界高度差过小需要保护
                          break;
                      }
-                     if (fabs(p.y-border_position.y()) < 0.15 && abs(ray_indices[i].y() - border_index.y() <=1 )) { // 终点与边界高度差过小需要保护
+                     if (fabs(p.y-border_position.y()) < 0.15 && abs(ray_indices[i].y() - border_index.y() <=1)) { // 终点与边界高度差过小需要保护
                          break;
                      }
-                     if (fabs(p.z-border_position.z()) < 0.15 && abs(ray_indices[i].z() - border_index.z() <=1 )) { // 终点与边界高度差过小需要保护
+                     if (fabs(p.z-border_position.z()) < 0.15 && abs(ray_indices[i].z() - border_index.z() <=1)) { // 终点与边界高度差过小需要保护
                          break;
                      }
                      local_map_->at(ray_indices[i]) = NAN; // 设置为Free
