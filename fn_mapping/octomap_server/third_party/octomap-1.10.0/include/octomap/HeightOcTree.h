@@ -53,7 +53,9 @@ public:
     virtual bool isNodeCollapsible(const OcTreeNodeHeight* node) const override;
 
     //! Update node with height information
-    void updateNodeHeight(const point3d& value, float height);
+    //! Strongly Recommand Not to call updateNode() directly, use this function instead.
+    //! Note that this does not check whether the node is at maximum tree depth!
+    void updateNodeWithHeight(const point3d& value, float height);
 
     protected:
     /**

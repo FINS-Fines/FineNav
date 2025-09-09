@@ -40,7 +40,7 @@ public:
                         static_cast<float>(y)*0.05f,
                         static_cast<float>(z)*0.05f
                         );
-                    octomap_server_.getOctree().updateNodeHeight(endpoint, endpoint.z()); // 此时已经设置为占据
+                    octomap_server_.getOctree().updateNodeWithHeight(endpoint, endpoint.z()); // 此时已经设置为占据
                 }
             }
         }

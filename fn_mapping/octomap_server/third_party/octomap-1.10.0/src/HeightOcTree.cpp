@@ -42,22 +42,29 @@ bool HeightOcTree::isNodeCollapsible(const OcTreeNodeHeight* node) const {
   return true; // 只有当所有子节点都是空闲时才允许合并
 }
 
-void HeightOcTree::updateNodeHeight(const point3d& value, float height) {
+void HeightOcTree::updateNodeWithHeight(const point3d& value, float height) {
     OcTreeKey key;
     if (!coordToKeyChecked(value, key))
         return;
 
+    OcTreeNodeHeight* node;
+
     if (std::isnan(height)) {
-        // 高度为NAN，设置为空闲
-        OcTreeNodeHeight* node = updateNode(key, false, false);
-        if (node) {
-            node->setHeight(NAN);
-        }
+        // 高度为NAN，记录空闲测量
+        node = updateNode(key, false, false);
     } else {
-        // 高度不是NAN，设置为占据
-        OcTreeNodeHeight* node = updateNode(key, true, false);
-        if (node) {
-            node->setHeight(height);
+        // 高度不是NAN，记录占据测量
+        node = updateNode(key, true, false);
+    }
+
+    if (node) {
+        // 根据节点的实际占据状态决定height设置
+        if (isNodeOccupied(node)) { // 节点是占据的
+            if (!std::isnan(height)) {
+                node->setHeight(height);
+            }
+        } else { // 节点是空闲的
+            node->setHeight(NAN);
         }
     }
 }

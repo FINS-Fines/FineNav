@@ -286,7 +286,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                 for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
                     Index idx(x, y, z);
                     auto pos = local_map_->getPosition(idx);
-                    global_map_->getOctree().updateNodeHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), local_map_->at(idx));
+                    global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), local_map_->at(idx));
                 }
             }
         }
@@ -336,7 +336,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     if (is_localmap_moved) {
         for (const auto& [idx, value] : temporary_local_map) {
             Position pos = local_map_->getPosition(idx);
-            global_map_->getOctree().updateNodeHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
+            global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
         }
     }
 
