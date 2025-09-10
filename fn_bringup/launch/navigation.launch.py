@@ -48,7 +48,7 @@ def generate_launch_description():
 
     nav2_bringup_dir = FindPackageShare(package='nav2_bringup').find('nav2_bringup')
     map_yaml_path = LaunchConfiguration('map', default=os.path.join(bringup_dir,'maps','fins_bot_map.yaml'))
-    
+
     # 暂时修改为SIM的
     nav2_param_path = PythonExpression([
         '"', config_dir, '/nav2_', LaunchConfiguration('navigation_strategy'), '.yaml"'
@@ -56,11 +56,16 @@ def generate_launch_description():
     # rviz_config_dir = os.path.join(nav2_bringup_dir,'rviz','nav2_default_view.rviz')
 
     nav2_bringup = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([nav2_bringup_dir, '/launch', '/navigation_launch.py']),
+        PythonLaunchDescriptionSource([bringup_dir, '/launch', '/navigation_launch.py']),
         launch_arguments={
             'map': map_yaml_path,
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'params_file': nav2_param_path}.items(),
+    )
+    ################### pct_node ###################
+    pct_node = Node(
+        package = 'fn_fine_pct',
+        executable = 'fn_global_planner_node',
     )
 
 
@@ -79,12 +84,14 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     ld.add_action(declare_use_sim_time)
+
     ld.add_action(declare_enable_rviz)
     ld.add_action(declare_nav_strategy)
     # 使用 TimerAction 来控制节点启动顺序 TODO PAREMETERS
 
     ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))
     ld.add_action(TimerAction(period=8.0, actions=[rviz_node]))
+    ld.add_action(TimerAction(period=8.0, actions=[pct_node]))
 
     return ld
 
