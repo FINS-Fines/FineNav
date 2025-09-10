@@ -19,7 +19,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
     local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
-    global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率
+    global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率，暂且虚拟设置global_map_原点在(resolution/2, resolution/2, resolution/2)
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -121,9 +121,11 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     auto callback_out = [&](OctoMapServer::IteratorBase* it) { //将global_map_的信息读入local_map_
         auto pt = it->getCoordinate();
+        auto half_res = local_map_->getResolution() / 2.0;
         Position pos(pt.x(), pt.y(), pt.z());
-        if (local_map_->isInside(pos)) {  // 八叉树的node中心可能在local_map_外面
-            local_map_->atPosition(Position(pos))= (*it)->getHeight();
+        Position pos_adjusted = Position(pos.x() - half_res, pos.y() - half_res, pos.z() - half_res); // 八叉树的root与GridMap原点存在偏移
+        if (local_map_->isInside(pos_adjusted)) {  // 八叉树的node中心可能在local_map_外面
+            local_map_->atPosition(Position(pos_adjusted))= (*it)->getHeight();
         }
     };
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -273,7 +275,9 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                 for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
                     Index idx(x, y, z);
                     auto pos = local_map_->getPosition(idx);
-                    global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), local_map_->at(idx));
+                    auto half_res = local_map_->getResolution() / 2.0;
+                    Position pos_adjusted(pos.x() + half_res, pos.y() + half_res, pos.z() + half_res); // 八叉树的node中心与local_map_的栅格中心有偏移
+                    global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos_adjusted.x(), pos_adjusted.y(), pos_adjusted.z()), local_map_->at(idx));
                 }
             }
         }
@@ -296,8 +300,15 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     /************************* 更新全局地图 **************************/
     // 将local_map_出界的数据读入global_map_
      if (is_localmap_moved) {
+         // std::cout << "==========================================" << std::endl;
+         // std::cout << "removed: region size: " << removed_region.size() << std::endl;
          for (const auto& [pos, value] : removed_region) {
-             global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
+             auto half_res = local_map_->getResolution() / 2.0;
+                Position pos_adjusted(pos.x() + half_res, pos.y() + half_res, pos.z() + half_res); // 八叉树的node中心与local_map_的栅格中心有偏移
+             if (!std::isnan(value)) {
+                global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos_adjusted.x(), pos_adjusted.y(), pos_adjusted.z()), value);
+             }
+             // std::cout << "  pos: " << pos.transpose() << " value: " << value << std::endl;
          }
      }
 
@@ -334,7 +345,10 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     for(OctoMapServer::OcTreeT::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
     {
         if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
-            cloud_pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it->getHeight());
+            auto pt = it.getCoordinate();
+            auto half_res = local_map_->getResolution() / 2.0;
+            octomap::point3d pt_adjusted = octomap::point3d(pt.x() - half_res, pt.y() - half_res, pt.z() - half_res); // 八叉树的node中心与local_map_的栅格中心有偏移
+            cloud_pub_helper_.addPoint(pt_adjusted.x(), pt_adjusted.y(), it->getHeight());
         }
     }
     cloud_pub_helper_.publish(this->now());
@@ -354,6 +368,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
             << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
         );
     }
+
 }
 
 void MapManager::publishLocalcostMap() {
