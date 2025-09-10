@@ -29,9 +29,9 @@ void SimpleTerrainAnalyzer::configure(
     // TODO: 输入参数，决定发布字段
 } // namespace finenav_2d
 
-void SimpleTerrainAnalyzer::analyzeTerrain() {
+void SimpleTerrainAnalyzer::analyzeTerrain(const float robot_pose_z) {
 
-    const float MAX_GRADIENT = 2.3f;            // 最大允许坡度（梯度阈值）
+    const float MAX_GRADIENT = 0.10f;            // 最大允许坡度（梯度阈值）
     const float ROBOT_HEIGHT = 0.4f;            // 机器人最小通过高度
 
     size_t size_x = interface_->sizeX();
@@ -54,13 +54,13 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
             if(!z_values.empty()) {
                 for (auto it = z_values.begin(); it != z_values.end(); ++it) {
                     if (*std::next(it) - *it > ROBOT_HEIGHT) {  //筛选机器人可通过的ground和ceiling
-                        if(fabs(*it) < fabs(nearest_ground)){  //筛选距离机器人最近的ground和ceiling
+                        if(fabs(*it - robot_pose_z) < fabs(nearest_ground - robot_pose_z)){  //筛选距离机器人最近的ground和ceiling
                             nearest_ground = *it;
                         }
                     }
            		}
 
-                if (fabs(z_values.back()) < fabs(nearest_ground)){   //针对最上方的ground（没有ceiling）做一个判断
+                if (fabs(z_values.back() - robot_pose_z) < fabs(nearest_ground - robot_pose_z)){   //针对最上方的ground（没有ceiling）做一个判断
                     nearest_ground = z_values.back();
                     }
             } else {
@@ -97,7 +97,7 @@ void SimpleTerrainAnalyzer::analyzeTerrain() {
                     // 处理特殊值
 					if (!std::isnan(neighbor_ground)) {   // 邻居格子有ground
                         // 计算高度差
-                        float gradient = fabs(current_ground - neighbor_ground)/0.05f;
+                        float gradient = fabs(current_ground - neighbor_ground);
                         if (gradient > MAX_GRADIENT) {
                             terrain_value = 1;
                             break;

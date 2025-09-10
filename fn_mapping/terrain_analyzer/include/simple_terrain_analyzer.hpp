@@ -17,7 +17,7 @@ public:
         std::string name,
         const TerrainAnalyzerInterface::Ptr &map_interface) override;
 
-    void analyzeTerrain() override;
+    void analyzeTerrain(const float robot_pose_z) override;
 
 };
 

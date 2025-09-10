@@ -22,7 +22,7 @@ public:
         std::string name,
         const TerrainAnalyzerInterface::Ptr &map_interface) = 0;
 
-    virtual void analyzeTerrain() = 0;
+    virtual void analyzeTerrain(const float robot_pose_z) = 0;
 
 protected:
     rclcpp::Node::WeakPtr node_;

@@ -38,6 +38,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     // 初始化发布器
     local_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("local_map", 10);
     ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("ground", 10);
+    octomap_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("global_map", 10);
     localcost_map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("local_cost_map", 10);
     test_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("terrain_test", 10);
     binary_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_binary", qos);
@@ -125,7 +126,6 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
             local_map_->atPosition(Position(pos))= (*it)->getHeight();
         }
     };
-
     auto t1 = std::chrono::high_resolution_clock::now();
     /************************* 移动局部地图 **************************/
     OctoMapServer::Point moved_distance(base_posistion.x() - local_map_->getOrigin().x(),               //移动的向量
@@ -144,7 +144,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     std::vector<Index> moved_indices;           //获取移动后需要处理的栅格索引
     std::vector<std::pair<Index, float>> temporary_local_map; //临时存储现在的需要处理的localmap信息
 
-    auto is_localmap_moved = local_map_->moveTo(base_posistion, true, moved_indices);
+    // auto is_localmap_moved = local_map_->moveTo(base_posistion, true, moved_indices);
+    auto is_localmap_moved = local_map_->moveTo(base_posistion);
     if (is_globalmap_initialized && is_localmap_moved) { // TODO: 不应该是与边界框有重叠的区域，而应该是完全在边界框内部的区域，内部逻辑需要优化，这样也不需要is_localmap_moved
         global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, true, OctoMapServer::MoveDifferenceMode::ADDED);
     }
@@ -294,19 +295,19 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     /************************* 地形分析 **************************/
     // 地形分析
     if (terrain_analyzer_) {
-        terrain_analyzer_->analyzeTerrain();
+        terrain_analyzer_->analyzeTerrain(base_posistion.z());
     }
     publishLocalcostMap(); // 向下游发布占据栅格地图
 
     auto t4 = std::chrono::high_resolution_clock::now();
     /************************* 更新全局地图 **************************/
     //将local_map_出界的数据读入global_map_
-    if (is_localmap_moved) {
-        for (const auto& [idx, value] : temporary_local_map) {
-            Position pos = local_map_->getPosition(idx);
-            global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
-        }
-    }
+    // if (is_localmap_moved) {
+    //     for (const auto& [idx, value] : temporary_local_map) {
+    //         Position pos = local_map_->getPosition(idx);
+    //         global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
+    //     }
+    // }
 
     auto t5 = std::chrono::high_resolution_clock::now();
     /************************* 可视化 **************************/
@@ -323,20 +324,20 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     }
     cloud_pub_helper_.publish(msg->header.stamp);
 
-    // //发布ground分析结果
-    // cloud_pub_helper_.configure(ground_pub_, true, world_frame);
-    // for(int x = 0 ; x < local_map_->getSize().x() ; x++){
-    //     for(int y = 0 ; y <local_map_->getSize().y() ; y++){
-    //         if(!std::isnan(ground_array_(x,y))){
-    //             Position pos = local_map_->getPosition(Index(x - local_map_->getSize().x() / 2,
-    //                                                         y - local_map_->getSize().y() / 2,0));
-    //             cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{255,0,0});
-    //         }
-    //     }
-    // }
-    // cloud_pub_helper_.publish(msg->header.stamp);
+    //发布ground分析结果
+    cloud_pub_helper_.configure(ground_pub_, true, world_frame);
+    for(int x = 0 ; x < local_map_->getSize().x() ; x++){
+        for(int y = 0 ; y <local_map_->getSize().y() ; y++){
+            if(!std::isnan(ground_array_(x,y))){
+                Position pos = local_map_->getPosition(Index(x - local_map_->getSize().x() / 2,
+                                                            y - local_map_->getSize().y() / 2,0));
+                cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{255,0,0});
+            }
+        }
+    }
+    cloud_pub_helper_.publish(msg->header.stamp);
 
-    cloud_pub_helper_.configure(ground_pub_, true, "map");
+    cloud_pub_helper_.configure(octomap_pub_, true, "map");
     const auto& tree = global_map_->getOctree();
     for(OctoMapServer::OcTreeT::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
     {
