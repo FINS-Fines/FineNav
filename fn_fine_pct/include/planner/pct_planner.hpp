@@ -26,6 +26,7 @@
 
 #include "Tomography.hpp"
 #include "a_star.hpp"
+#include <tf2_msgs/msg/tf_message.hpp>
 
 using namespace finenav_2d;
 using ComputePathToPose = nav2_msgs::action::ComputePathToPose;
@@ -44,25 +45,24 @@ class PctPlanner : public rclcpp::Node {
   private:
     void initPlanner() const;
     void publishTomography() const;
-    // void sendPathToFollow(const nav_msgs::msg::Path& path);
 
     // 修正Action回调函数的返回类型
     rclcpp_action::GoalResponse handle_goal(
-        const rclcpp_action::GoalUUID& uuid,
+        const rclcpp_action::GoalUUID& uuid, 
         std::shared_ptr<const ComputePathToPose::Goal> goal);
 
     rclcpp_action::CancelResponse handle_cancel(
         const std::shared_ptr<ComputePathGoalHandle> goal_handle);
-
+    
     void handle_accepted(const std::shared_ptr<ComputePathGoalHandle> goal_handle);
-
+    
     void execute(const std::shared_ptr<ComputePathGoalHandle> goal_handle);
 
     std::string pcd_file_path_;
     bool tomography_visualize_;
     bool path_visualize_ = true;
     TomographyConfig tomography_config;
-
+    
     Eigen::Vector3d robot_current_position_;
     std::mutex position_mutex_;
 
@@ -70,13 +70,13 @@ class PctPlanner : public rclcpp::Node {
     std::unique_ptr<Astar> path_finder_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr tomography_pub_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    // rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr tf_sub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
     std::shared_ptr<ComputePathServer> compute_path_server_;
     std::shared_ptr<ComputePathServer2> compute_path_server_2; // 虚假的服务器
 
-    // rclcpp_action::Client<FollowPath>::SharedPtr follow_path_client_;
 };
 
 #endif  // FINENAV2D_PCT_PLANNER_HPP

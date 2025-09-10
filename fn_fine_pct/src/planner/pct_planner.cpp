@@ -17,7 +17,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     // TODO: FOR DEBUG
-    pcd_file_path_ = "/home/fins/Desktop/nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/fine.pcd";
+    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/fine.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
@@ -57,7 +57,6 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     // 模板类型改为 nav2_msgs::action::ComputePathThroughPoses
     compute_path_server_2 = rclcpp_action::create_server<nav2_msgs::action::ComputePathThroughPoses>(
         this, "compute_path_through_poses",
-        // 回调函数中的类型也要同步修改
         [](const rclcpp_action::GoalUUID&, std::shared_ptr<const nav2_msgs::action::ComputePathThroughPoses::Goal>) {
             return rclcpp_action::GoalResponse::REJECT;
         },
@@ -66,21 +65,22 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
         },
         [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<nav2_msgs::action::ComputePathThroughPoses>>
                    goal_handle) {
-            // 这里可以添加实际处理逻辑（如果需要）
         });
-    // follow_path_client_ = rclcpp_action::create_client<FollowPath>(
-    //     this, "follow_path");
 
-    // 订阅里程计获取当前位置
-    odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "odom", 10, [this](const nav_msgs::msg::Odometry::SharedPtr odom_msg) {
+    tf_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
+        "/tf", 10, [this](const tf2_msgs::msg::TFMessage::SharedPtr tf_msg) {
             std::lock_guard<std::mutex> lock(position_mutex_);
-            robot_current_position_[0] = odom_msg->pose.pose.position.x;
-            robot_current_position_[1] = odom_msg->pose.pose.position.y;
-            robot_current_position_[2] = odom_msg->pose.pose.position.z;
+            for (const auto& transform : tf_msg->transforms) {
+                if (transform.header.frame_id == "map" && transform.child_frame_id == "base_link") {
+                    robot_current_position_[0] = transform.transform.translation.x;
+                    robot_current_position_[1] = transform.transform.translation.y;
+                    robot_current_position_[2] = transform.transform.translation.z;
 
-            RCLCPP_DEBUG(this->get_logger(), "Robot current position: x=%.2f, y=%.2f, z=%.2f",
-                         robot_current_position_[0], robot_current_position_[1], robot_current_position_[2]);
+                    RCLCPP_DEBUG(this->get_logger(), "Robot current position: x=%.2f, y=%.2f, z=%.2f",
+                                 robot_current_position_[0], robot_current_position_[1], robot_current_position_[2]);
+                    break;
+                }
+            }
         });
 
     if (path_visualize_) {
@@ -297,52 +297,6 @@ void PctPlanner::publishTomography() const {
 
     tomography_pub_->publish(cloud_msg);
 }
-
-// void PctPlanner::sendPathToFollow(const nav_msgs::msg::Path& path) {
-//     RCLCPP_INFO(this->get_logger(), "Sending path to FollowPath action server");
-
-//     // 创建FollowPath请求
-//     auto goal_msg = FollowPath::Goal();
-//     goal_msg.path = path;
-//     goal_msg.controller_id = "";  // 使用默认控制器
-
-//     // 等待FollowPath服务器就绪
-//     if (!follow_path_client_->wait_for_action_server(std::chrono::seconds(5))) {
-//         RCLCPP_ERROR(this->get_logger(), "FollowPath action server not available");
-//         return;
-//     }
-
-//     // 发送路径给控制器
-//     auto send_goal_options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
-//     send_goal_options.goal_response_callback =
-//         [this](const rclcpp_action::ClientGoalHandle<FollowPath>::SharedPtr & goal_handle) {
-//             if (!goal_handle) {
-//                 RCLCPP_ERROR(this->get_logger(), "FollowPath request rejected");
-//             } else {
-//                 RCLCPP_INFO(this->get_logger(), "FollowPath request accepted");
-//             }
-//         };
-
-//     send_goal_options.result_callback =
-//         [this](const rclcpp_action::ClientGoalHandle<FollowPath>::WrappedResult & result) {
-//             switch (result.code) {
-//                 case rclcpp_action::ResultCode::SUCCEEDED:
-//                     RCLCPP_INFO(this->get_logger(), "Path following completed successfully");
-//                     break;
-//                 case rclcpp_action::ResultCode::ABORTED:
-//                     RCLCPP_ERROR(this->get_logger(), "Path following aborted");
-//                     return;
-//                 case rclcpp_action::ResultCode::CANCELED:
-//                     RCLCPP_INFO(this->get_logger(), "Path following canceled");
-//                     return;
-//                 default:
-//                     RCLCPP_ERROR(this->get_logger(), "Path following failed with unknown code");
-//                     return;
-//             }
-//         };
-
-//     follow_path_client_->async_send_goal(goal_msg, send_goal_options);
-// }
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
