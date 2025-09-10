@@ -142,7 +142,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     // 移动local_map_
     std::vector<std::pair<Position, float>> removed_region; // 被移除的区域
-    auto is_localmap_moved = local_map_->moveTo(base_posistion, true, removed_region);
+    auto is_localmap_moved = local_map_->moveTo(base_posistion, removed_region);
     if (is_globalmap_initialized && is_localmap_moved) { // TODO: 不应该是与边界框有重叠的区域，而应该是完全在边界框内部的区域，内部逻辑需要优化，这样也不需要is_localmap_moved
         global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, true, OctoMapServer::MoveDifferenceMode::ADDED);
     }
