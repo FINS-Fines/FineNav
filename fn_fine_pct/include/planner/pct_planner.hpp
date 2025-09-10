@@ -13,6 +13,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav2_msgs/action/compute_path_to_pose.hpp"
+#include "nav2_msgs/action/compute_path_through_poses.hpp"
 #include "nav2_msgs/action/follow_path.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
@@ -29,10 +30,12 @@
 using namespace finenav_2d;
 using ComputePathToPose = nav2_msgs::action::ComputePathToPose;
 using FollowPath = nav2_msgs::action::FollowPath;
+using ComputePathThroughPoses = nav2_msgs::action::ComputePathThroughPoses;
 
 // 明确声明Action相关类型
 using ComputePathServer = rclcpp_action::Server<ComputePathToPose>;
 using ComputePathGoalHandle = rclcpp_action::ServerGoalHandle<ComputePathToPose>;
+using ComputePathServer2 = rclcpp_action::Server<ComputePathThroughPoses>;
 
 class PctPlanner : public rclcpp::Node {
   public:
@@ -45,21 +48,21 @@ class PctPlanner : public rclcpp::Node {
 
     // 修正Action回调函数的返回类型
     rclcpp_action::GoalResponse handle_goal(
-        const rclcpp_action::GoalUUID& uuid, 
+        const rclcpp_action::GoalUUID& uuid,
         std::shared_ptr<const ComputePathToPose::Goal> goal);
 
     rclcpp_action::CancelResponse handle_cancel(
         const std::shared_ptr<ComputePathGoalHandle> goal_handle);
-    
+
     void handle_accepted(const std::shared_ptr<ComputePathGoalHandle> goal_handle);
-    
+
     void execute(const std::shared_ptr<ComputePathGoalHandle> goal_handle);
 
     std::string pcd_file_path_;
     bool tomography_visualize_;
     bool path_visualize_ = true;
     TomographyConfig tomography_config;
-    
+
     Eigen::Vector3d robot_current_position_;
     std::mutex position_mutex_;
 
@@ -71,7 +74,9 @@ class PctPlanner : public rclcpp::Node {
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
     std::shared_ptr<ComputePathServer> compute_path_server_;
-    rclcpp_action::Client<FollowPath>::SharedPtr follow_path_client_;
+    std::shared_ptr<ComputePathServer2> compute_path_server_2; // 虚假的服务器
+
+    // rclcpp_action::Client<FollowPath>::SharedPtr follow_path_client_;
 };
 
 #endif  // FINENAV2D_PCT_PLANNER_HPP

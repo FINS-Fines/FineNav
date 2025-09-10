@@ -48,32 +48,40 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
 
     // 初始化Action服务器和客户端
     compute_path_server_ = rclcpp_action::create_server<ComputePathToPose>(
-        this,
-        "compute_path_to_pose",
+        this, "compute_path_to_pose",
         std::bind(&PctPlanner::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
         std::bind(&PctPlanner::handle_cancel, this, std::placeholders::_1),
-        std::bind(&PctPlanner::handle_accepted, this, std::placeholders::_1)
-    );
-    
-    follow_path_client_ = rclcpp_action::create_client<FollowPath>(
-        this, "follow_path");
+        std::bind(&PctPlanner::handle_accepted, this, std::placeholders::_1));
+
+    // 创造一个虚假的compute_path_through_poses服务器, 实际没有作用
+    // 模板类型改为 nav2_msgs::action::ComputePathThroughPoses
+    compute_path_server_2 = rclcpp_action::create_server<nav2_msgs::action::ComputePathThroughPoses>(
+        this, "compute_path_through_poses",
+        // 回调函数中的类型也要同步修改
+        [](const rclcpp_action::GoalUUID&, std::shared_ptr<const nav2_msgs::action::ComputePathThroughPoses::Goal>) {
+            return rclcpp_action::GoalResponse::REJECT;
+        },
+        [](const std::shared_ptr<rclcpp_action::ServerGoalHandle<nav2_msgs::action::ComputePathThroughPoses>>) {
+            return rclcpp_action::CancelResponse::REJECT;
+        },
+        [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<nav2_msgs::action::ComputePathThroughPoses>>
+                   goal_handle) {
+            // 这里可以添加实际处理逻辑（如果需要）
+        });
+    // follow_path_client_ = rclcpp_action::create_client<FollowPath>(
+    //     this, "follow_path");
 
     // 订阅里程计获取当前位置
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "odom", 10, 
-        [this](const nav_msgs::msg::Odometry::SharedPtr odom_msg) {
+        "odom", 10, [this](const nav_msgs::msg::Odometry::SharedPtr odom_msg) {
             std::lock_guard<std::mutex> lock(position_mutex_);
             robot_current_position_[0] = odom_msg->pose.pose.position.x;
             robot_current_position_[1] = odom_msg->pose.pose.position.y;
             robot_current_position_[2] = odom_msg->pose.pose.position.z;
 
-            RCLCPP_DEBUG(this->get_logger(), 
-                "Robot current position: x=%.2f, y=%.2f, z=%.2f",
-                robot_current_position_[0],
-                robot_current_position_[1],
-                robot_current_position_[2]);
-        }
-    );
+            RCLCPP_DEBUG(this->get_logger(), "Robot current position: x=%.2f, y=%.2f, z=%.2f",
+                         robot_current_position_[0], robot_current_position_[1], robot_current_position_[2]);
+        });
 
     if (path_visualize_) {
         auto qos2 = rclcpp::QoS(1).transient_local();
@@ -90,36 +98,30 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     RCLCPP_INFO(this->get_logger(), "PCT Planner initialized successfully");
 }
 
-rclcpp_action::GoalResponse PctPlanner::handle_goal(
-    const rclcpp_action::GoalUUID & uuid,
-    std::shared_ptr<const ComputePathToPose::Goal> goal)
-{
+rclcpp_action::GoalResponse PctPlanner::handle_goal(const rclcpp_action::GoalUUID& uuid,
+                                                    std::shared_ptr<const ComputePathToPose::Goal> goal) {
     RCLCPP_INFO(this->get_logger(), "Received path planning request");
     (void)uuid;
     // 可以在这里添加对目标的验证逻辑
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse PctPlanner::handle_cancel(
-    const std::shared_ptr<ComputePathGoalHandle> goal_handle)
-{
+rclcpp_action::CancelResponse PctPlanner::handle_cancel(const std::shared_ptr<ComputePathGoalHandle> goal_handle) {
     RCLCPP_INFO(this->get_logger(), "Received request to cancel path planning");
     (void)goal_handle;
     // 如果可能的话，在这里添加停止规划的逻辑
     return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void PctPlanner::handle_accepted(const std::shared_ptr<ComputePathGoalHandle> goal_handle)
-{
+void PctPlanner::handle_accepted(const std::shared_ptr<ComputePathGoalHandle> goal_handle) {
     // 使用异步方式处理请求，避免阻塞主线程
     std::thread{std::bind(&PctPlanner::execute, this, std::placeholders::_1), goal_handle}.detach();
 }
 
-void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handle)
-{
+void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handle) {
     RCLCPP_INFO(this->get_logger(), "Executing path planning");
     const auto goal = goal_handle->get_goal();
-    
+
     // 获取机器人当前位置作为起点
     Eigen::Vector3d start_real;
     {
@@ -135,25 +137,30 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
     }
 
     // 创建实际系下的起点和终点
-    Eigen::Vector3d goal_real(
-        goal->goal.pose.position.x, 
-        goal->goal.pose.position.y, 
-        goal->goal.pose.position.z
-    ); 
-    
+    Eigen::Vector3d goal_real(goal->goal.pose.position.x, goal->goal.pose.position.y, goal->goal.pose.position.z);
+
     // 转换到地图系
     Eigen::Vector3i start_map, goal_map;
-    start_map[0] = static_cast<int>(start_real[2] / tomography_config.slice_dh); // layer
-    start_map[1] = static_cast<int>(std::round((start_real[1] - tomography_->getCenter()[1]) / tomography_config.resolution)) + tomography_->getMapDimY() / 2; // row
-    start_map[2] = static_cast<int>(std::round((start_real[0] - tomography_->getCenter()[0]) / tomography_config.resolution)) + tomography_->getMapDimX() / 2; // col
-    
-    goal_map[0] = static_cast<int>(goal_real[2] / tomography_config.slice_dh); // layer
-    goal_map[1] = static_cast<int>(std::round((goal_real[1] - tomography_->getCenter()[1]) / tomography_config.resolution)) + tomography_->getMapDimY() / 2; // row
-    goal_map[2] = static_cast<int>(std::round((goal_real[0] - tomography_->getCenter()[0]) / tomography_config.resolution)) + tomography_->getMapDimX() / 2; // col
-    
-    RCLCPP_INFO(this->get_logger(), "Start map idx: layer %d, row %d, col %d", start_map[0], start_map[1], start_map[2]);
+    start_map[0] = static_cast<int>(start_real[2] / tomography_config.slice_dh);  // layer
+    start_map[1] =
+        static_cast<int>(std::round((start_real[1] - tomography_->getCenter()[1]) / tomography_config.resolution)) +
+        tomography_->getMapDimY() / 2;  // row
+    start_map[2] =
+        static_cast<int>(std::round((start_real[0] - tomography_->getCenter()[0]) / tomography_config.resolution)) +
+        tomography_->getMapDimX() / 2;  // col
+
+    goal_map[0] = static_cast<int>(goal_real[2] / tomography_config.slice_dh);  // layer
+    goal_map[1] =
+        static_cast<int>(std::round((goal_real[1] - tomography_->getCenter()[1]) / tomography_config.resolution)) +
+        tomography_->getMapDimY() / 2;  // row
+    goal_map[2] =
+        static_cast<int>(std::round((goal_real[0] - tomography_->getCenter()[0]) / tomography_config.resolution)) +
+        tomography_->getMapDimX() / 2;  // col
+
+    RCLCPP_INFO(this->get_logger(), "Start map idx: layer %d, row %d, col %d", start_map[0], start_map[1],
+                start_map[2]);
     RCLCPP_INFO(this->get_logger(), "Goal map idx: layer %d, row %d, col %d", goal_map[0], goal_map[1], goal_map[2]);
-    
+
     // 执行路径搜索
     bool path_found = path_finder_->search(start_map, goal_map);
     if (!path_found) {
@@ -168,13 +175,17 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
     nav_msgs::msg::Path path_msg;
     path_msg.header.frame_id = "map";
     path_msg.header.stamp = this->now();
-    
+
     for (const auto& idx : path_indices) {
         geometry_msgs::msg::PoseStamped pose;
         pose.header = path_msg.header;
         // 从地图系转换到实际系
-        pose.pose.position.x = (static_cast<double>(idx[2]) - tomography_->getMapDimX() / 2) * tomography_config.resolution + tomography_->getCenter()[0];
-        pose.pose.position.y = (static_cast<double>(idx[1]) - tomography_->getMapDimY() / 2) * tomography_config.resolution + tomography_->getCenter()[1];
+        pose.pose.position.x =
+            (static_cast<double>(idx[2]) - tomography_->getMapDimX() / 2) * tomography_config.resolution +
+            tomography_->getCenter()[0];
+        pose.pose.position.y =
+            (static_cast<double>(idx[1]) - tomography_->getMapDimY() / 2) * tomography_config.resolution +
+            tomography_->getCenter()[1];
         pose.pose.position.z = static_cast<double>(idx[0]) / 100;
         pose.pose.orientation.w = 1.0;  // 无旋转
         path_msg.poses.push_back(pose);
@@ -183,16 +194,13 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
         if (path_visualize_) {
             path_pub_->publish(path_msg);
         }
-
     }
 
     // 返回规划结果
     auto result = std::make_shared<ComputePathToPose::Result>();
     result->path = path_msg;
     // 设置规划时间（根据实际消息结构添加）
-    result->planning_time = rclcpp::Duration::from_nanoseconds(
-        (this->now() - path_msg.header.stamp).nanoseconds()
-    );
+    result->planning_time = rclcpp::Duration::from_nanoseconds((this->now() - path_msg.header.stamp).nanoseconds());
     goal_handle->succeed(result);
     RCLCPP_INFO(this->get_logger(), "Path planning completed successfully");
 }
@@ -211,7 +219,8 @@ void PctPlanner::initPlanner() const {
     // voxel滤波
     pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
     voxel_filter.setInputCloud(cloud);
-    voxel_filter.setLeafSize(tomography_config.resolution/2, tomography_config.resolution/2, tomography_config.resolution/2);
+    voxel_filter.setLeafSize(tomography_config.resolution / 2, tomography_config.resolution / 2,
+                             tomography_config.resolution / 2);
     voxel_filter.filter(*cloud);
     RCLCPP_INFO_STREAM(this->get_logger(), "Filtered cloud has " << cloud->size() << " points");
 
@@ -245,8 +254,10 @@ void PctPlanner::publishTomography() const {
 
                 pcl::PointXYZRGB point;
                 // 坐标转换
-                point.x = tomography_->getCenter()[0] + (x - tomography_->getMapDimX() / 2) * tomography_->getResolution();
-                point.y = tomography_->getCenter()[1] + (y - tomography_->getMapDimY() / 2) * tomography_->getResolution();
+                point.x =
+                    tomography_->getCenter()[0] + (x - tomography_->getMapDimX() / 2) * tomography_->getResolution();
+                point.y =
+                    tomography_->getCenter()[1] + (y - tomography_->getMapDimY() / 2) * tomography_->getResolution();
                 point.z = layers.ground(x, y, k);
 
                 // cost to color
@@ -333,7 +344,7 @@ void PctPlanner::publishTomography() const {
 //     follow_path_client_->async_send_goal(goal_msg, send_goal_options);
 // }
 
-int main(int argc, char**argv) {
+int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions options;
     auto node = std::make_shared<PctPlanner>(options);
@@ -341,4 +352,3 @@ int main(int argc, char**argv) {
     rclcpp::shutdown();
     return 0;
 }
-    
