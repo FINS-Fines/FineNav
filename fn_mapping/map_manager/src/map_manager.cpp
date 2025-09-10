@@ -68,8 +68,8 @@ MapManager::~MapManager() {
             octomap::point3d(pos_adjusted.x(), pos_adjusted.y(), pos_adjusted.z()),
             local_map_->atPosition(pos));
     }
-    global_map_->getOctree().writeBinary("final_map.bt");
-    RCLCPP_INFO(get_logger(), "Final map saved to final_map.bt");
+    global_map_->getOctree().write("final_map.ot");
+    RCLCPP_INFO(get_logger(), "Final map saved to final_map.ot");
 }
 
 void MapManager::AnalyzerInit() {

@@ -43,7 +43,7 @@ public:
      * 读取八叉树文件
      * @param filename 文件路径
      * @return 成功返回true，失败返回false
-     * @note 支持.bt格式
+     * @note 支持.ot格式
      */
     bool openFile(const std::string& filename);
 

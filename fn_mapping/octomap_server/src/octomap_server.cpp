@@ -15,8 +15,8 @@ bool OctoMapServer::openFile(const std::string& filename) {
         return false;
     }
     std::string suffix = filename.substr(filename.length() - 3, 3);
-    if (suffix == ".bt") {
-        if (!octree_.readBinary(filename)) {
+    if (suffix == ".ot") {
+        if (!octree_.read(filename)) {
             return false;
         }
     } else {
