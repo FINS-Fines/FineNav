@@ -68,7 +68,7 @@ void LocalizationManager::OdometryCallback(const nav_msgs::msg::Odometry::Shared
 
     geometry_msgs::msg::TransformStamped transform;
     geometry_msgs::msg::TransformStamped lidar_odom_to_odom;
-    transform.header.stamp = this->now();
+    transform.header.stamp = msg->header.stamp;
     transform.header.frame_id = parent_frame_;
     transform.child_frame_id = child_frame_;
 
@@ -83,7 +83,7 @@ void LocalizationManager::OdometryCallback(const nav_msgs::msg::Odometry::Shared
 
         // 从tf树中获取从 base_lidar 到 base_link 的变换
         try {
-            lidar_odom_to_odom = tf_buffer_->lookupTransform(lidar_odom_frame_, odom_frame_, tf2::TimePointZero);
+            lidar_odom_to_odom = tf_buffer_->lookupTransform(lidar_odom_frame_, odom_frame_, msg->header.stamp);
         } catch (tf2::TransformException& ex) {
             RCLCPP_ERROR(this->get_logger(), "Failed to get transform: %s", ex.what());
             return;
@@ -123,7 +123,7 @@ void LocalizationManager::OdometryCallback(const nav_msgs::msg::Odometry::Shared
         // 从tf树中获取从 odom 到 base_link 的变换
         geometry_msgs::msg::TransformStamped odom_to_base_link;
         try {
-            odom_to_base_link = tf_buffer_->lookupTransform(odom_frame_, base_link_frame_, tf2::TimePointZero);
+            odom_to_base_link = tf_buffer_->lookupTransform(odom_frame_, base_link_frame_, msg->header.stamp);
         } catch (tf2::TransformException& ex) {
             RCLCPP_ERROR(this->get_logger(), "Failed to get transform: %s", ex.what());
             return;
@@ -149,7 +149,7 @@ void LocalizationManager::OdometryCallback(const nav_msgs::msg::Odometry::Shared
 
 void LocalizationManager::PoseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) const {
     geometry_msgs::msg::TransformStamped transform;
-    transform.header.stamp = this->now();
+    transform.header.stamp = msg->header.stamp;
     transform.header.frame_id = parent_frame_;
     transform.child_frame_id = child_frame_;
 
@@ -191,7 +191,7 @@ void LocalizationManager::PoseCallback(const geometry_msgs::msg::PoseWithCovaria
 
             // 尝试获取从 odom 到 base_link 的变换
             try {
-                odom_to_base_link = tf_buffer_->lookupTransform(odom_frame_, base_link_frame_, tf2::TimePointZero);
+                odom_to_base_link = tf_buffer_->lookupTransform(odom_frame_, base_link_frame_, msg->header.stamp);
             } catch (tf2::TransformException& ex) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to get transform: %s", ex.what());
                 return;
