@@ -124,16 +124,16 @@ def generate_launch_description():
         ),
 
         # 启动navigation.launch.py
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                PathJoinSubstitution([launch_dir, 'navigation.launch.py'])
-            ]),
-            launch_arguments={
-                'use_sim_time': LaunchConfiguration('use_sim_time'),
-                'enable_rviz': LaunchConfiguration('enable_rviz'),
-                'navigation_strategy': LaunchConfiguration('navigation_strategy')
-            }.items()
-        )
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource([
+        #         PathJoinSubstitution([launch_dir, 'navigation.launch.py'])
+        #     ]),
+        #     launch_arguments={
+        #         'use_sim_time': LaunchConfiguration('use_sim_time'),
+        #         'enable_rviz': LaunchConfiguration('enable_rviz'),
+        #         'navigation_strategy': LaunchConfiguration('navigation_strategy')
+        #     }.items()
+        # )
     ])
 
     # # 启动foxglove_bridge
