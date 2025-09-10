@@ -58,6 +58,20 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
 
 }
 
+MapManager::~MapManager() {
+    // 保存地图
+    for (auto it = local_map_->begin(); it != local_map_->end(); ++it) {
+        Position pos = it.getPosition();
+        auto half_res = local_map_->getResolution() / 2.0;
+        Position pos_adjusted = {pos.x() + half_res, pos.y() + half_res, pos.z() + half_res};
+        global_map_->getOctree().updateNodeWithHeight(
+            octomap::point3d(pos_adjusted.x(), pos_adjusted.y(), pos_adjusted.z()),
+            local_map_->atPosition(pos));
+    }
+    global_map_->getOctree().writeBinary("final_map.bt");
+    RCLCPP_INFO(get_logger(), "Final map saved to final_map.bt");
+}
+
 void MapManager::AnalyzerInit() {
     passability_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x(), local_map_->getSize().y(), 0);
     ground_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x(), local_map_->getSize().y(), NAN);
