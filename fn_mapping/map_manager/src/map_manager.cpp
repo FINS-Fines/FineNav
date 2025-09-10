@@ -141,19 +141,17 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                        local_map_->getOrigin().z() + local_map_->getLength().z() / 2);
 
     // 移动local_map_
-    std::vector<Index> moved_indices;           //获取移动后需要处理的栅格索引
-    std::vector<std::pair<Index, float>> temporary_local_map; //临时存储现在的需要处理的localmap信息
-
-    // auto is_localmap_moved = local_map_->moveTo(base_posistion, true, moved_indices);
-    auto is_localmap_moved = local_map_->moveTo(base_posistion);
+    std::vector<Position> removed_region;
+    std::vector<std::pair<Position, float>> temporary_local_map;
+    auto is_localmap_moved = local_map_->moveTo(base_posistion, true, removed_region);
     if (is_globalmap_initialized && is_localmap_moved) { // TODO: 不应该是与边界框有重叠的区域，而应该是完全在边界框内部的区域，内部逻辑需要优化，这样也不需要is_localmap_moved
         global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, true, OctoMapServer::MoveDifferenceMode::ADDED);
     }
 
     auto t1_b = std::chrono::high_resolution_clock::now();
     // 临时存储
-    for(const Index& idx : moved_indices) { // idx是Removed区域的index，相对于移动后的local_map_原点
-        temporary_local_map.emplace_back(idx, local_map_->at(idx));
+    for(const Position& pos : removed_region) { // idx是Removed区域的index，相对于移动后的local_map_原点
+        temporary_local_map.emplace_back(pos, local_map_->atPosition(pos));
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -301,13 +299,12 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     auto t4 = std::chrono::high_resolution_clock::now();
     /************************* 更新全局地图 **************************/
-    //将local_map_出界的数据读入global_map_
-    // if (is_localmap_moved) {
-    //     for (const auto& [idx, value] : temporary_local_map) {
-    //         Position pos = local_map_->getPosition(idx);
-    //         global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
-    //     }
-    // }
+    // 将local_map_出界的数据读入global_map_
+     if (is_localmap_moved) {
+         for (const auto& [pos, value] : temporary_local_map) {
+             global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
+         }
+     }
 
     auto t5 = std::chrono::high_resolution_clock::now();
     /************************* 可视化 **************************/

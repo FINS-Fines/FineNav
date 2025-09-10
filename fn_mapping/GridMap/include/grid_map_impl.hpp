@@ -84,12 +84,13 @@ void GridMap<T>::clear() {
 
 template <typename T>
 bool GridMap<T>::moveTo(const Position& position) {
-    std::vector<Index> indices;
-    return moveTo(position, false, indices);
+    std::vector<Position> removed_region;
+    return moveTo(position, false, removed_region);
 }
 
 template <typename T>
-bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<Index>& indices) {
+bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<Position>& removed_region) {
+    removed_region.clear();
 
     // 计算移动了的栅格数
     const auto index_shift = getIndexShiftFromPositionShift(position - origin_, resolution_, inv_resolution_);
@@ -97,21 +98,24 @@ bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::
         return false; // 没有移动
     }
 
-    // 更新移动后的地图状态
-    const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_, inv_resolution_);
-    origin_ += aligned_position_shift;
-    start_index_ = wrapIndexToRange(start_index_ + index_shift, size_); // 地图移动时，逻辑原点在缓冲区中的位置同向移动
-
     // 以移动后的地图作为固定坐标系，获取受移动影响的栅格
-    getDifferenceSet(-index_shift, size_, half_size_, indices);
+    std::vector<Index> indices;
+    getDifferenceSet(index_shift, size_, half_size_, indices);
 
-    if (!keep_removed) {
-        for (const auto& index : indices) {
+    for (const auto& index : indices) {
+        removed_region.emplace_back(getPosition(index));
+
+        if (!keep_removed) {
             if (checkIfIndexValid(index, size_, half_size_)) {
                 data_[getBufferIndex(index, size_, half_size_, start_index_)] = NAN; // 清空数据
             }
         }
     }
+
+    // 更新移动后的地图状态
+    const auto aligned_position_shift = getPositionShiftFromIndexShift(index_shift, resolution_, inv_resolution_);
+    origin_ += aligned_position_shift;
+    start_index_ = wrapIndexToRange(start_index_ + index_shift, size_); // 地图移动时，逻辑原点在缓冲区中的位置同向移动
 
     return true;
 }
