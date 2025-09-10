@@ -108,12 +108,12 @@ bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::
     getDifferenceSet(index_shift, size_, half_size_, indices);
 
     for (const auto& index : indices) {
+        removed_region.emplace_back(getPosition(index), at(index));
         if (!keep_removed) {
             if (checkIfIndexValid(index, size_, half_size_)) {
                 data_[getBufferIndex(index, size_, half_size_, start_index_)] = NAN; // 清空数据
             }
         }
-        removed_region.emplace_back(getPosition(index), at(index));
     }
 
     // 更新移动后的地图状态
