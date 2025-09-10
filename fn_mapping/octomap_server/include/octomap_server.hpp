@@ -40,6 +40,14 @@ public:
     OctoMapServer(const double& res): octree_(res) {}
 
     /**
+     * 读取八叉树文件
+     * @param filename 文件路径
+     * @return 成功返回true，失败返回false
+     * @note 支持.bt格式
+     */
+    bool openFile(const std::string& filename);
+
+    /**
      * @brief 遍历移动差异区域 - 公共接口
      * @param original_min 原始边界框的最小点
      * @param original_max 原始边界框的最大点

@@ -10,6 +10,20 @@
 
 namespace finenav_2d {
 
+bool OctoMapServer::openFile(const std::string& filename) {
+    if (filename.length() <= 3) {
+        return false;
+    }
+    std::string suffix = filename.substr(filename.length() - 3, 3);
+    if (suffix == ".bt") {
+        if (!octree_.readBinary(filename)) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    return true;
+}
 
 void OctoMapServer::traverseMoveDifferenceRegion(
     const Point& original_min,
