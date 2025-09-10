@@ -89,6 +89,11 @@ bool GridMap<T>::moveTo(const Position& position) {
 }
 
 template <typename T>
+bool GridMap<T>::moveTo(const Position& position, std::vector<std::pair<Position, T>>& removed_region) {
+    return moveTo(position, false, removed_region);
+}
+
+template <typename T>
 bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<std::pair<Position, T>>& removed_region) {
     removed_region.clear();
 
@@ -108,9 +113,7 @@ bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::
                 data_[getBufferIndex(index, size_, half_size_, start_index_)] = NAN; // 清空数据
             }
         }
-        else {
-            removed_region.emplace_back(getPosition(index), at(index));
-        }
+        removed_region.emplace_back(getPosition(index), at(index));
     }
 
     // 更新移动后的地图状态
