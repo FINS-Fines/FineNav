@@ -151,7 +151,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     auto t1_b = std::chrono::high_resolution_clock::now();
     // 临时存储
     for(const Position& pos : removed_region) { // idx是Removed区域的index，相对于移动后的local_map_原点
-        temporary_local_map.emplace_back(pos, local_map_->at(pos));
+        temporary_local_map.emplace_back(pos, local_map_->atPosition(pos));
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
