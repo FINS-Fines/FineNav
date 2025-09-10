@@ -84,12 +84,12 @@ void GridMap<T>::clear() {
 
 template <typename T>
 bool GridMap<T>::moveTo(const Position& position) {
-    std::vector<Position> removed_region;
+    std::vector<std::pair<Position, T>> removed_region;
     return moveTo(position, false, removed_region);
 }
 
 template <typename T>
-bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<Position>& removed_region) {
+bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::vector<std::pair<Position, T>>& removed_region) {
     removed_region.clear();
 
     // 计算移动了的栅格数
@@ -103,12 +103,13 @@ bool GridMap<T>::moveTo(const Position& position, const bool keep_removed, std::
     getDifferenceSet(index_shift, size_, half_size_, indices);
 
     for (const auto& index : indices) {
-        removed_region.emplace_back(getPosition(index));
-
         if (!keep_removed) {
             if (checkIfIndexValid(index, size_, half_size_)) {
                 data_[getBufferIndex(index, size_, half_size_, start_index_)] = NAN; // 清空数据
             }
+        }
+        else {
+            removed_region.emplace_back(getPosition(index), at(index));
         }
     }
 

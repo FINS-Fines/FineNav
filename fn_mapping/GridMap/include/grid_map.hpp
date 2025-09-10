@@ -110,11 +110,11 @@ public:
      * @brief 移动地图，这会造成栅格数据的更新
      * @param[in] position 地图原点移动到的新的位置
      * @param[in] keep_removed 是否保留被删除的栅格数据
-     * @param[out] removed_region 移动过程中被删除的位置
+     * @param[out] removed_region 移动过程中被删除的栅格数据及其对应的位置，仅当keep_removed为true时有效
      * @return 如果地图实际发生移动返回true，否则返回false
      * @note 当再次调用moveTo()时，之前返回的indices没有意义
      */
-    bool moveTo(const Position& position, const bool keep_removed, std::vector<Position>& removed_region);
+    bool moveTo(const Position& position, const bool keep_removed, std::vector<std::pair<Position, T>>& removed_region);
 
     /**
      * @brief 光线投射
