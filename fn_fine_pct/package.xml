@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!--
+  ~ Copyright (c) 2025.
+  ~ IWIN-FINS Lab, Shanghai Jiao Tong University, Shanghai, China.
+  ~ All rights reserved.
+  -->
+
+<package format="3">
+    <name>fn_fine_pct</name>
+    <version>0.1.0</version>
+    <description>FinePCT</description>
+
+    <maintainer email="dragon521hope@cug.edu.cn">Your Name</maintainer>
+    <license>Apache License 2.0</license>
+
+    <!-- 编译依赖 -->
+    <buildtool_depend>ament_cmake</buildtool_depend>
+
+    <!-- C++ 依赖 -->
+    <depend>rclcpp</depend>
+    <depend>sensor_msgs</depend>
+    <depend>pcl_conversions</depend>
+    <depend>visualization_msgs</depend>
+    <depend>PCL</depend>
+    <depend>eigen3</depend>
+    <depend>tf2_ros</depend>
+    <depend>geometry_msgs</depend>
+    <depend>nav_msgs</depend>
+
+    <!-- 导出依赖 -->
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>
