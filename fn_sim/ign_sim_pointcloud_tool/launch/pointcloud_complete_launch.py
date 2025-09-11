@@ -13,7 +13,7 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {'target_frame': 'base_link'},  # 目标坐标系
-            {'input_cloud_topic': '/lidar/pointcloud'},  # 与第一个节点输出话题匹配livox/lidar
+            {'input_cloud_topic': '/livox/lidar'},  # 与第一个节点输出话题匹配livox/lidar
             {'output_cloud_topic': 'lidar_TF'},  # 最终输出话题
             {'tf_timeout': 0.1},
             {'base_lidar': 'base_lidar'}  # 激光雷达坐标系
