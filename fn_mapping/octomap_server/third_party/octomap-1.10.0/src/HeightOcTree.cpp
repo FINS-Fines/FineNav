@@ -70,5 +70,5 @@ void HeightOcTree::updateNodeWithHeight(const point3d& value, float height) {
 }
 
 HeightOcTree::StaticMemberInitializer HeightOcTree::heightOcTreeMemberInit;
-
+template class octomap::OccupancyOcTreeBase<octomap::OcTreeNodeHeight>;
 } // end namespace

@@ -68,7 +68,10 @@ private:
 
         // 发布地图
         pub_helper_.configure(map_pub_, true, "map");
-        const auto& tree = octomap_server_.getOctree();
+        OctoMapServer octomap_demo(0.1);
+        octomap_demo.openFile("/home/fins/Desktop/nav_ws/final_map.ot");
+        std::cout<<octomap_demo.getOctree().size()<<std::endl;
+        const auto& tree = octomap_demo.getOctree();
         for(octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
         {
             if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
