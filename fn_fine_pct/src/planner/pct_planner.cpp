@@ -225,7 +225,7 @@ void PctPlanner::initPlanner() const {
             pcl::PointXYZ point;
             point.x = it.getX();  // 获取x坐标
             point.y = it.getY();  // 获取y坐标
-            point.z = it.getZ();  // 获取z坐标（ HeightOcTree的节点z坐标通常是高度）
+            point.z = it->getHeight();
             cloud->push_back(point);
         }
     }
