@@ -217,16 +217,23 @@ void PctPlanner::initPlanner() const {
     // 从八叉树文件加载点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-    OctoMapServer octomap(0.05);
+    OctoMapServer octomap(0.02);
     octomap.openFile(octomap_file_path_);
     const auto& tree = octomap.getOctree();
     for (octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it) {
-        if (tree.isNodeOccupied(*it)) {  // 如果为占据则发布
+
+        auto max_depth = octomap.getOctree().getTreeDepth();
+        if (it->isHeightSet() && it.getDepth() == tree.getTreeDepth()) {
+        // if (tree.isNodeOccupied(*it)) {  // 如果为占据则发布
             pcl::PointXYZ point;
             point.x = it.getX();  // 获取x坐标
             point.y = it.getY();  // 获取y坐标
             point.z = it->getHeight();
             cloud->push_back(point);
+
+            if(std::isnan(it->getHeight())) {
+                RCLCPP_WARN(this->get_logger(), "!!!!!! Height is NaN at (%f, %f)", it.getX(), it.getY());
+            }
         }
     }
     RCLCPP_INFO_STREAM(this->get_logger(),

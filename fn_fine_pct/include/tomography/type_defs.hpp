@@ -20,9 +20,9 @@ struct TomographyConfig {
     float resolution = 0.05f;       // Map resolution (meters)
     float slice_dh = 0.5f;         // Height interval between slices // TODO: 它是如何影响的
     float ground_h = 0.0f;         // Ground height
-    float interval_min = 0.50f;     // Minimum traversable interval
-    float slope_max = 0.523598776f;      // Maximum traversable slope (degrees) 3.1415926/6 = 0.523598776
-    float slope_cost_ratio = 10.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的损耗
+    float interval_min = 0.0001f;     // Minimum traversable interval
+    float slope_max = 1.0f;      // Maximum traversable slope (degrees) 3.1415926/12 = 0.261799388, 3.1415926/6 = 0.523598776
+    float slope_cost_ratio = 10.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的损耗 
     float cost_barrier = 50.0f;  // Cost for non-traversable areas
     float safe_margin = 0.05f;      // Safe margin around obstacles // TODO:硬安全边界?
     float inflation = 0.05f;        // Inflation radius // TODO:膨胀层？
