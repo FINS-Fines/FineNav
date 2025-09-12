@@ -217,7 +217,7 @@ void PctPlanner::initPlanner() const {
     // 从八叉树文件加载点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-    OctoMapServer octomap(0.1);
+    OctoMapServer octomap(0.05);
     octomap.openFile(octomap_file_path_);
     const auto& tree = octomap.getOctree();
     for (octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it) {
