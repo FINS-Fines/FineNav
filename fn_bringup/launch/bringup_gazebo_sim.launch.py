@@ -100,35 +100,35 @@ def generate_launch_description():
                 # 'lidar_type': LaunchConfiguration('lidar_type'),
                 # 'serial_port': LaunchConfiguration('serial_port'),
             }.items()
-        )
+        ),
         # ),
         #
-        # # 启动gazebo_slam.launch.py
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource([
-        #         PathJoinSubstitution([launch_dir, 'gazebo_slam.launch.py'])
-        #     ]),
-        #     launch_arguments={
-        #         'use_sim_time': LaunchConfiguration('use_sim_time'),
-        #         'lidar_type': LaunchConfiguration('lidar_type'),
-        #         'lio_type': LaunchConfiguration('lio_type'),
-        #         'navigation_mode': LaunchConfiguration('navigation_mode'),
-        #         'map_save': LaunchConfiguration('map_save'),
-        #         'map_load': LaunchConfiguration('map_load'),
-        #     }.items()
-        # )
+        # 启动gazebo_slam.launch.py
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([launch_dir, 'gazebo_slam.launch.py'])
+            ]),
+            launch_arguments={
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'lidar_type': LaunchConfiguration('lidar_type'),
+                'lio_type': LaunchConfiguration('lio_type'),
+                'navigation_mode': LaunchConfiguration('navigation_mode'),
+                'map_save': LaunchConfiguration('map_save'),
+                'map_load': LaunchConfiguration('map_load'),
+            }.items()
+        ),
 
         # 启动navigation.launch.py
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource([
-        #         PathJoinSubstitution([launch_dir, 'navigation.launch.py'])
-        #     ]),
-        #     launch_arguments={
-        #         'use_sim_time': LaunchConfiguration('use_sim_time'),
-        #         'enable_rviz': LaunchConfiguration('enable_rviz'),
-        #         'navigation_strategy': LaunchConfiguration('navigation_strategy')
-        #     }.items()
-        # )
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([launch_dir, 'navigation.launch.py'])
+            ]),
+            launch_arguments={
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'enable_rviz': LaunchConfiguration('enable_rviz'),
+                'navigation_strategy': LaunchConfiguration('navigation_strategy')
+            }.items()
+        )
     ])
     ################### 启动顺序编排 ###################
 

@@ -13,8 +13,13 @@
         common:
             lid_topic:  "/lidar"  # 与SDF中激光雷达topic一致
             imu_topic:  "/imu"   # 与SDF中IMU的topic一致
+            initial_frame: "lidar_odom"
+            body_frame: "base_lidar"
             time_sync_en: true  # Gazebo中传感器时间已同步，关闭
             time_offset_lidar_to_imu: 0.0  # 虚拟环境时间对齐，无需偏移
+
+            use_imu_odometry: true             # true = 输出imu里程计，false = 输出lidar里程计
+            imu_window_size_: 5       # imu 滑动窗口大小
 
         preprocess:
             lidar_type: 2  # 关键修改：32线激光雷达模拟Velodyne类型
