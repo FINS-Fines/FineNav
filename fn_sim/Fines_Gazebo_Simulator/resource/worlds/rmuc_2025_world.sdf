@@ -169,20 +169,20 @@
       <static>true</static>
     </model> -->
 
-    <model name='field_description'>
+    <!-- <model name='field_description'>
       <include>
         <uri>model://field_description</uri>
       </include>
       <pose>0 0 0 0 0 0</pose>
       <static>true</static>
-    </model>
-<!-- 
+    </model> -->
+
     <model name='garage'>
       <include>
         <uri>model://garage</uri>
       </include>
       <pose>0 0 0 0 0 0</pose>
       <static>true</static>
-    </model> -->
+    </model>
   </world>
 </sdf>
