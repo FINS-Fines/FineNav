@@ -28,6 +28,10 @@
 #include "a_star.hpp"
 #include <tf2_msgs/msg/tf_message.hpp>
 
+#include <octomap/HeightOcTree.h>
+#include "octomap_server.hpp"
+#include <queue>
+
 using namespace finenav_2d;
 using ComputePathToPose = nav2_msgs::action::ComputePathToPose;
 using FollowPath = nav2_msgs::action::FollowPath;
@@ -58,7 +62,7 @@ class PctPlanner : public rclcpp::Node {
     
     void execute(const std::shared_ptr<ComputePathGoalHandle> goal_handle);
 
-    std::string pcd_file_path_;
+    std::string octomap_file_path_;
     bool tomography_visualize_;
     bool path_visualize_ = true;
     TomographyConfig tomography_config;

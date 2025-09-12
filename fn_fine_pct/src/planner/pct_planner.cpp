@@ -11,13 +11,13 @@ using FollowPathClient = rclcpp_action::Client<FollowPath>;
 
 PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner", options) {
     /********* Parameters for PctPlanner *********/
-    this->declare_parameter("pcd_file_path", "");
+    this->declare_parameter("octomap_file_path_", "");
     this->declare_parameter("tomography_visualize_", false);
-    pcd_file_path_ = this->get_parameter("pcd_file_path").as_string();
+    octomap_file_path_ = this->get_parameter("octomap_file_path_").as_string();
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     // TODO: FOR DEBUG
-    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/fine.pcd";
+    octomap_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map.ot";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
@@ -64,8 +64,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
             return rclcpp_action::CancelResponse::REJECT;
         },
         [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<nav2_msgs::action::ComputePathThroughPoses>>
-                   goal_handle) {
-        });
+                   goal_handle) {});
 
     tf_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
         "/tf", 10, [this](const tf2_msgs::msg::TFMessage::SharedPtr tf_msg) {
@@ -207,14 +206,31 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
 
 void PctPlanner::initPlanner() const {
     // 加载PCD文件
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    // if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
+    //     RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
+    //     rclcpp::shutdown();
+    //     return;
+    // }
+    // RCLCPP_INFO_STREAM(this->get_logger(),
+    //                    "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
+    // 从八叉树文件加载点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
-        RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
-        rclcpp::shutdown();
-        return;
+
+    OctoMapServer octomap(0.1);
+    octomap.openFile(octomap_file_path_);
+    const auto& tree = octomap.getOctree();
+    for (octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it) {
+        if (tree.isNodeOccupied(*it)) {  // 如果为占据则发布
+            pcl::PointXYZ point;
+            point.x = it.getX();  // 获取x坐标
+            point.y = it.getY();  // 获取y坐标
+            point.z = it.getZ();  // 获取z坐标（ HeightOcTree的节点z坐标通常是高度）
+            cloud->push_back(point);
+        }
     }
     RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
+                       "Loaded OctoMap file: " << octomap_file_path_ << " with " << cloud->size() << " points");
 
     // voxel滤波
     pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
