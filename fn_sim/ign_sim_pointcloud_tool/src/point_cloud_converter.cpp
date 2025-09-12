@@ -40,7 +40,7 @@ PointCloudConverter::PointCloudConverter(const rclcpp::NodeOptions & options)
 
   auto qos = rclcpp::SensorDataQoS();
   qos.reliability(rclcpp::ReliabilityPolicy::Reliable);
-  pcd_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("lidar", qos);
+  pcd_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("cloud_registered_body", qos);
 
   RCLCPP_INFO(this->get_logger(), "Listening to lidar topic: %s", pcd_topic_.c_str());
 }

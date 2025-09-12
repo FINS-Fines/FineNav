@@ -174,7 +174,7 @@ def generate_launch_description():
 
     ld.add_action(declare_nav_mode)
     ld.add_action(static_tf_node)
-    ld.add_action(fast_lio_node)
+    # ld.add_action(fast_lio_node)
     ld.add_action(map_manager_node)
     ld.add_action(localization_manager_node)
     ld.add_action(odometry_gz_manager_node)
