@@ -47,6 +47,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain(const float robot_pose_z) {
             auto z_values_before = interface_->getMap(x, y);
             auto z_values = z_values_before | std::views::filter([&](const float& z) {
                 return interface_->dataIsValid(z);
+
+
+
             });
 
             float nearest_ground = std::numeric_limits<float>::max(); // 距离当前位置最近的ground
@@ -70,6 +73,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain(const float robot_pose_z) {
             interface_->setResult("valid_ground", x, y, nearest_ground);
         }
     }
+
+    // TODO：对ground_array(x, y)进行滤波
+
 
     // 计算高度差以推断可通行性
     for (size_t x = 0; x < size_x; ++x) {
@@ -111,6 +117,8 @@ void SimpleTerrainAnalyzer::analyzeTerrain(const float robot_pose_z) {
 }
 
 } // namespace finenav_2d
+
+Eigen::ArrayXXf median_filtering 
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(finenav_2d::SimpleTerrainAnalyzer, finenav_2d::TerrainAnalyzerBase)
