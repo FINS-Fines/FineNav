@@ -187,7 +187,7 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
         pose.pose.position.y =
             (static_cast<double>(idx[1]) - tomography_->getMapDimY() / 2) * tomography_config.resolution +
             tomography_->getCenter()[1];
-        pose.pose.position.z = 0;
+        pose.pose.position.z = static_cast<double>(idx[0]) / 100;;
         pose.pose.orientation.w = 1.0;  // 无旋转
         path_msg.poses.push_back(pose);
 
