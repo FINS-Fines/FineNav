@@ -23,10 +23,10 @@ struct TomographyConfig {
     float ground_h = 0.0f;         // Ground height
     float interval_min = 0.45f;     // Minimum traversable interval
     float slope_max = 0.523598776f;      // Maximum traversable slope (degrees) 3.1415926/12 = 0.261799388, 3.1415926/6 = 0.523598776 3.1415926/9 = 0.34906585 3.1415926/4 = 0.785398163
-    float slope_cost_ratio = 1.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的损耗 
+    float slope_cost_ratio = 10.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的损耗 
     float cost_barrier = 50.0f;  // Cost for non-traversable areas
-    float safe_margin = 0.05f;      // Safe margin around obstacles // TODO:硬安全边界?
-    float inflation = 0.001f;        // Inflation radius // TODO:膨胀层？
+    float safe_margin = 0.02f;      // Safe margin around obstacles // TODO:硬安全边界?
+    float inflation = 0.09f;        // Inflation radius // TODO:膨胀层？
     int kernal_size = 3;        // 中值滤波的核大小
 };
 // struct TomographyConfig {
