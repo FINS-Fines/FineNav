@@ -68,21 +68,15 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
         [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<nav2_msgs::action::ComputePathThroughPoses>>
                    goal_handle) {});
 
-    tf_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
-        "/tf", 10, [this](const tf2_msgs::msg::TFMessage::SharedPtr tf_msg) {
-            std::lock_guard<std::mutex> lock(position_mutex_);
-            for (const auto& transform : tf_msg->transforms) {
-                if (transform.header.frame_id == "map" && transform.child_frame_id == "base_link") {
-                    robot_current_position_[0] = transform.transform.translation.x;
-                    robot_current_position_[1] = transform.transform.translation.y;
-                    robot_current_position_[2] = transform.transform.translation.z;
+    tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-                    RCLCPP_DEBUG(this->get_logger(), "Robot current position: x=%.2f, y=%.2f, z=%.2f",
-                                 robot_current_position_[0], robot_current_position_[1], robot_current_position_[2]);
-                    break;
-                }
-            }
-        });
+    // 初始化TF查询定时器（10Hz查询一次）
+    tf_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(100),  // 100ms间隔，即10Hz
+        std::bind(&PctPlanner::update_robot_position, this)  // 绑定查询函数
+    );
+    
 
     if (path_visualize_) {
         auto qos2 = rclcpp::QoS(1).transient_local();
@@ -321,6 +315,42 @@ void PctPlanner::publishTomography() const {
     }
 
     tomography_pub_->publish(cloud_msg);
+}
+
+void PctPlanner::update_robot_position() {
+    try {
+        // 查询"base_link"相对于"map"的最新变换
+        std::string target_frame = "base_link";  // 子坐标系（机器人基坐标系）
+        std::string source_frame = "map";        // 父坐标系（地图坐标系）
+        rclcpp::Time time = rclcpp::Time(0);     // 0表示获取最新的变换
+
+        // 阻塞查询，超时时间500ms（避免永久阻塞）
+        geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
+            source_frame,
+            target_frame,
+            time,
+            rclcpp::Duration::from_seconds(0.5)
+        );
+
+        // 提取位置信息并加锁保护
+        std::lock_guard<std::mutex> lock(position_mutex_);
+        robot_current_position_[0] = transform.transform.translation.x;  // x坐标
+        robot_current_position_[1] = transform.transform.translation.y;  // y坐标
+        robot_current_position_[2] = transform.transform.translation.z;  // z坐标（2D场景通常为0）
+
+        // 打印DEBUG日志（可选）
+        RCLCPP_DEBUG(this->get_logger(), 
+            "Updated robot position: x=%.2f, y=%.2f, z=%.2f",
+            robot_current_position_[0],
+            robot_current_position_[1],
+            robot_current_position_[2]
+        );
+
+    } catch (tf2::TransformException& ex) {
+        // 处理查询失败（如TF未发布、超时等）
+        RCLCPP_WARN(this->get_logger(), "Failed to get TF (map -> base_link): %s", ex.what());
+        // 失败时可不更新位置，保持上一次有效数据
+    }
 }
 
 int main(int argc, char** argv) {

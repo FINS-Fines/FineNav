@@ -26,7 +26,10 @@
 
 #include "Tomography.hpp"
 #include "a_star.hpp"
-#include <tf2_msgs/msg/tf_message.hpp>
+#include "tf2_ros/buffer.h"          // 包含tf2_ros::Buffer的定义
+#include "tf2_ros/transform_listener.h"  // 包含tf2_ros::TransformListener的定义
+#include "tf2_ros/transform_broadcaster.h"  // 包含tf2_ros::TransformBroadcaster的定义
+#include "rclcpp/duration.hpp"       // 用于TF查询的超时设置
 
 #include <octomap/HeightOcTree.h>
 #include "octomap_server.hpp"
@@ -67,19 +70,22 @@ class PctPlanner : public rclcpp::Node {
     bool path_visualize_ = true;
     TomographyConfig tomography_config;
     
-    Eigen::Vector3d robot_current_position_;
-    std::mutex position_mutex_;
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;                // TF缓存
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;   // TF监听器
+    rclcpp::TimerBase::SharedPtr tf_timer_;                     // 定时查询TF的定时器
+    std::mutex position_mutex_;                                 // 保护位置数据的互斥锁
+    Eigen::Vector3d robot_current_position_ = Eigen::Vector3d::Zero();  // 机器人当前位置
 
     std::unique_ptr<Tomography> tomography_;
     std::unique_ptr<Astar> path_finder_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr tomography_pub_;
-    // rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-    rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr tf_sub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
     std::shared_ptr<ComputePathServer> compute_path_server_;
     std::shared_ptr<ComputePathServer2> compute_path_server_2; // 虚假的服务器
+
+    void update_robot_position(); 
 
 };
 
