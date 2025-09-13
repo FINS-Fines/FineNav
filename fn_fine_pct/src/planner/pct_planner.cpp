@@ -30,6 +30,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     this->declare_parameter("cost_barrier", tomography_config.cost_barrier);
     this->declare_parameter("safe_margin", tomography_config.safe_margin);
     this->declare_parameter("inflation", tomography_config.inflation);
+    this->declare_parameter("kernal_size", tomography_config.kernal_size);
 
     tomography_config.resolution = this->get_parameter("resolution").as_double();
     tomography_config.slice_dh = this->get_parameter("slice_dh").as_double();
@@ -40,6 +41,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     tomography_config.cost_barrier = this->get_parameter("cost_barrier").as_double();
     tomography_config.safe_margin = this->get_parameter("safe_margin").as_double();
     tomography_config.inflation = this->get_parameter("inflation").as_double();
+    tomography_config.kernal_size = this->get_parameter("kernal_size").as_int();
 
     tomography_ = std::make_unique<Tomography>(tomography_config);
     path_finder_ = std::make_unique<Astar>();
@@ -268,7 +270,7 @@ void PctPlanner::publishTomography() const {
     colored_cloud->reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers_num);
 
     // 按照cost着色点云，高cost红色，低cost蓝色
-    for (size_t k = 0; k < 1; ++k) {
+    for (size_t k = 0; k < layers_num; ++k) {
         for (int x = 0; x < tomography_->getMapDimX(); ++x) {
             for (int y = 0; y < tomography_->getMapDimY(); ++y) {
                 if (std::isnan(layers.trav_cost(x, y, k))) {
