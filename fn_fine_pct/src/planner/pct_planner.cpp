@@ -11,13 +11,13 @@ using FollowPathClient = rclcpp_action::Client<FollowPath>;
 
 PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner", options) {
     /********* Parameters for PctPlanner *********/
-    this->declare_parameter("octomap_file_path_", "");
+    this->declare_parameter("pcd_file_path_", "");
     this->declare_parameter("tomography_visualize_", false);
-    octomap_file_path_ = this->get_parameter("octomap_file_path_").as_string();
+    pcd_file_path_ = this->get_parameter("pcd_file_path_").as_string();
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     // TODO: FOR DEBUG
-    octomap_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map.ot";
+    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_added.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
@@ -206,38 +206,38 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
 
 void PctPlanner::initPlanner() const {
     // 加载PCD文件
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    // if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
-    //     RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
-    //     rclcpp::shutdown();
-    //     return;
-    // }
-    // RCLCPP_INFO_STREAM(this->get_logger(),
-    //                    "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
-    // 从八叉树文件加载点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-    OctoMapServer octomap(0.02);
-    octomap.openFile(octomap_file_path_);
-    const auto& tree = octomap.getOctree();
-    for (octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it) {
-
-        auto max_depth = octomap.getOctree().getTreeDepth();
-        if (it->isHeightSet() && it.getDepth() == tree.getTreeDepth()) {
-        // if (tree.isNodeOccupied(*it)) {  // 如果为占据则发布
-            pcl::PointXYZ point;
-            point.x = it.getX();  // 获取x坐标
-            point.y = it.getY();  // 获取y坐标
-            point.z = it->getHeight();
-            cloud->push_back(point);
-
-            if(std::isnan(it->getHeight())) {
-                RCLCPP_WARN(this->get_logger(), "!!!!!! Height is NaN at (%f, %f)", it.getX(), it.getY());
-            }
-        }
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
+        rclcpp::shutdown();
+        return;
     }
     RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Loaded OctoMap file: " << octomap_file_path_ << " with " << cloud->size() << " points");
+                       "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
+    // 从八叉树文件加载点云
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+    // OctoMapServer octomap(0.02);
+    // octomap.openFile(octomap_file_path_);
+    // const auto& tree = octomap.getOctree();
+    // for (octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it) {
+
+    //     auto max_depth = octomap.getOctree().getTreeDepth();
+    //     if (it->isHeightSet() && it.getDepth() == tree.getTreeDepth()) {
+    //     // if (tree.isNodeOccupied(*it)) {  // 如果为占据则发布
+    //         pcl::PointXYZ point;
+    //         point.x = it.getX();  // 获取x坐标
+    //         point.y = it.getY();  // 获取y坐标
+    //         point.z = it->getHeight();
+    //         cloud->push_back(point);
+
+    //         if(std::isnan(it->getHeight())) {
+    //             RCLCPP_WARN(this->get_logger(), "!!!!!! Height is NaN at (%f, %f)", it.getX(), it.getY());
+    //         }
+    //     }
+    // }
+    // RCLCPP_INFO_STREAM(this->get_logger(),
+    //                    "Loaded OctoMap file: " << octomap_file_path_ << " with " << cloud->size() << " points");
 
     // voxel滤波
     pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
@@ -268,7 +268,7 @@ void PctPlanner::publishTomography() const {
     colored_cloud->reserve(tomography_->getMapDimX() * tomography_->getMapDimY() * layers_num);
 
     // 按照cost着色点云，高cost红色，低cost蓝色
-    for (size_t k = 0; k < layers_num; ++k) {
+    for (size_t k = 0; k < 1; ++k) {
         for (int x = 0; x < tomography_->getMapDimX(); ++x) {
             for (int y = 0; y < tomography_->getMapDimY(); ++y) {
                 if (std::isnan(layers.trav_cost(x, y, k))) {

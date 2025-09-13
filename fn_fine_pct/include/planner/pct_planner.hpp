@@ -62,7 +62,7 @@ class PctPlanner : public rclcpp::Node {
     
     void execute(const std::shared_ptr<ComputePathGoalHandle> goal_handle);
 
-    std::string octomap_file_path_;
+    std::string pcd_file_path_;
     bool tomography_visualize_;
     bool path_visualize_ = true;
     TomographyConfig tomography_config;
