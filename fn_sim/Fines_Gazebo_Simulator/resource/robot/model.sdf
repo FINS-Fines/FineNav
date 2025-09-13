@@ -127,8 +127,8 @@
             </horizontal>
             <vertical>
               <samples>128</samples>
-              <min_angle>0</min_angle>
-              <max_angle>1.57</max_angle>
+              <min_angle>-1.57</min_angle>
+              <max_angle>0</max_angle>
             </vertical>
           </scan>
           <range>
