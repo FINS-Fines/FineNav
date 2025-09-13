@@ -19,6 +19,9 @@ public:
 
     void analyzeTerrain(const float robot_pose_z) override;
 
+private:
+    Eigen::ArrayXXf median_filtering(const Eigen::ArrayXXf& input_array, const int kernel_size);
+
 };
 
 } // nanamespace finenav_2d

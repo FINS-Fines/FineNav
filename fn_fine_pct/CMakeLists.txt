@@ -18,6 +18,9 @@ find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)  # 添加nav2_msgs依赖
+find_package(octomap REQUIRED)
+find_package(fn_octomap_server REQUIRED)
+
 
 ament_auto_find_build_dependencies()
 
@@ -41,13 +44,6 @@ ament_auto_add_executable(fn_global_planner_node
 
 target_include_directories(fn_global_planner_node PRIVATE include/planner)
 target_link_libraries(fn_global_planner_node lib_tomography)
-
-ament_target_dependencies(fn_global_planner_node
-  rclcpp
-  rclcpp_action
-  nav2_msgs
-  tf2_geometry_msgs  # 添加到依赖列表
-)
 
 ament_auto_package(
         INSTALL_TO_SHARE

@@ -19,7 +19,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
     local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
-    global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率
+    global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率，暂且虚拟设置global_map_原点在(resolution/2, resolution/2, resolution/2)
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -56,6 +56,20 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
 
     // TODO: 设置为LifeCycleNode，允许on_configure时配置terrain_analyzer_
 
+}
+
+MapManager::~MapManager() {
+    // 保存地图
+    for (auto it = local_map_->begin(); it != local_map_->end(); ++it) {
+        Position pos = it.getPosition();
+        auto half_res = local_map_->getResolution() / 2.0;
+        Position pos_adjusted = {pos.x() + half_res, pos.y() + half_res, pos.z() + half_res};
+        global_map_->getOctree().updateNodeWithHeight(
+            octomap::point3d(pos_adjusted.x(), pos_adjusted.y(), pos_adjusted.z()),
+            local_map_->atPosition(pos));
+    }
+    global_map_->getOctree().write("final_map.ot");
+    RCLCPP_INFO(get_logger(), "Final map saved to final_map.ot");
 }
 
 void MapManager::AnalyzerInit() {
@@ -121,9 +135,11 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     auto callback_out = [&](OctoMapServer::IteratorBase* it) { //将global_map_的信息读入local_map_
         auto pt = it->getCoordinate();
+        auto half_res = local_map_->getResolution() / 2.0;
         Position pos(pt.x(), pt.y(), pt.z());
-        if (local_map_->isInside(pos)) {  // 八叉树的node中心可能在local_map_外面
-            local_map_->atPosition(Position(pos))= (*it)->getHeight();
+        Position pos_adjusted = Position(pos.x() - half_res, pos.y() - half_res, pos.z() - half_res); // 八叉树的root与GridMap原点存在偏移
+        if (local_map_->isInside(pos_adjusted)) {  // 八叉树的node中心可能在local_map_外面
+            local_map_->atPosition(Position(pos_adjusted))= (*it)->getHeight();
         }
     };
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -142,7 +158,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     // 移动local_map_
     std::vector<std::pair<Position, float>> removed_region; // 被移除的区域
-    auto is_localmap_moved = local_map_->moveTo(base_posistion, true, removed_region);
+    auto is_localmap_moved = local_map_->moveTo(base_posistion, removed_region);
     if (is_globalmap_initialized && is_localmap_moved) { // TODO: 不应该是与边界框有重叠的区域，而应该是完全在边界框内部的区域，内部逻辑需要优化，这样也不需要is_localmap_moved
         global_map_->traverseMoveDifferenceRegion(original_min, original_max, moved_distance, callback_out, true, OctoMapServer::MoveDifferenceMode::ADDED);
     }
@@ -273,7 +289,9 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                 for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
                     Index idx(x, y, z);
                     auto pos = local_map_->getPosition(idx);
-                    global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), local_map_->at(idx));
+                    auto half_res = local_map_->getResolution() / 2.0;
+                    Position pos_adjusted(pos.x() + half_res, pos.y() + half_res, pos.z() + half_res); // 八叉树的node中心与local_map_的栅格中心有偏移
+                    global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos_adjusted.x(), pos_adjusted.y(), pos_adjusted.z()), local_map_->at(idx));
                 }
             }
         }
@@ -296,8 +314,15 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     /************************* 更新全局地图 **************************/
     // 将local_map_出界的数据读入global_map_
      if (is_localmap_moved) {
+         // std::cout << "==========================================" << std::endl;
+         // std::cout << "removed: region size: " << removed_region.size() << std::endl;
          for (const auto& [pos, value] : removed_region) {
-             global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos.x(), pos.y(), pos.z()), value);
+             auto half_res = local_map_->getResolution() / 2.0;
+                Position pos_adjusted(pos.x() + half_res, pos.y() + half_res, pos.z() + half_res); // 八叉树的node中心与local_map_的栅格中心有偏移
+             if (!std::isnan(value)) {
+                global_map_->getOctree().updateNodeWithHeight(octomap::point3d(pos_adjusted.x(), pos_adjusted.y(), pos_adjusted.z()), value);
+             }
+             // std::cout << "  pos: " << pos.transpose() << " value: " << value << std::endl;
          }
      }
 
@@ -334,26 +359,30 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     for(OctoMapServer::OcTreeT::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
     {
         if (tree.isNodeOccupied(*it)) { // 如果为占据则发布
-            cloud_pub_helper_.addPoint(it.getCoordinate().x(), it.getCoordinate().y(), it->getHeight());
+            auto pt = it.getCoordinate();
+            auto half_res = local_map_->getResolution() / 2.0;
+            octomap::point3d pt_adjusted = octomap::point3d(pt.x() - half_res, pt.y() - half_res, pt.z() - half_res); // 八叉树的node中心与local_map_的栅格中心有偏移
+            cloud_pub_helper_.addPoint(pt_adjusted.x(), pt_adjusted.y(), it->getHeight());
         }
     }
     cloud_pub_helper_.publish(this->now());
 
     auto t6 = std::chrono::high_resolution_clock::now();
 
-    // if (is_localmap_moved) {
-    //     RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (ms): \n"
-    //         << "  TF lookup: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "\n"
-    //         << "  Move local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1_b - t1).count() << "\n"
-    //         << "  Copy Redundant Data: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1_b).count() << "\n"
-    //         << "  Update local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\n"
-    //         << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\n"
-    //         << "  Update global map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"
-    //         << "  Visualization: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count() << "\n"
-    //         << " From Input to Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t0).count() << "\n"
-    //         << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
-    //     );
-    // }
+    if (is_localmap_moved) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (ms): \n"
+            << "  TF lookup: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "\n"
+            << "  Move local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1_b - t1).count() << "\n"
+            << "  Copy Redundant Data: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1_b).count() << "\n"
+            << "  Update local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\n"
+            << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\n"
+            << "  Update global map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"
+            << "  Visualization: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count() << "\n"
+            << " From Input to Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t0).count() << "\n"
+            << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
+        );
+    }
+
 }
 
 void MapManager::publishLocalcostMap() {

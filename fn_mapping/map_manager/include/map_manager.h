@@ -37,6 +37,7 @@ namespace finenav_2d {
 class MapManager : public rclcpp::Node {
 public:
     explicit MapManager(const rclcpp::NodeOptions& options);
+    ~MapManager();
     /**
     * @brief 发布局部地图
     */

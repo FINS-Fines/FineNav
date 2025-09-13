@@ -15,7 +15,7 @@
     <license>Apache License 2.0</license>
 
     <!-- 编译依赖 -->
-    <buildtool_depend>ament_cmake</buildtool_depend>
+    <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
     <!-- C++ 依赖 -->
     <depend>rclcpp</depend>
@@ -27,6 +27,10 @@
     <depend>tf2_ros</depend>
     <depend>geometry_msgs</depend>
     <depend>nav_msgs</depend>
+    <depend>nav2_msgs</depend>
+    <depend>fn_octomap_server</depend>
+    <depend>octomap</depend>
+    <depend>tf2_geometry_msgs</depend>
 
     <!-- 导出依赖 -->
     <export>

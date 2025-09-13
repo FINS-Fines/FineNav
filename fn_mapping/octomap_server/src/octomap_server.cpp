@@ -10,6 +10,31 @@
 
 namespace finenav_2d {
 
+bool OctoMapServer::openFile(const std::string& filename) {
+    if (filename.length() <= 3) {
+        return false;
+    }
+    std::string suffix = filename.substr(filename.length() - 3, 3);
+    if (suffix == ".ot") {
+        std::unique_ptr<octomap::AbstractOcTree> tree(octomap::AbstractOcTree::read(filename));
+        if (!tree) {
+            return false;
+        }
+
+        // 确认是 HeightOcTree
+        auto* height_tree = dynamic_cast<octomap::HeightOcTree*>(tree.release());
+        if (!height_tree) {
+            return false;
+        }
+
+        // 接管所有权
+        octree_.reset(height_tree);
+    } else {
+        return false;
+    }
+    return true;
+}
+
 
 void OctoMapServer::traverseMoveDifferenceRegion(
     const Point& original_min,
@@ -56,16 +81,16 @@ void OctoMapServer::traverseMoveDifferenceRegionImpl(
 
         if (expand_to_max_depth) {
             // 使用expand_leaf_bbx_iterator，自动展开到最大深度,对处于L形区域内node的调用回调函数
-            for (OcTreeT::expand_leaf_bbx_iterator it = octree_.begin_expand_leafs_bbx(region.min, region.max, 0),
-                end = octree_.end_expand_leafs_bbx(); it != end; ++it) {
+            for (OcTreeT::expand_leaf_bbx_iterator it = octree_->begin_expand_leafs_bbx(region.min, region.max, 0),
+                end = octree_->end_expand_leafs_bbx(); it != end; ++it) {
                 if (isInMoveDifferenceRegion(original_min, original_max, moved_distance, it.getCoordinate())) {
                     callback(&it);
                 }
             }
         } else {
             // 使用普通的leaf_bbx_iterator
-            for (OcTreeT::leaf_bbx_iterator it = octree_.begin_leafs_bbx(region.min, region.max, 0),
-                end = octree_.end_leafs_bbx(); it != end; ++it) {
+            for (OcTreeT::leaf_bbx_iterator it = octree_->begin_leafs_bbx(region.min, region.max, 0),
+                end = octree_->end_leafs_bbx(); it != end; ++it) {
                 callback(&it);
             }
         }

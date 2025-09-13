@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <functional>
+#include <memory>
 #include <octomap/octomap.h>
 #include <octomap/HeightOcTree.h>
 
@@ -37,7 +38,15 @@ public:
         BOTH      ///< 同时遍历REMOVED和ADDED区域
     };
 
-    OctoMapServer(const double& res): octree_(res) {}
+    OctoMapServer(const double& res) : octree_(std::make_unique<OcTreeT>(res)){};
+
+    /**
+     * 读取八叉树文件
+     * @param filename 文件路径
+     * @return 成功返回true，失败返回false
+     * @note 支持.ot格式
+     */
+    bool openFile(const std::string& filename);
 
     /**
      * @brief 遍历移动差异区域 - 公共接口
@@ -62,7 +71,7 @@ public:
     /**
      * @brief 获取八叉树
      */
-    OcTreeT& getOctree() { return octree_; }
+    OcTreeT& getOctree() { return *octree_; }
 
 private:
     /**
@@ -110,7 +119,7 @@ private:
         const Point& moved_distance);
 
 
-    OcTreeT octree_;
+    std::unique_ptr<OcTreeT> octree_;
 
 };
 
