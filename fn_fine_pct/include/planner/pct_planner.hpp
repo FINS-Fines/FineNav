@@ -72,8 +72,6 @@ class PctPlanner : public rclcpp::Node {
     
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;                // TF缓存
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;   // TF监听器
-    rclcpp::TimerBase::SharedPtr tf_timer_;                     // 定时查询TF的定时器
-    std::mutex position_mutex_;                                 // 保护位置数据的互斥锁
     Eigen::Vector3d robot_current_position_ = Eigen::Vector3d::Zero();  // 机器人当前位置
 
     std::unique_ptr<Tomography> tomography_;
@@ -85,7 +83,8 @@ class PctPlanner : public rclcpp::Node {
     std::shared_ptr<ComputePathServer> compute_path_server_;
     std::shared_ptr<ComputePathServer2> compute_path_server_2; // 虚假的服务器
 
-    void update_robot_position(); 
+    // void update_robot_position(); 
+    bool get_robot_position_manual(Eigen::Vector3d& position);
 
 };
 
