@@ -3,8 +3,7 @@
 
 namespace finenav_2d {
 
-Tomography::Tomography(const TomographyConfig &config)
-{
+Tomography::Tomography(const TomographyConfig& config) {
     config_ = config;
 }
 
@@ -19,14 +18,14 @@ void Tomography::setInputCloud(const PointCloud::Ptr& cloud) {
 void Tomography::startAlgorithm() {
     std::cout << "[Tomography] Process Start." << std::endl;
 
-    initMappingEnv();          // 初始化地图环境
-    point2map();         // 点云投影到地图
-    computeGradients();        // 计 算梯度
-    computeTraversability();   // 计算可通行性
-    inflateCosts();            // 代价膨胀
-    simplifyLayers();          // 图层简化
+    initMappingEnv();         // 初始化地图环境
+    point2map();              // 点云投影到地图
+    computeGradients();       // 计 算梯度
+    computeTraversability();  // 计算可通行性
+    inflateCosts();           // 代价膨胀
+    simplifyLayers();         // 图层简化
 
-   std::cout << "[Tomography] Process Finished." << std::endl;
+    std::cout << "[Tomography] Process Finished." << std::endl;
 }
 
 /**
@@ -42,11 +41,12 @@ void Tomography::initMappingEnv() {
     min_pt.z = config_.ground_h;
 
     // Calculate map dimensions
-    center_ = { (max_pt.x + min_pt.x) / 2.0f, (max_pt.y + min_pt.y) / 2.0f };
+    center_ = {(max_pt.x + min_pt.x) / 2.0f, (max_pt.y + min_pt.y) / 2.0f};
     map_dim_x_ = static_cast<int>(std::ceil((max_pt.x - min_pt.x) / config_.resolution) + 4);
     map_dim_y_ = static_cast<int>(std::ceil((max_pt.y - min_pt.y) / config_.resolution) + 4);
-    n_slice_init_ = static_cast<int>(std::ceil((max_pt.z - min_pt.z) / config_.slice_dh)); // 初始化时候，切片为n_slice_init_
-    slice_h0_ = min_pt.z + config_.slice_dh; // 第一个切片h0的高度
+    n_slice_init_ =
+        static_cast<int>(std::ceil((max_pt.z - min_pt.z) / config_.slice_dh));  // 初始化时候，切片为n_slice_init_
+    slice_h0_ = min_pt.z + config_.slice_dh;                                    // 第一个切片h0的高度
 
     // Initialize buffers
     clearMap();
@@ -59,19 +59,15 @@ void Tomography::initMappingEnv() {
 
     for (int i = 0; i < inf_table_.size(); ++i) {
         for (int j = 0; j < inf_table_[0].size(); ++j) {
-            float dist = std::sqrt(
-                std::pow(config_.resolution * (i - half_inf_k_size), 2) +
-                std::pow(config_.resolution * (j - half_inf_k_size), 2));
-            inf_table_[i][j] = std::clamp(
-                1.0f - (dist - config_.inflation) / (config_.safe_margin + config_.resolution),
-                0.0f, 1.0f);
+            float dist = std::sqrt(std::pow(config_.resolution * (i - half_inf_k_size), 2) +
+                                   std::pow(config_.resolution * (j - half_inf_k_size), 2));
+            inf_table_[i][j] =
+                std::clamp(1.0f - (dist - config_.inflation) / (config_.safe_margin + config_.resolution), 0.0f, 1.0f);
         }
     }
 
     std::cout << "[Tomography] Map initialized."
-            << " Dim_x: " << map_dim_x_
-            << ", Dim_y: " << map_dim_y_
-            << ", Slices: " << n_slice_init_ << std::endl;
+              << " Dim_x: " << map_dim_x_ << ", Dim_y: " << map_dim_y_ << ", Slices: " << n_slice_init_ << std::endl;
 }
 
 void Tomography::clearMap() {
@@ -83,7 +79,8 @@ void Tomography::clearMap() {
     tomography_.ceiling.layers.clear();
     tomography_.trav_cost.layers.clear();
     for (int s = 0; s < n_slice_init_; ++s) {
-        tomography_.ground.layers.emplace_back(Layer::Constant(max_rows, max_cols, std::numeric_limits<float>::lowest()));
+        tomography_.ground.layers.emplace_back(
+            Layer::Constant(max_rows, max_cols, std::numeric_limits<float>::lowest()));
         tomography_.ceiling.layers.emplace_back(Layer::Constant(max_rows, max_cols, std::numeric_limits<float>::max()));
         tomography_.trav_cost.layers.emplace_back(Layer::Zero(max_rows, max_cols));
     }
@@ -134,6 +131,51 @@ void Tomography::point2map() {
             }
         }
     }
+    // 对地图中每一个点的高度进行中值滤波， 中值滤波的核大小为 config_.kernel_size
+    int half_k_size = config_.kernal_size / 2;
+    for (int s = 0; s < n_slice_init_; ++s) {
+        Layer& ground_layer = tomography_.ground.layers[s];
+        Layer& ceiling_layer = tomography_.ceiling.layers[s];
+        Layer ground_filtered = ground_layer;
+        Layer ceiling_filtered = ceiling_layer;
+        for (int i = 0; i < map_dim_x_; ++i) {
+            for (int j = 0; j < map_dim_y_; ++j) {
+                std::vector<float> ground_neighbors;
+                std::vector<float> ceiling_neighbors;
+                for (int dy = -half_k_size; dy <= half_k_size; ++dy) {
+                    for (int dx = -half_k_size; dx <= half_k_size; ++dx) {
+                        int ni = i + dx;
+                        int nj = j + dy;
+                        if (ni >= 0 && ni < map_dim_x_ && nj >= 0 && nj < map_dim_y_) {
+                            if (!std::isnan(ground_layer(nj, ni))) {
+                                ground_neighbors.push_back(ground_layer(nj, ni));
+                            }
+                            if (!std::isnan(ceiling_layer(nj, ni))) {
+                                ceiling_neighbors.push_back(ceiling_layer(nj, ni));
+                            }
+                        }
+                    }
+                }
+                if (!ground_neighbors.empty()) {
+                    std::nth_element(ground_neighbors.begin(), ground_neighbors.begin() + ground_neighbors.size() / 2,
+                                     ground_neighbors.end());
+                    ground_filtered(j, i) = ground_neighbors[ground_neighbors.size() / 2];
+                } else {
+                    ground_filtered(j, i) = std::numeric_limits<float>::lowest();
+                }
+
+                if (!ceiling_neighbors.empty()) {
+                    std::nth_element(ceiling_neighbors.begin(),
+                                     ceiling_neighbors.begin() + ceiling_neighbors.size() / 2, ceiling_neighbors.end());
+                    ceiling_filtered(j, i) = ceiling_neighbors[ceiling_neighbors.size() / 2];
+                } else {
+                    ceiling_filtered(j, i) = std::numeric_limits<float>::max();
+                }
+            }
+        }
+        tomography_.ground.layers[s] = ground_filtered;
+        tomography_.ceiling.layers[s] = ceiling_filtered;
+    }
 }
 
 /**
@@ -155,7 +197,7 @@ void Tomography::computeGradients() {
                 float diff_y_sq = std::max(diff_y1 * diff_y1, diff_y2 * diff_y2);
 
                 // Store results
-                grad_mag_sq_(i, j, s) = (diff_x_sq + diff_y_sq) / ( 2 * config_.resolution * config_.resolution);
+                grad_mag_sq_(i, j, s) = (diff_x_sq + diff_y_sq) / (2 * config_.resolution * config_.resolution);
                 // grad_mag_max_(i, j, s) = std::max(diff_x_sq, diff_y_sq)/ (config_.resolution * config_.resolution);
 
                 // if (grad_mag_max_(i, j, s) >= 0.0000 && grad_mag_max_(i, j, s) < 0.30) {
@@ -165,7 +207,7 @@ void Tomography::computeGradients() {
             }
         }
     }
-}// TODO 之前理解错了
+}  // TODO 之前理解错了
 
 /**
  * @brief 遍历每一个栅格，地形分析
@@ -195,10 +237,10 @@ void Tomography::computeTraversability() {
                 // 此处存在问题
                 // Add cost based on slope
                 float tan_theta_sq = grad_mag_sq_(i, j, s);
-                
+
                 if (tan_theta_sq <= tan_max_sq) {
                     trav_cost_(i, j, s) += config_.slope_cost_ratio * (tan_theta_sq / tan_max_sq);
-                    // Grad_map_sq_ 为  单位距离内的高度变化率的平方 
+                    // Grad_map_sq_ 为  单位距离内的高度变化率的平方
                 } else {
                     trav_cost_(i, j, s) = config_.cost_barrier;
                     continue;
@@ -222,7 +264,8 @@ void Tomography::inflateCosts() {
                         int ni = i + dx;
                         int nj = j + dy;
                         if (ni >= 0 && ni < map_dim_x_ && nj >= 0 && nj < map_dim_y_) {
-                            max_cost = std::max(max_cost, trav_cost_(ni, nj, s) * inf_table_[dy + half_inf_k_size][dx + half_inf_k_size]);
+                            max_cost = std::max(max_cost, trav_cost_(ni, nj, s) *
+                                                              inf_table_[dy + half_inf_k_size][dx + half_inf_k_size]);
                         }
                     }
                 }
@@ -236,7 +279,7 @@ void Tomography::inflateCosts() {
  * @brief 根据一定的逻辑，挑选出对于规划器关键的层（提前剪枝）
  */
 void Tomography::simplifyLayers() {
-    std::vector<int> idx_simp_; // 存储简化后的层索引
+    std::vector<int> idx_simp_;  // 存储简化后的层索引
     idx_simp_.push_back(0);
 
     if (n_slice_init_ > 1) {
@@ -255,7 +298,8 @@ void Tomography::simplifyLayers() {
                         break;
                     }
                 }
-                if (has_unique) break;
+                if (has_unique)
+                    break;
             }
             if (has_unique) {
                 idx_simp_.push_back(m_idx);
@@ -268,7 +312,7 @@ void Tomography::simplifyLayers() {
 
     // 直接在原有layers_中更新简化层数据
     for (size_t k = 0; k < idx_simp_.size(); ++k) {
-        int s = idx_simp_[k];   // unique layer index
+        int s = idx_simp_[k];  // unique layer index
 
         // 更新 trav_cost
         tomography_.trav_cost.layers[k] = inflated_cost_.layers[s];
@@ -279,7 +323,7 @@ void Tomography::simplifyLayers() {
                 float g_val = tomography_.ground(i, j, s);
                 float c_val = tomography_.ceiling(i, j, s);
                 tomography_.ground(i, j, k) = (g_val > std::numeric_limits<float>::lowest()) ? g_val : NAN;
-                tomography_.ceiling(i, j, k)= (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
+                tomography_.ceiling(i, j, k) = (c_val < std::numeric_limits<float>::max()) ? c_val : NAN;
             }
         }
     }
@@ -292,4 +336,4 @@ void Tomography::simplifyLayers() {
     std::cout << "[Tomography] Simplified layers num: " << idx_simp_.size() << std::endl;
 }
 
-} // namespace finenav_2d
+}  // namespace finenav_2d

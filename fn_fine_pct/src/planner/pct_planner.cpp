@@ -11,13 +11,13 @@ using FollowPathClient = rclcpp_action::Client<FollowPath>;
 
 PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner", options) {
     /********* Parameters for PctPlanner *********/
-    this->declare_parameter("octomap_file_path_", "");
+    this->declare_parameter("pcd_file_path_", "");
     this->declare_parameter("tomography_visualize_", false);
-    octomap_file_path_ = this->get_parameter("octomap_file_path_").as_string();
+    pcd_file_path_ = this->get_parameter("pcd_file_path_").as_string();
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     // TODO: FOR DEBUG
-    octomap_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map.ot";
+    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_added.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
@@ -30,6 +30,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     this->declare_parameter("cost_barrier", tomography_config.cost_barrier);
     this->declare_parameter("safe_margin", tomography_config.safe_margin);
     this->declare_parameter("inflation", tomography_config.inflation);
+    this->declare_parameter("kernal_size", tomography_config.kernal_size);
 
     tomography_config.resolution = this->get_parameter("resolution").as_double();
     tomography_config.slice_dh = this->get_parameter("slice_dh").as_double();
@@ -40,6 +41,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     tomography_config.cost_barrier = this->get_parameter("cost_barrier").as_double();
     tomography_config.safe_margin = this->get_parameter("safe_margin").as_double();
     tomography_config.inflation = this->get_parameter("inflation").as_double();
+    tomography_config.kernal_size = this->get_parameter("kernal_size").as_int();
 
     tomography_ = std::make_unique<Tomography>(tomography_config);
     path_finder_ = std::make_unique<Astar>();
@@ -66,21 +68,8 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
         [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<nav2_msgs::action::ComputePathThroughPoses>>
                    goal_handle) {});
 
-    tf_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
-        "/tf", 10, [this](const tf2_msgs::msg::TFMessage::SharedPtr tf_msg) {
-            std::lock_guard<std::mutex> lock(position_mutex_);
-            for (const auto& transform : tf_msg->transforms) {
-                if (transform.header.frame_id == "map" && transform.child_frame_id == "base_link") {
-                    robot_current_position_[0] = transform.transform.translation.x;
-                    robot_current_position_[1] = transform.transform.translation.y;
-                    robot_current_position_[2] = transform.transform.translation.z;
-
-                    RCLCPP_DEBUG(this->get_logger(), "Robot current position: x=%.2f, y=%.2f, z=%.2f",
-                                 robot_current_position_[0], robot_current_position_[1], robot_current_position_[2]);
-                    break;
-                }
-            }
-        });
+    tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     if (path_visualize_) {
         auto qos2 = rclcpp::QoS(1).transient_local();
@@ -121,17 +110,25 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
     RCLCPP_INFO(this->get_logger(), "Executing path planning");
     const auto goal = goal_handle->get_goal();
 
+
+
     // 获取机器人当前位置作为起点
     Eigen::Vector3d start_real;
     {
-        std::lock_guard<std::mutex> lock(position_mutex_);
         // 使用实际消息结构中的use_start字段
         if (goal->use_start) {
             start_real[0] = goal->start.pose.position.x;
             start_real[1] = goal->start.pose.position.y;
             start_real[2] = goal->start.pose.position.z;
         } else {
-            start_real = robot_current_position_;
+            bool query_success = get_robot_position_manual(start_real);
+            if (!query_success) {
+                // 查询失败时的处理（例如使用上一次缓存的位置或中止规划）
+                RCLCPP_ERROR(this->get_logger(), "无法获取机器人当前位置，规划中止");
+                auto result = std::make_shared<ComputePathToPose::Result>();
+                goal_handle->abort(result);
+                return;
+            }
         }
     }
 
@@ -185,7 +182,7 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
         pose.pose.position.y =
             (static_cast<double>(idx[1]) - tomography_->getMapDimY() / 2) * tomography_config.resolution +
             tomography_->getCenter()[1];
-        pose.pose.position.z = static_cast<double>(idx[0]) / 100;
+        pose.pose.position.z = static_cast<double>(idx[0]) / 100;;
         pose.pose.orientation.w = 1.0;  // 无旋转
         path_msg.poses.push_back(pose);
 
@@ -206,38 +203,38 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
 
 void PctPlanner::initPlanner() const {
     // 加载PCD文件
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    // if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
-    //     RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
-    //     rclcpp::shutdown();
-    //     return;
-    // }
-    // RCLCPP_INFO_STREAM(this->get_logger(),
-    //                    "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
-    // 从八叉树文件加载点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-    OctoMapServer octomap(0.02);
-    octomap.openFile(octomap_file_path_);
-    const auto& tree = octomap.getOctree();
-    for (octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it) {
-
-        auto max_depth = octomap.getOctree().getTreeDepth();
-        if (it->isHeightSet() && it.getDepth() == tree.getTreeDepth()) {
-        // if (tree.isNodeOccupied(*it)) {  // 如果为占据则发布
-            pcl::PointXYZ point;
-            point.x = it.getX();  // 获取x坐标
-            point.y = it.getY();  // 获取y坐标
-            point.z = it->getHeight();
-            cloud->push_back(point);
-
-            if(std::isnan(it->getHeight())) {
-                RCLCPP_WARN(this->get_logger(), "!!!!!! Height is NaN at (%f, %f)", it.getX(), it.getY());
-            }
-        }
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_file_path_, *cloud) == -1) {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to load PCD file: " << pcd_file_path_);
+        rclcpp::shutdown();
+        return;
     }
     RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Loaded OctoMap file: " << octomap_file_path_ << " with " << cloud->size() << " points");
+                       "Loaded PCD file: " << pcd_file_path_ << " with " << cloud->size() << " points");
+    // 从八叉树文件加载点云
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+    // OctoMapServer octomap(0.02);
+    // octomap.openFile(octomap_file_path_);
+    // const auto& tree = octomap.getOctree();
+    // for (octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it) {
+
+    //     auto max_depth = octomap.getOctree().getTreeDepth();
+    //     if (it->isHeightSet() && it.getDepth() == tree.getTreeDepth()) {
+    //     // if (tree.isNodeOccupied(*it)) {  // 如果为占据则发布
+    //         pcl::PointXYZ point;
+    //         point.x = it.getX();  // 获取x坐标
+    //         point.y = it.getY();  // 获取y坐标
+    //         point.z = it->getHeight();
+    //         cloud->push_back(point);
+
+    //         if(std::isnan(it->getHeight())) {
+    //             RCLCPP_WARN(this->get_logger(), "!!!!!! Height is NaN at (%f, %f)", it.getX(), it.getY());
+    //         }
+    //     }
+    // }
+    // RCLCPP_INFO_STREAM(this->get_logger(),
+    //                    "Loaded OctoMap file: " << octomap_file_path_ << " with " << cloud->size() << " points");
 
     // voxel滤波
     pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
@@ -321,6 +318,69 @@ void PctPlanner::publishTomography() const {
     tomography_pub_->publish(cloud_msg);
 }
 
+// void PctPlanner::update_robot_position() {
+//     try {
+//         // 查询"base_link"相对于"map"的最新变换
+//         std::string target_frame = "base_link";  // 子坐标系（机器人基坐标系）
+//         std::string source_frame = "map";        // 父坐标系（地图坐标系）
+//         rclcpp::Time time = rclcpp::Time(0);     // 0表示获取最新的变换
+
+//         // 阻塞查询，超时时间500ms（避免永久阻塞）
+//         geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
+//             source_frame,
+//             target_frame,
+//             time,
+//             rclcpp::Duration::from_seconds(0.5)
+//         );
+
+//         // 提取位置信息并加锁保护
+//         std::lock_guard<std::mutex> lock(position_mutex_);
+//         robot_current_position_[0] = transform.transform.translation.x;  // x坐标
+//         robot_current_position_[1] = transform.transform.translation.y;  // y坐标
+//         robot_current_position_[2] = transform.transform.translation.z;  // z坐标（2D场景通常为0）
+
+//         // 打印DEBUG日志（可选）
+//         RCLCPP_DEBUG(this->get_logger(), 
+//             "Updated robot position: x=%.2f, y=%.2f, z=%.2f",
+//             robot_current_position_[0],
+//             robot_current_position_[1],
+//             robot_current_position_[2]
+//         );
+
+//     } catch (tf2::TransformException& ex) {
+//         // 处理查询失败（如TF未发布、超时等）
+//         RCLCPP_WARN(this->get_logger(), "Failed to get TF (map -> base_link): %s", ex.what());
+//         // 失败时可不更新位置，保持上一次有效数据
+//     }
+// }
+// 在pct_planner.cpp中实现
+bool PctPlanner::get_robot_position_manual(Eigen::Vector3d& position) {
+    try {
+        // 查询"map"到"base_link"的最新变换
+        std::string source_frame = "map";
+        std::string target_frame = "base_link";
+        rclcpp::Time time = rclcpp::Time(0);  // 获取最新变换
+
+        // 阻塞查询，超时时间1秒（可根据需求调整）
+        geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
+            source_frame,
+            target_frame,
+            time,
+            rclcpp::Duration::from_seconds(1.0)
+        );
+
+        // 提取位置信息
+        position[0] = transform.transform.translation.x;
+        position[1] = transform.transform.translation.y;
+        position[2] = transform.transform.translation.z;
+
+        return true;  // 查询成功
+
+    } catch (tf2::TransformException& ex) {
+        RCLCPP_ERROR(this->get_logger(), "手动查询TF失败: %s", ex.what());
+        return false;  // 查询失败
+    }
+}
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions options;
