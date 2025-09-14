@@ -14,12 +14,14 @@ namespace finenav_2d {
 
 using std::chrono_literals::operator"" ms;
 
+// 在MapManager构造函数中修改，其他函数不变
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
+    // 1. 初始化地图和核心组件（先于点云处理）
     local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
-    global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率，暂且虚拟设置global_map_原点在(resolution/2, resolution/2, resolution/2)
+    global_map_ = std::make_shared<OctoMapServer>(0.05);
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -27,15 +29,8 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
                                                   this->get_node_timers_interface()));
     tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
-    rclcpp::QoS qos = rclcpp::SensorDataQoS(); // 自动 BestEffort, Depth 10
-    point_sub_.subscribe(this, "/cloud_registered_body", qos.get_rmw_qos_profile());
-
-    tf2_filter_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
-        point_sub_, *tf2_buffer_, "/odom", 10,
-        this->get_node_logging_interface(), this->get_node_clock_interface(), 100ms);
-    tf2_filter_->registerCallback(&MapManager::pointcloudCallback, this);
-
-    // 初始化发布器
+    // 2. 初始化发布器
+    rclcpp::QoS qos = rclcpp::SensorDataQoS();
     local_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("local_map", 10);
     ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("ground", 10);
     octomap_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("global_map", 10);
@@ -44,19 +39,42 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     binary_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_binary", qos);
     full_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_full", qos);
 
-    // 地形分析
+    // 3. 初始化地形分析器（必须先于回调调用）
     terrain_analyzer_loader_ = std::make_unique<pluginlib::ClassLoader<TerrainAnalyzerBase>>(
         "fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
     try {
         terrain_analyzer_ = terrain_analyzer_loader_->createSharedInstance("fn_terrain_analysis/SimpleAnalyzer");
         RCLCPP_INFO(get_logger(), "TerrainAnalyzer plugin loaded successfully");
+        AnalyzerInit();  // 初始化地形分析器接口
     } catch (pluginlib::PluginlibException& ex) {
         RCLCPP_ERROR(get_logger(), "Failed to load TerrainAnalyzer plugin: %s", ex.what());
+        return;
     }
 
-    // TODO: 设置为LifeCycleNode，允许on_configure时配置terrain_analyzer_
+    // 4. 读取PCD文件并生成点云消息
+    std::string pcd_path = "/home/fins/Desktop/Nav_ws/src/FineNav2D/fn_maptest/resource/cropped_5.pcd";
+    pcl::PointCloud<pcl::PointXYZ> pc;
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path, pc) == -1) {
+        RCLCPP_ERROR(this->get_logger(), "Couldn't read PCD file: %s", pcd_path.c_str());
+        return;
+    }
+    // 转换为ROS消息
+    auto fixed_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
+    pcl::toROSMsg(pc, *fixed_cloud_msg);
+    fixed_cloud_msg->header.frame_id = "base_lidar";
+    fixed_cloud_msg->header.stamp = this->now();  // 使用当前时间戳
 
+    RCLCPP_INFO(get_logger(), "Loaded PCD file with %ld points", pc.size());
+
+    // 5. 禁用原话题订阅（避免外部数据干扰）
+    // （注释掉原订阅逻辑）
+
+    // 6. 只调用一次回调函数处理点云
+    RCLCPP_INFO(get_logger(), "Processing fixed pointcloud once...");
+    pointcloudCallback(fixed_cloud_msg);  // 直接调用一次
+    RCLCPP_INFO(get_logger(), "Fixed pointcloud processing completed");
 }
+
 
 MapManager::~MapManager() {
     // 保存地图
@@ -105,6 +123,9 @@ void MapManager::AnalyzerInit() {
 
 
 void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    
+    RCLCPP_INFO(get_logger(), "Pointcloud callback triggered with %d points", msg->width * msg->height);
+
     // Debug
     static bool is_globalmap_initialized = false;
 

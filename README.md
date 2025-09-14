@@ -47,6 +47,16 @@ lio_type:=fast_lio \
 enable_rviz:=true \
 use_sim_time:=true
 ```
+
+Example: Bring up FineNav2D with TEST 
+```shell
+ros2 launch fine_nav2d_bringup bringup_maptest.launch.py \
+lidar_type:=virtual \
+lio_type:=fast_lio \
+enable_rviz:=true \
+use_sim_time:=true
+```
+
 # gazebo 模拟下的键盘操作
 * 一档速度 箭头键 0.5m/s 0.5rad/s
 * 二挡速度 WASD  1.5m/s 1.0m/s

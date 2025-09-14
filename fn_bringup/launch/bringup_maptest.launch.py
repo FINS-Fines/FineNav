@@ -21,6 +21,7 @@ def generate_launch_description():
     config_dir = os.path.join(bringup_dir, 'config')
     rviz_dir = os.path.join(bringup_dir, 'rviz')
     launch_dir = os.path.join(bringup_dir, 'launch')
+    maptest_dir = get_package_share_directory('fn_maptest')
 
 
     ################### Declare Parameters ###################
@@ -101,9 +102,23 @@ def generate_launch_description():
                 # 'serial_port': LaunchConfiguration('serial_port'),
             }.items()
         ),
-        # ),
         #
-        # 启动gazebo_slam.launch.py
+        # 启动fn_maptest.launch.py
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource([
+        #         PathJoinSubstitution([maptest_dir, 'launch', 'fn_maptest.launch.py'])
+        #     ]),
+        #     launch_arguments={
+        #         'pcd_file': '/home/fins/Desktop/Nav_ws/FineNav2D/fn_maptest/resource/cropped_5.pcd',
+        #         'topic_name': '/cloud_registered_body',
+        #         'frame_id': 'base_link',
+        #         'publish_rate': '10.0',
+        #         "use_sim_time": LaunchConfiguration('use_sim_time')
+        #     }.items()
+        # ),
+
+
+
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 PathJoinSubstitution([launch_dir, 'gazebo_slam.launch.py'])
