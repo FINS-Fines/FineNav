@@ -9,14 +9,14 @@ using FollowPath = nav2_msgs::action::FollowPath;
 using ComputePathServer = rclcpp_action::Server<ComputePathToPose>;
 using FollowPathClient = rclcpp_action::Client<FollowPath>;
 
-const double tolerance = 1e-10;                                                // 收敛容差
-const int max_its = 1000;                                                      // 最大迭代次数
+const double tolerance = 1e-6;                                                // 收敛容差
+const int max_its = 3000;                                                      // 最大迭代次数
 const double w_data = 0.2;                                                     // 数据权重（保留原始路径）
-const double w_smooth = 0.5;                                                   // 平滑权重（控制平滑程度）
+const double w_smooth = 0.3;                                                   // 平滑权重（控制平滑程度）
 const bool do_refinement = true;                                               // 是否二次细化
-const int refinement_num = 20;                                                  // 细化次数
-const bool enforce_path_inversion = true;                                      // 是否按方向分割路径段
-const rclcpp::Duration max_smooth_time = rclcpp::Duration::from_seconds(2.5);  // 最大平滑时间（可调整）
+const int refinement_num = 100;                                                  // 细化次数
+const bool enforce_path_inversion = false;                                      // 是否按方向分割路径段
+const rclcpp::Duration max_smooth_time = rclcpp::Duration::from_seconds(15);  // 最大平滑时间（可调整）
 
 PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner", options) {
     /********* Parameters for PctPlanner *********/
