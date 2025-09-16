@@ -134,10 +134,10 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
     auto origin_voxel = getIndex(origin);
     auto last_voxel = getIndex(end);
     auto current_voxel = origin_voxel;
-//    // 光线超出地图范围，结束
-//    if (!checkIfIndexValid(last_voxel, size_, half_size_)) {
-//        return false;
-//    }
+    // 光线超出地图范围，结束
+    if (!checkIfIndexValid(last_voxel, size_, half_size_)) {
+        return false;
+    }
 
     // 光线终点为原点，结束
     //   if (origin_index == last_index) {

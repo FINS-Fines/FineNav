@@ -83,9 +83,9 @@ global_costmap:
       # Note that the footprint can also be adjusted over time using the costmap’s ~/footprint topic, which will
       # update the polygon over time as needed due to changes in the robot’s state.
       #****************************************************************************************************************
-      footprint: "[ [0.15 0.15], [0.15, -0.15], [-0.15, -0.15], [-0.15, 0.15] ]" # Ordered set of footprint points passed in as a string, must be closed set.
-      footprint_padding: 0.07 # Add additional padding to the footprint.
-      robot_radius: 0.311 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
+      footprint: "[ [0.10 0.10], [0.10, -0.10], [-0.10, -0.10], [-0.10, 0.10] ]" # Ordered set of footprint points passed in as a string, must be closed set.
+      footprint_padding: 0.0 # Add additional padding to the footprint.
+      robot_radius: 0.201 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
       # Costmap Configuration
@@ -123,6 +123,8 @@ global_costmap:
       # sensors. It contains a 2D costmap model within it that manages the planning space by the parameters.
       #****************************************************************************************************************
       use_maximum: False # Whether when combining costmaps to use the maximum cost or override. 似乎默认static_layer是最底层
+
+
       #plugins: ["static_layer", "obstacle_layer"]
       plugins: ["pointcloud_projection_layer", "inflation_layer"] # TODO: static_layer与pointcloud_projection_layer是否冲突？
       static_layer:
@@ -178,8 +180,8 @@ local_costmap:
       # Note that the footprint can also be adjusted over time using the costmap’s ~/footprint topic, which will
       # update the polygon over time as needed due to changes in the robot’s state.
       #****************************************************************************************************************
-      footprint: "[ [ 0.10 0.10 ], [ 0.10, -0.10 ], [ -0.10, -0.10 ], [ -0.10, 0.10 ] ]" # Ordered set of footprint points passed in as a string, must be closed set.
-      footprint_padding: 0.0  # Add additional padding to the footprint.
+      footprint: "[ [ 0.10 0.10 ], [ 0.10, -0.10], [ -0.10, -0.10 ], [ -0.10, 0.10 ] ]" # Ordered set of footprint points passed in as a string, must be closed set.
+      footprint_padding: 0.00  # Add additional padding to the footprint.
       robot_radius: 0.201 # Robot radius to use, if footprint coordinates not provided, isPathValid will do circular collision checking.
 
       #****************************************************************************************************************
@@ -191,11 +193,11 @@ local_costmap:
       publish_frequency: 6.0 # Frequency to publish costmap to topic.
 
       # Size
-      resolution: 0.02 # Resolution of 1 pixel of the costmap, in meters.
-      height: 9 # 5 int
-      width: 9 # 5 int
-      origin_x: -4.5 # -1.5 double ; X origin of the costmap relative to width (m).
-      origin_y: -4.5 # -1.5 double ; Y origin of the costmap relative to height (m).
+      resolution: 0.05 # Resolution of 1 pixel of the costmap, in meters.
+      height: 10 # 5 int
+      width: 10 # 5 int
+      origin_x: -5.0 # -1.5 double ; X origin of the costmap relative to width (m).
+      origin_y: -5.0 # -1.5 double ; Y origin of the costmap relative to height (m).
       rolling_window: True # Whether costmap should roll with robot base frame. Only For Local Map Use.
       map_vis_z: 0.0 # Help modify the map slightly below the default plane, allows to avoid rviz visualization flickering at -0.008
 
@@ -231,7 +233,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 4.0 # Exponential decay factor across inflation radius.
-        inflation_radius: 0.18 # Radius to inflate costmap around lethal obstacles.
+        inflation_radius: 0.15 # Radius to inflate costmap around lethal obstacles.
         inflate_unknown: False # Whether to inflate unknown cells as if lethal.
         inflate_around_unknown: False # Whether to inflate around unknown cells.
 
@@ -313,17 +315,21 @@ planner_server_rclcpp_node:
 controller_server:
   ros__parameters:
     use_sim_time: False
-    controller_frequency: 20.0
     odom_topic: "Odometry"
+    controller_frequency: 5.0
+
+
+
 
     failure_tolerance: 0.3 # The maximum duration in seconds the called controller plugin can fail before the nav2_msgs::action::FollowPath action fails
-    #    min_x_velocity_threshold: 0.001 # Velocity from odometry which below this threshold will be set to 0.0
-    #    min_y_velocity_threshold: 0.001 # Holonomic Parameter
-    #    min_theta_velocity_threshold: 0.001
+#    min_x_velocity_threshold: 0.001 # Velocity from odometry which below this threshold will be set to 0.0
+#    min_y_velocity_threshold: 0.001 # Holonomic Parameter
+#    min_theta_velocity_threshold: 0.001
 
     progress_checker_plugin: "progress_checker"
     goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
     controller_plugins: ["FollowPath"]
+    controller_plugin_types: ["teb_local_planner::TebLocalPlannerROS"]
 
 
     #****************************************************************************************************************
@@ -349,136 +355,106 @@ controller_server:
       yaw_goal_tolerance: 0.25 # Tolerance to meet goal completion criteria (rad).
 
     FollowPath:
-      plugin: "nav2_mppi_controller::MPPIController"
-      #****************************************************************************************************************
-      # 动力学约束
-      #****************************************************************************************************************
-      motion_model: "DiffDrive"
-      vx_max: 0.8
-      vx_min: 0.0
-      vy_max: 0.5 # Max VY in either direction, if holonomic
-      wz_max: 3.5
-      ax_max: 5.0
-      ax_min: -3.0
-      ay_min: -3.0
-      ay_max: 3.0
-      az_max: 3.5
-      #****************************************************************************************************************
-      # 轨迹采样
-      #****************************************************************************************************************
-      time_steps: 70 # 每个待选轨迹的时间步数
-      model_dt: 0.05 # 每个时间步的时间间隔
-      iteration_count: 1 # 为了实时性考虑，基本上设置为1
-      batch_size: 4000 # 采样的待选轨迹数量
-      vx_std: 0.5 # 采样Vx的标准差
-      vy_std: 0.2 # 采样Vy的标准差
-      wz_std: 0.4 # 采样Wz的标准差
-      temperature: 0.3 # 根据轨迹成本进行选择，0表示采用成本最低的轨迹，数值很大时偏向于不考虑成本，将所有轨迹做平均
-      gamma: 0.015 # 在平滑性(high)和低能量消耗(low)之间权衡，影响非常复杂，通常无需调整
-      reset_period: 1.0 # Required time of inactivity to reset optimizer (only in Humble due to backport ABI policies).
-      regenerate_noises: false # 一般设置为false，具体原因见官方Github仓库
-      prune_distance: 3.5 # 将轨迹长度限制在此范围内
+      plugin: teb_local_planner::TebLocalPlannerROS
 
-      #****************************************************************************************************************
-      # 可视化
-      #****************************************************************************************************************
-      visualize: true # 可视化待选轨迹，对性能影响很大，仅仅用于调试
-      #      publish_optimal_trajectory: false # 是否发布整条轨迹，用于可视化，或者下游控制器需要更前瞻的信息时使用，Humble似乎不支持
-      TrajectoryVisualizer:
-        trajectory_step: 20 # 轨迹可视化的步长
-        time_step: 10 # 轨迹可视化的时间步数
+      teb_autosize: 1.0 # 是否自动调整TEB的时间和采样点
+      dt_ref: 0.3 # 时间分辨率参考值，表示轨迹上两个连续位姿点之间的期望时间间隔（秒
+      dt_hysteresis: 0.1
+      max_samples: 500
+      global_plan_overwrite_orientation: False # 是否忽略全局路径中点的朝向，让 TEB 自己优化每个点的朝向
+      allow_init_with_backwards_motion: False #
+      max_global_plan_lookahead_dist: 3.0 # 最远的全局路径点距离
+      global_plan_viapoint_sep: 0.3 # 路径点采样间隔
+      global_plan_prune_distance: 1.0
+      exact_arc_length: False
+      feasibility_check_no_poses: 2
+      publish_feedback: False
 
-      #****************************************************************************************************************
-      # 转向半径约束，仅在Ackermann模型下生效
-      #****************************************************************************************************************
-      #      AckermannConstraints:
-      #        min_turning_r: 0.2
+        # Robot
+      max_vel_x: 0.26
+      max_vel_theta: 1.0
+      acc_lim_x: 2.5
+      acc_lim_theta: 3.2
 
-      #****************************************************************************************************************
-      # ConstraintCritic： 惩罚在动力学约束外的轨迹
-      # GoalCritic： 与目标点足够近时，鼓励直接向目标点导航
-      # GoalAngleCritic： 与目标点足够近时，鼓励导航吊证姿态角度与目标姿态一致
-      # PreferForwardCritic： 鼓励前进方向，而不是倒退
-      # ObstaclesCritic： 通过robot_radius或footprint进行碰撞检查，惩罚膨胀的轨迹
-      # Cost Critic： 直接用膨胀后的costmap做避障惩罚
-      # PathAlignCritic： 鼓励与全局规划路径方向对齐
-      # PathFollowCritic： 鼓励与全局规划期路径尽可能近
-      # PathAngleCritic： 惩罚与全局规划路径夹角较大的轨迹，有助于机器人急转弯
-      # VelocityDeadbandCritic： 惩罚在死区下的速度
-      # TwirlingCritic： 惩罚holonomic机器人不必要的旋转
-      #****************************************************************************************************************
-      critics: ["ConstraintCritic", "GoalCritic", "GoalAngleCritic", "CostCritic", "ObstaclesCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic", "TwirlingCritic"]
-      ConstraintCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 4.0
-      GoalCritic:
-        enabled: false
-        cost_power: 1
-        cost_weight: 5.0
-        threshold_to_consider: 0.25 # 离目标点在这个距离内，开始考虑GoalCritic
-      GoalAngleCritic:
-        enabled: false
-        cost_power: 1
-        cost_weight: 3.0
-        threshold_to_consider: 0.25 # 离目标点在这个距离内，GoalAngleCritic
-      ObstaclesCritic:
-        enabled: true
-        cost_power: 1
-        consider_footprint: true # 是否使用footprint
-        collision_cost: 10.0 # 惩罚膨胀的轨迹(不建议过高，过高会引起震荡)
-        collision_margin_distance: 0.05 # 离碰撞一定的距离内，施加严重惩罚
-        critical_weight: 10.0 # 离碰撞一定的距离内，施加严重的惩罚系数，内部仅仅虚拟扩大机器人footprint
-        near_goal_distance: 0.25 # 在离目标点足够近时，停止优先考虑ObstaclesCritic，以平稳收敛到目标点
-        repulsion_weight: 2.5 # 更偏向lower cost space内的路径，可以用于动态场景中进行微调，避免过于贴近障碍物，在膨胀层范围内生效
-        inflation_radius: 0.7 # (only in Humble) 在Jazzy中，可以直接指定读取inflation_layer
-        cost_scaling_factor: 4.0 # (only in Humble) 在Jazzy中，可以直接指定读取inflation_layer
-      CostCritic:
-        enabled: false
-        cost_power: 1
-        cost_weight: 3.81
-        critical_cost: 100.0 # 惩罚在膨胀层内的轨迹
-        consider_footprint: true
-        collision_cost: 1000000.0 # 惩罚发生膨胀的轨迹
-        near_goal_distance: 1.0 # 在离目标点足够近时，停止优先考虑CostCritic，以平稳收敛到目标点
-        trajectory_point_step: 2 # 评估轨迹采用的步长。由于轨迹非常密集，评估每个点开销很大
-      PathAlignCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 50.0
-        max_path_occupancy_ratio: 0.05 # 允许全局路径穿过occupied的比例，超过这个比例，会在跟踪路径的同时避障
-        trajectory_point_step: 4 # 评估轨迹采用的步长。由于轨迹非常密集，评估每个点开销很大
-        threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathAlignCritic
-        offset_from_furthest: 20 # 只有待选轨迹规划了足够远的点，才会考虑PathAlignCritic
-        use_path_orientations: false # 是否听从全局路径的朝向，用于适应Hybrid A*之类的kinodynamic feasible的规划器
-      PathFollowCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 5.0
-        offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
-        threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathFollowCritic
-      PathAngleCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 2.0
-        offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
-        threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathFollowCritic
-        max_angle_to_furthest: 1.0
-        mode: 0
-      PreferForwardCritic:
-        enabled: false
-        cost_power: 1
-        cost_weight: 20.0
-        threshold_to_consider: 0.25
-      VelocityDeadbandCritic:
-        enabled: false
-        cost_power: 1
-        cost_weight: 35.0
-        deadband_velocities: [0.05, 0.05, 0.2] #  [vx, vz, wz]
-      TwirlingCritic:
-        enabled: false
-        twirling_cost_power: 1
-        twirling_cost_weight: 10.0
+      footprint_model: # types: "point", "circular", "two_circles", "line", "polygon"
+        type: "circular"
+        radius: 0.17 # for type "circular"
+
+          # GoalTolerance
+
+      free_goal_vel: False
+
+        # Obstacles
+
+      min_obstacle_dist: 0.27 # 轨迹与障碍物之间的硬性最小允许距离
+      inflation_dist: 0.6 # 膨胀距离。在此距离内，障碍物会对轨迹产生“斥力”，
+      include_costmap_obstacles: True
+      costmap_obstacles_behind_robot_dist: 1.0
+      obstacle_poses_affected: 15
+
+      dynamic_obstacle_inflation_dist: 0.6
+      include_dynamic_obstacles: True
+
+      # 将成本地图（Costmap）中的像素块转换为一组多边形障碍物（例如 CostmapToPolygonsDBSMCCH），这样 TEB 才能高效地进行几何碰撞检测和优化
+      costmap_converter_plugin: "costmap_converter::CostmapToPolygonsDBSMCCH"
+      costmap_converter_spin_thread: True
+      costmap_converter_rate: 5
+
+        # Optimization
+      no_inner_iterations: 5
+      no_outer_iterations: 4
+      optimization_activate: True
+      optimization_verbose: False
+      penalty_epsilon: 0.1
+      obstacle_cost_exponent: 4.0
+      weight_max_vel_x: 0.5
+      weight_max_vel_theta: 0.5
+      weight_acc_lim_x: 0.5
+      weight_acc_lim_theta: 10.5
+      weight_kinematics_nh: 1000.0
+      weight_kinematics_forward_drive: 3.0
+      weight_kinematics_turning_radius: 1.0
+      weight_optimaltime: 1.0 # must be > 0
+      weight_shortest_path: 0.0
+      weight_obstacle: 100.0
+      weight_inflation: 0.2
+      weight_dynamic_obstacle: 10.0 # not in use yet
+      weight_dynamic_obstacle_inflation: 0.2
+      weight_viapoint: 50.0
+      weight_adapt_factor: 2.0
+
+      # Homotopy Class Planner
+
+      enable_homotopy_class_planning: False # 算法会同时规划多条处于不同“绕行方向” 的轨迹,然后选择最优的一条
+      enable_multithreading: True
+      max_number_classes: 4
+      selection_cost_hysteresis: 5.0
+      selection_prefer_initial_plan: 1.0
+      selection_obst_cost_scale: 1.0
+      selection_alternative_time_cost: True
+
+      roadmap_graph_no_samples: 15
+      roadmap_graph_area_width: 5.0
+      roadmap_graph_area_length_scale: 1.0
+      h_signature_prescaler: 0.5
+      h_signature_threshold: 0.1
+      obstacle_heading_threshold: 0.45
+      switching_blocking_period: 0.0
+      viapoints_all_candidates: True
+      delete_detours_backwards: True
+      max_ratio_detours_duration_best_duration: 3.0
+      visualize_hc_graph: False
+      visualize_with_time_as_z_axis_scale: 0.0
+
+      # Recovery
+      shrink_horizon_backup: False # True
+      shrink_horizon_min_duration: 10.0
+      oscillation_recovery: False # True
+      oscillation_v_eps: 0.1
+      oscillation_omega_eps: 0.1
+      oscillation_recovery_min_duration: 10.0
+      oscillation_filter_duration: 10.0
+
 
 controller_server_rclcpp_node:
   ros__parameters:

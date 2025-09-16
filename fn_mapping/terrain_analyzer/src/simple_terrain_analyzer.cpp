@@ -11,7 +11,7 @@
 
 namespace finenav_2d {
 
-const float MAX_GRADIENT = 0.10f;  // 最大允许坡度（梯度阈值）
+const float MAX_GRADIENT = 0.06f;  // 最大允许坡度（梯度阈值）
 const float ROBOT_HEIGHT = 0.4f;   // 机器人最小通过高度
 const int KERNEL_SIZE = 3;      // 中值滤波核大小
 

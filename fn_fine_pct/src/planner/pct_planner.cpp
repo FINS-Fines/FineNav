@@ -26,7 +26,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     // TODO: FOR DEBUG
-    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_v14.pcd";
+    pcd_file_path_ = "/home/fins/Desktop/nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_v14.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
