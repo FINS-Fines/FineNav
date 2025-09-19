@@ -18,7 +18,7 @@ using PointCloud = pcl::PointCloud<Point>;
  // Fines 配置使用
  // 0.05 精度下 可以实现一楼较好效果
 struct TomographyConfig {
-    float resolution = 0.05f;       // Map resolution (meters)
+    float resolution = 0.1f;       // Map resolution (meters)
     float slice_dh = 0.45f;         // Height interval between slices // TODO: 它是如何影响的
     float ground_h = 0.0f;         // Ground height
     float interval_min = 0.45f;     // Minimum traversable interval

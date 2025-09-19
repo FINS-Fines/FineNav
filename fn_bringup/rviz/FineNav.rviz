@@ -7,8 +7,11 @@ Panels:
         - /Global Options1
         - /Status1
         - /TF1/Frames1
+        - /Lidar Mapping1
+        - /Lidar Mapping1/CloudRegistered1
         - /Lidar Mapping1/CloudMap1
         - /Navigation1
+        - /PointCloud21
         - /PointCloud22
       Splitter Ratio: 0.5529412031173706
     Tree Height: 452
@@ -61,11 +64,21 @@ Visualization Manager:
           Value: false
         base_link:
           Value: true
+        base_origin:
+          Value: true
+        left_front_wheel:
+          Value: true
+        left_rear_wheel:
+          Value: true
         lidar_odom:
           Value: false
         map:
           Value: true
         odom:
+          Value: true
+        right_front_wheel:
+          Value: true
+        right_rear_wheel:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -77,6 +90,14 @@ Visualization Manager:
           odom:
             base_link:
               base_lidar:
+                {}
+              left_front_wheel:
+                {}
+              left_rear_wheel:
+                {}
+              right_front_wheel:
+                {}
+              right_rear_wheel:
                 {}
             lidar_odom:
               {}
@@ -106,7 +127,32 @@ Visualization Manager:
               Alpha: 1
               Show Axes: false
               Show Trail: false
+              Value: true
             base_link:
+              Alpha: 1
+              Show Axes: false
+              Show Trail: false
+              Value: true
+            base_origin:
+              Alpha: 1
+              Show Axes: false
+              Show Trail: false
+            left_front_wheel:
+              Alpha: 1
+              Show Axes: false
+              Show Trail: false
+              Value: true
+            left_rear_wheel:
+              Alpha: 1
+              Show Axes: false
+              Show Trail: false
+              Value: true
+            right_front_wheel:
+              Alpha: 1
+              Show Axes: false
+              Show Trail: false
+              Value: true
+            right_rear_wheel:
               Alpha: 1
               Show Axes: false
               Show Trail: false
@@ -186,8 +232,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 4.415066719055176
-            Min Value: -0.184617817401886
+            Max Value: 0.3889716863632202
+            Min Value: -0.14312055706977844
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -204,7 +250,7 @@ Visualization Manager:
           Name: CloudRegistered
           Position Transformer: XYZ
           Selectable: true
-          Size (Pixels): 1
+          Size (Pixels): 5
           Size (m): 0.05000000074505806
           Style: Points
           Topic:
@@ -213,7 +259,7 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /cloud_registered
+            Value: /cloud_registered_body
           Use Fixed Frame: true
           Use rainbow: true
           Value: true
@@ -285,7 +331,7 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: false
-      Enabled: false
+      Enabled: true
       Name: Lidar Mapping
     - Class: rviz_common/Group
       Displays:
@@ -610,7 +656,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /local_map
+        Value: /global_map
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -707,7 +753,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 4.661767959594727
+      Distance: 13.162510871887207
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -722,10 +768,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8477333784103394
+      Pitch: 0.817733883857727
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.2016375064849854
+      Yaw: 3.1416397094726562
     Saved: ~
 Window Geometry:
   Displays:
@@ -735,7 +781,7 @@ Window Geometry:
   Hide Right Dock: false
   Navigation 2:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd000000040000000000000156000004a6fc0200000009fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000028b000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000018004e0061007600690067006100740069006f006e0020003201000002ce000002150000013900ffffff000000010000010f000002b0fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000002b0000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000a000000005afc0100000002fb0000000800540069006d0065010000000000000a00000002fb00fffffffb0000000800540069006d00650100000000000004500000000000000000000008a4000004a600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000040000000000000156000004a6fc0200000009fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000028b000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000018004e0061007600690067006100740069006f006e0020003201000002ce000002150000013900ffffff000000010000010f000002b0fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000002b0000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000005afc0100000002fb0000000800540069006d0065010000000000000780000002fb00fffffffb0000000800540069006d0065010000000000000450000000000000000000000624000004a600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -744,6 +790,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 2560
-  X: 0
-  Y: 27
+  Width: 1920
+  X: 407
+  Y: 138

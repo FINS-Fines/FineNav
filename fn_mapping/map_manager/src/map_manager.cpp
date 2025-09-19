@@ -14,14 +14,12 @@ namespace finenav_2d {
 
 using std::chrono_literals::operator"" ms;
 
-// 在MapManager构造函数中修改，其他函数不变
 MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
-    // 1. 初始化地图和核心组件（先于点云处理）
-    local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
-    global_map_ = std::make_shared<OctoMapServer>(0.05);
+    local_map_ = std::make_shared<GridMap<float>>(Length{7.0, 7.0, 7.0}, 0.05);
+    global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率，暂且虚拟设置global_map_原点在(resolution/2, resolution/2, resolution/2)
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_buffer_->setCreateTimerInterface(
@@ -29,8 +27,15 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
                                                   this->get_node_timers_interface()));
     tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
-    // 2. 初始化发布器
-    rclcpp::QoS qos = rclcpp::SensorDataQoS();
+    rclcpp::QoS qos = rclcpp::SensorDataQoS(); // 自动 BestEffort, Depth 10
+    point_sub_.subscribe(this, "/cloud_registered_body", qos.get_rmw_qos_profile());
+
+    tf2_filter_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
+        point_sub_, *tf2_buffer_, "/odom", 10,
+        this->get_node_logging_interface(), this->get_node_clock_interface(), 100ms);
+    tf2_filter_->registerCallback(&MapManager::pointcloudCallback, this);
+
+    // 初始化发布器
     local_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("local_map", 10);
     ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("ground", 10);
     octomap_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("global_map", 10);
@@ -39,42 +44,21 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     binary_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_binary", qos);
     full_map_pub_ = create_publisher<octomap_msgs::msg::Octomap>("octomap_full", qos);
 
-    // 3. 初始化地形分析器（必须先于回调调用）
+    // 地形分析
     terrain_analyzer_loader_ = std::make_unique<pluginlib::ClassLoader<TerrainAnalyzerBase>>(
         "fn_terrain_analysis_core", "finenav_2d::TerrainAnalyzerBase");
     try {
         terrain_analyzer_ = terrain_analyzer_loader_->createSharedInstance("fn_terrain_analysis/SimpleAnalyzer");
         RCLCPP_INFO(get_logger(), "TerrainAnalyzer plugin loaded successfully");
-        AnalyzerInit();  // 初始化地形分析器接口
     } catch (pluginlib::PluginlibException& ex) {
         RCLCPP_ERROR(get_logger(), "Failed to load TerrainAnalyzer plugin: %s", ex.what());
-        return;
     }
 
-    // 4. 读取PCD文件并生成点云消息
-    std::string pcd_path = "/home/fins/Desktop/Nav_ws/src/FineNav2D/fn_maptest/resource/cropped_5.pcd";
-    pcl::PointCloud<pcl::PointXYZ> pc;
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path, pc) == -1) {
-        RCLCPP_ERROR(this->get_logger(), "Couldn't read PCD file: %s", pcd_path.c_str());
-        return;
-    }
-    // 转换为ROS消息
-    auto fixed_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
-    pcl::toROSMsg(pc, *fixed_cloud_msg);
-    fixed_cloud_msg->header.frame_id = "base_lidar";
-    fixed_cloud_msg->header.stamp = this->now();  // 使用当前时间戳
+    // TODO: 设置为LifeCycleNode，允许on_configure时配置terrain_analyzer_
 
-    RCLCPP_INFO(get_logger(), "Loaded PCD file with %ld points", pc.size());
-
-    // 5. 禁用原话题订阅（避免外部数据干扰）
-    // （注释掉原订阅逻辑）
-
-    // 6. 只调用一次回调函数处理点云
-    RCLCPP_INFO(get_logger(), "Processing fixed pointcloud once...");
-    pointcloudCallback(fixed_cloud_msg);  // 直接调用一次
-    RCLCPP_INFO(get_logger(), "Fixed pointcloud processing completed");
+    // 加载ot文件作为全局地图
+    global_map_->openFile("/home/fins/Downloads/final_map_v16.ot");
 }
-
 
 MapManager::~MapManager() {
     // 保存地图
@@ -123,9 +107,6 @@ void MapManager::AnalyzerInit() {
 
 
 void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-    
-    RCLCPP_INFO(get_logger(), "Pointcloud callback triggered with %d points", msg->width * msg->height);
-
     // Debug
     static bool is_globalmap_initialized = false;
 
@@ -153,6 +134,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     sensor_position.x() = sensor_to_world_transform_stamped.transform.translation.x;
     sensor_position.y() = sensor_to_world_transform_stamped.transform.translation.y;
     sensor_position.z() = sensor_to_world_transform_stamped.transform.translation.z;
+
 
     auto callback_out = [&](OctoMapServer::IteratorBase* it) { //将global_map_的信息读入local_map_
         auto pt = it->getCoordinate();
@@ -256,18 +238,18 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
              if (local_map_->rayCast(sensor_position, end, ray_indices)) {
                  // 遍历光线上的栅格
                  for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                     if(local_map_->at(ray_indices[i])== NEW_OCCUPIED) { // 光线在遇到新增点截断
-                         break;
-                     }
-                     if(Normal[0] == 1 && abs(ray_indices[i].x() - end_index.x()) <= 0) { // x平面
-                         break;
-                     }
-                     if(Normal[1] == 1 && abs(ray_indices[i].y() - end_index.y()) <= 0) { // y平面
-                         break;
-                     }
-                     if(Normal[2] == 1 && abs(ray_indices[i].z() - end_index.z()) <= 0 ) { // z平面
-                         break;
-                     }
+                     // if(local_map_->at(ray_indices[i])== NEW_OCCUPIED) { // 光线在遇到新增点截断
+                     //     break;
+                     // }
+                     // if(Normal[0] == 1 && abs(ray_indices[i].x() - end_index.x()) <= 0) { // x平面
+                     //     break;
+                     // }
+                     // if(Normal[1] == 1 && abs(ray_indices[i].y() - end_index.y()) <= 0) { // y平面
+                     //     break;
+                     // }
+                     // if(Normal[2] == 1 && abs(ray_indices[i].z() - end_index.z()) <= 0 ) { // z平面
+                     //     break;
+                     // }
 
                      local_map_->at(ray_indices[i]) = NAN; // 设置为Free
                  }
@@ -279,14 +261,8 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                  Index border_index = ray_indices.back();
                  Position border_position = local_map_->getPosition(border_index);
                  for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                     if (fabs(p.x-border_position.x()) < 0.15 && abs(ray_indices[i].x() - border_index.x() <=1)) { // 终点与边界高度差过小需要保护
-                         break;
-                     }
-                     if (fabs(p.y-border_position.y()) < 0.15 && abs(ray_indices[i].y() - border_index.y() <=1)) { // 终点与边界高度差过小需要保护
-                         break;
-                     }
-                     if (fabs(p.z-border_position.z()) < 0.15 && abs(ray_indices[i].z() - border_index.z() <=1)) { // 终点与边界高度差过小需要保护
-                         break;
+                     if (local_map_->at(ray_indices[i]) < local_map_->getOrigin().z()) {
+                         continue;
                      }
                      local_map_->at(ray_indices[i]) = NAN; // 设置为Free
                  }
@@ -390,19 +366,19 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
     auto t6 = std::chrono::high_resolution_clock::now();
 
-    if (is_localmap_moved) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (ms): \n"
-            << "  TF lookup: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "\n"
-            << "  Move local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1_b - t1).count() << "\n"
-            << "  Copy Redundant Data: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1_b).count() << "\n"
-            << "  Update local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\n"
-            << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\n"
-            << "  Update global map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"
-            << "  Visualization: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count() << "\n"
-            << " From Input to Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t0).count() << "\n"
-            << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
-        );
-    }
+    // if (is_localmap_moved) {
+    //     RCLCPP_INFO_STREAM(this->get_logger(), "Time breakdown (ms): \n"
+    //         << "  TF lookup: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "\n"
+    //         << "  Move local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1_b - t1).count() << "\n"
+    //         << "  Copy Redundant Data: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1_b).count() << "\n"
+    //         << "  Update local map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << "\n"
+    //         << "  Terrain analysis: " << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << "\n"
+    //         << "  Update global map: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count() << "\n"
+    //         << "  Visualization: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count() << "\n"
+    //         << " From Input to Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t0).count() << "\n"
+    //         << " Total: " << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t0).count() << "\n"
+    //     );
+    // }
 
 }
 

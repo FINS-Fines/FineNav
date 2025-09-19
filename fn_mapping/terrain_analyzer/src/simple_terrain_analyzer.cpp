@@ -111,9 +111,9 @@ void SimpleTerrainAnalyzer::analyzeTerrain(const float robot_pose_z) {
     }
 }
 
-}  // namespace finenav_2d
 
-Eigen::ArrayXXf median_filtering (const Eigen::ArrayXXf& input_array, const int kernel_size = 3) {
+
+Eigen::ArrayXXf SimpleTerrainAnalyzer::median_filtering (const Eigen::ArrayXXf& input_array, const int kernel_size = 3) {
     int rows = input_array.rows();
     int cols = input_array.cols();
     Eigen::ArrayXXf output_array = Eigen::ArrayXXf::Constant(rows, cols, NAN);
@@ -152,6 +152,10 @@ Eigen::ArrayXXf median_filtering (const Eigen::ArrayXXf& input_array, const int 
     
     return output_array;
 }
+
+}  // namespace finenav_2d
+
+
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(finenav_2d::SimpleTerrainAnalyzer, finenav_2d::TerrainAnalyzerBase)
