@@ -171,9 +171,9 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
         if (step[i] != 0) {
             double voxelBorder;
             if (step[i] > 0) {
-                voxelBorder = (current_voxel[i] + 1) * resolution_;
+                voxelBorder = (current_voxel[i] + 1) * resolution_ + getOrigin()[i];
             } else {
-                voxelBorder = current_voxel[i] * resolution_;
+                voxelBorder = current_voxel[i] * resolution_ + getOrigin()[i];
             }
 
             // 计算到下一个边界的参数距离
@@ -199,18 +199,18 @@ bool GridMap<T>::rayCast(const Position& origin,const Position& end, std::vector
         }
 
         if (tMax.x() < tMax.y()) {
-            if (tMax.x() < tMax.z()) {
+            if (tMax.x() < tMax.z()) {   // x最小
                 current_voxel.x() += step.x();
                 tMax.x() += tDelta.x();
-            } else {
+            } else {    // z最小
                 current_voxel.z() += step.z();
                 tMax.z() += tDelta.z();
             }
         } else {
-            if (tMax.y() < tMax.z()) {
+            if (tMax.y() < tMax.z()) { // y最小
                 current_voxel.y() += step.y();
                 tMax.y() += tDelta.y();
-            } else {
+            } else { // z最小
                 current_voxel.z() += step.z();
                 tMax.z() += tDelta.z();
             }
