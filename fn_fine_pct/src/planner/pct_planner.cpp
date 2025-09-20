@@ -10,8 +10,8 @@ using ComputePathServer = rclcpp_action::Server<ComputePathToPose>;
 using FollowPathClient = rclcpp_action::Client<FollowPath>;
 
 const double tolerance = 1e-6;                                                // 收敛容差
-const int max_its = 10;                                                      // 最大迭代次数
-const double w_data = 0.2;                                                     // 数据权重（保留原始路径）
+const int max_its = 5;                                                      // 最大迭代次数
+const double w_data = 0.7;                                                     // 数据权重（保留原始路径）
 const double w_smooth = 0.3;                                                   // 平滑权重（控制平滑程度）
 const bool do_refinement = true;                                               // 是否二次细化
 const int refinement_num = 8;                                                  // 细化次数
