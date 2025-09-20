@@ -57,7 +57,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     // TODO: 设置为LifeCycleNode，允许on_configure时配置terrain_analyzer_
 
     // 加载ot文件作为全局地图
-    global_map_->openFile("/home/fins/Downloads/final_map_v16.ot");
+    global_map_->openFile("/home/fins/Downloads/final_map.ot");
 }
 
 MapManager::~MapManager() {

@@ -138,10 +138,10 @@
           </range>
         </ray>
         <noise>
-					<type>gaussian</type>
-					<mean>0.0</mean>
-					<stddev>0.01</stddev>
-				</noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
         <always_on>1</always_on>
         <visualize>true</visualize>
       </sensor>
@@ -386,6 +386,75 @@
         <damping>0.1</damping>
         <friction>0.1</friction>
       </dynamics> -->
+    </joint>
+
+
+    <!-- 前置相机连杆 -->
+    <link name="front_camera_link">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>1e-6</ixx>
+          <iyy>1e-6</iyy>
+          <izz>1e-6</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="front_camera_visual">
+        <geometry>
+          <box>
+            <size>0.05 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Blue</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <collision name="front_camera_collision">
+        <geometry>
+          <box>
+            <size>0.05 0.05 0.05</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <!-- 相机传感器 -->
+      <sensor name="front_camera" type="camera">
+        <pose>0 0 0 0 0 0</pose>
+        <update_rate>30</update_rate>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov> <!-- 60度 -->
+          <width>1280</width>
+          <height>720</height>
+          <format>R8G8B8</format>
+          <clip>
+            <near>0.1</near>
+            <far>100</far>
+          </clip>
+          <!-- 自动保存每一帧图片 -->
+          <save enabled="true">
+            <path>/home/fins/Desktop/videos</path>
+            <format>jpg</format>  <!-- 明确指定格式 -->
+            <quality>100</quality>  <!-- 图像质量（0-100） -->
+          </save>
+        </camera>
+        <always_on>1</always_on>
+        <visualize>true</visualize>
+        <!-- 发布图像话题 -->
+        <topic>front_camera/image_raw</topic>
+      </sensor>
+    </link>
+
+    <!-- 将相机固定到机器人前端 -->
+    <joint name="base_to_front_camera" type="fixed">
+      <parent>base_origin</parent>
+      <child>front_camera_link</child>
+      <pose>0.35 0 0.2 0 0 0</pose> <!-- x=0.35m 表示在机器人前方 -->
     </joint>
 
     <plugin filename="libignition-gazebo-mecanum-drive-system.so"

@@ -81,7 +81,7 @@ private:
     int max_y_ = 0;
     int max_layers_ = 0;
     double cost_threshold_ = 40; //50 
-    double step_cost_weight_ = 1.0;
+    double step_cost_weight_ = 0.01;
 
     MultiLayerGridMap grid_map_;
 

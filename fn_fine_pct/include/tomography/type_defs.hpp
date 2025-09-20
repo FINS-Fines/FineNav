@@ -18,16 +18,16 @@ using PointCloud = pcl::PointCloud<Point>;
  // Fines 配置使用
  // 0.05 精度下 可以实现一楼较好效果
 struct TomographyConfig {
-    float resolution = 0.1f;       // Map resolution (meters)
-    float slice_dh = 0.45f;         // Height interval between slices // TODO: 它是如何影响的
+    float resolution = 0.5f;       // Map resolution (meters)
+    float slice_dh = 0.8f;         // Height interval between slices // TODO: 它是如何影响的
     float ground_h = 0.0f;         // Ground height
-    float interval_min = 0.45f;     // Minimum traversable interval
-    float slope_max = 0.523598776f;      // Maximum traversable slope (degrees) 3.1415926/12 = 0.261799388, 3.1415926/6 = 0.523598776 3.1415926/9 = 0.34906585 3.1415926/4 = 0.785398163
-    float slope_cost_ratio = 10.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的损耗 
+    float interval_min = 0.8f;     // Minimum traversable interval
+    float slope_max = 0.785398163f;      // Maximum traversable slope (degrees) 3.1415926/12 = 0.261799388, 3.1415926/6 = 0.523598776 3.1415926/9 = 0.34906585 3.1415926/4 = 0.785398163
+    float slope_cost_ratio = 1.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的损耗 
     float cost_barrier = 50.0f;  // Cost for non-traversable areas
-    float safe_margin = 0.15f;      // Safe margin around obstacles // TODO:硬安全边界?
-    float inflation = 0.15f;        // Inflation radius // TODO:膨胀层？
-    int kernal_size = 3;        // 中值滤波的核大小
+    float safe_margin = 0.80f;      // Safe margin around obstacles // TODO:硬安全边界?
+    float inflation = 1.60f;        // Inflation radius // TODO:膨胀层？
+    int kernal_size = 0;        // 中值滤波的核大小
 };
 // struct TomographyConfig {
 //     float resolution = 0.02f;       // Map resolution (meters)
