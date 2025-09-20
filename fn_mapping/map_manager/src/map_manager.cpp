@@ -140,9 +140,9 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         auto pt = it->getCoordinate();
         auto half_res = local_map_->getResolution() / 2.0;
         Position pos(pt.x(), pt.y(), pt.z());
-        Position pos_adjusted = Position(pos.x() - half_res, pos.y() - half_res, pos.z() - half_res); // 八叉树的root与GridMap原点存在偏移
+        Position pos_adjusted = Position(pos.x() - half_res, pos.y() - half_res, pos.z() - half_res ); // 八叉树的root与GridMap原点存在偏移
         if (local_map_->isInside(pos_adjusted)) {  // 八叉树的node中心可能在local_map_外面
-            local_map_->atPosition(Position(pos_adjusted))= (*it)->getHeight();
+            local_map_->atPosition(Position(pos_adjusted))= (*it)->getHeight()+100; //+100标静态障碍物
         }
     };
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -182,6 +182,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
         if (!local_map_->isInside(end)) {
             continue;
         }
+        if (local_map_->atPosition(end) < 50 || std::isnan(local_map_->atPosition(end))) // 避免更新静态障碍物
         local_map_->atPosition(end) = NEW_OCCUPIED;
     }
      for (const auto& p : pc) {
@@ -241,16 +242,18 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                      // if(local_map_->at(ray_indices[i])== NEW_OCCUPIED) { // 光线在遇到新增点截断
                      //     break;
                      // }
-                     // if(Normal[0] == 1 && abs(ray_indices[i].x() - end_index.x()) <= 0) { // x平面
-                     //     break;
-                     // }
-                     // if(Normal[1] == 1 && abs(ray_indices[i].y() - end_index.y()) <= 0) { // y平面
-                     //     break;
-                     // }
-                     // if(Normal[2] == 1 && abs(ray_indices[i].z() - end_index.z()) <= 0 ) { // z平面
-                     //     break;
-                     // }
-
+                     if(Normal[0] == 1 && abs(ray_indices[i].x() - end_index.x()) <= 0) { // x平面
+                         break;
+                     }
+                     if(Normal[1] == 1 && abs(ray_indices[i].y() - end_index.y()) <= 0) { // y平面
+                         break;
+                     }
+                     if(Normal[2] == 1 && abs(ray_indices[i].z() - end_index.z()) <= 0 ) { // z平面
+                         break;
+                     }
+                     if (local_map_->at(ray_indices[i]) > 50) {
+                         continue;
+                     }
                      local_map_->at(ray_indices[i]) = NAN; // 设置为Free
                  }
              }
@@ -261,7 +264,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
                  Index border_index = ray_indices.back();
                  Position border_position = local_map_->getPosition(border_index);
                  for (size_t i = 0; i + 1 < ray_indices.size(); ++i) {
-                     if (local_map_->at(ray_indices[i]) < local_map_->getOrigin().z()) {
+                     if (local_map_->at(ray_indices[i]) > 50) {
                          continue;
                      }
                      local_map_->at(ray_indices[i]) = NAN; // 设置为Free
@@ -273,6 +276,9 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     for (const auto& p : pc) { // 再将点云所在栅格设置为Occupied
         Position end{p.x, p.y,p.z};
         if (!local_map_->isInside(end)) {
+            continue;
+        }
+        if (local_map_->atPosition(end) > 50 && local_map_->atPosition(end) < 150) { // 避免更新静态障碍物
             continue;
         }
         local_map_->atPosition(end) = p.z; // 栅格中存储点的实际高度
@@ -332,8 +338,10 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     cloud_pub_helper_.configure(local_map_pub_, true, world_frame);
     for (auto it = local_map_->begin(); it != local_map_->end(); ++it) {
         Position pos = it.getPosition();
-        if (!std::isnan(*it)) { // 如果栅格被占据，则发布
+        if (!std::isnan(*it) && local_map_->atPosition(pos) < 50) { // 如果栅格被占据，则发布
             cloud_pub_helper_.addPoint(pos.x(), pos.y(), local_map_->atPosition(pos));
+        }else {
+            cloud_pub_helper_.addPoint(pos.x(), pos.y(), local_map_->atPosition(pos)-100);
         }
     }
     cloud_pub_helper_.publish(msg->header.stamp);
