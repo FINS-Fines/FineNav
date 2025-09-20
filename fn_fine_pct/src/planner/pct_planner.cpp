@@ -14,7 +14,7 @@ const int max_its = 3000;                                                      /
 const double w_data = 0.2;                                                     // 数据权重（保留原始路径）
 const double w_smooth = 0.3;                                                   // 平滑权重（控制平滑程度）
 const bool do_refinement = true;                                               // 是否二次细化
-const int refinement_num = 100;                                                  // 细化次数
+const int refinement_num = 10;                                                  // 细化次数
 const bool enforce_path_inversion = false;                                      // 是否按方向分割路径段
 const rclcpp::Duration max_smooth_time = rclcpp::Duration::from_seconds(15);  // 最大平滑时间（可调整）
 
@@ -26,7 +26,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     // TODO: FOR DEBUG
-    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_v14.pcd";
+    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/

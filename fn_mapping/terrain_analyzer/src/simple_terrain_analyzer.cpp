@@ -156,7 +156,6 @@ Eigen::ArrayXXf SimpleTerrainAnalyzer::median_filtering (const Eigen::ArrayXXf& 
 
 
 
-}  // namespace finenav_2d
 
 
 
