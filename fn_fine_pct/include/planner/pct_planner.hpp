@@ -88,5 +88,66 @@ class PctPlanner : public rclcpp::Node {
 
 };
 
+// 1.2 辅助结构：路径段（起点/终点索引）
+struct PathSegment {
+    unsigned int start;
+    unsigned int end;
+};
+
+// 修复：使用空捕获列表，因为该函数不依赖外部变量
+auto getFieldByDim = [](const geometry_msgs::msg::PoseStamped &msg, const unsigned int &dim) -> double {
+    if (dim == 0) return msg.pose.position.x;
+    else if (dim == 1) return msg.pose.position.y;
+    else return msg.pose.position.z;
+};
+
+auto setFieldByDim = [](geometry_msgs::msg::PoseStamped &msg, const unsigned int dim, const double &value) {
+    if (dim == 0) msg.pose.position.x = value;
+    else if (dim == 1) msg.pose.position.y = value;
+    else msg.pose.position.z = value;
+};
+
+auto updateApproximatePathOrientations = [](nav_msgs::msg::Path &path, bool &reversing_segment) {
+    reversing_segment = false;
+    if (path.poses.size() < 2) return;
+
+    for (size_t i = 0; i < path.poses.size() - 1; ++i) {
+        double dx = path.poses[i+1].pose.position.x - path.poses[i].pose.position.x;
+        double dy = path.poses[i+1].pose.position.y - path.poses[i].pose.position.y;
+        double yaw = atan2(dy, dx);
+
+        geometry_msgs::msg::Quaternion q;
+        q.w = cos(yaw / 2.0);
+        q.z = sin(yaw / 2.0);
+        path.poses[i].pose.orientation = q;
+    }
+    path.poses.back().pose.orientation = path.poses[path.poses.size()-2].pose.orientation;
+};
+
+// 关键修复：将 [&] 改为 []，因为此lambda不捕获任何外部变量
+auto findDirectionalPathSegments = [](const nav_msgs::msg::Path &path) -> std::vector<PathSegment> {
+    std::vector<PathSegment> segments;
+    if (path.poses.size() < 2) return segments;
+
+    unsigned int segment_start = 0;
+    double prev_dx = path.poses[1].pose.position.x - path.poses[0].pose.position.x;
+    double prev_dy = path.poses[1].pose.position.y - path.poses[0].pose.position.y;
+
+    for (unsigned int i = 2; i < path.poses.size(); ++i) {
+        double curr_dx = path.poses[i].pose.position.x - path.poses[i-1].pose.position.x;
+        double curr_dy = path.poses[i].pose.position.y - path.poses[i-1].pose.position.y;
+        double dot_product = prev_dx * curr_dx + prev_dy * curr_dy;
+
+        if (dot_product < 1e-6) {
+            segments.push_back({segment_start, i-1});
+            segment_start = i-1;
+            prev_dx = curr_dx;
+            prev_dy = curr_dy;
+        }
+    }
+    segments.push_back({segment_start, static_cast<unsigned int>(path.poses.size()-1)});
+    return segments;
+};
+
 #endif  // FINENAV2D_PCT_PLANNER_HPP
     

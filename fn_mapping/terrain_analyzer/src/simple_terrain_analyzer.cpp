@@ -152,6 +152,9 @@ Eigen::ArrayXXf SimpleTerrainAnalyzer::median_filtering (const Eigen::ArrayXXf& 
     
     return output_array;
 }
+}  // namespace finenav_2d
+
+
 
 }  // namespace finenav_2d
 

@@ -9,6 +9,15 @@ using FollowPath = nav2_msgs::action::FollowPath;
 using ComputePathServer = rclcpp_action::Server<ComputePathToPose>;
 using FollowPathClient = rclcpp_action::Client<FollowPath>;
 
+const double tolerance = 1e-6;                                                // 收敛容差
+const int max_its = 3000;                                                      // 最大迭代次数
+const double w_data = 0.2;                                                     // 数据权重（保留原始路径）
+const double w_smooth = 0.3;                                                   // 平滑权重（控制平滑程度）
+const bool do_refinement = true;                                               // 是否二次细化
+const int refinement_num = 100;                                                  // 细化次数
+const bool enforce_path_inversion = false;                                      // 是否按方向分割路径段
+const rclcpp::Duration max_smooth_time = rclcpp::Duration::from_seconds(15);  // 最大平滑时间（可调整）
+
 PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner", options) {
     /********* Parameters for PctPlanner *********/
     this->declare_parameter("pcd_file_path_", "");
@@ -17,7 +26,7 @@ PctPlanner::PctPlanner(const rclcpp::NodeOptions& options) : Node("pct_planner",
     tomography_visualize_ = this->get_parameter("tomography_visualize_").as_bool();
 
     // TODO: FOR DEBUG
-    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/garage_final_cut.pcd";
+    pcd_file_path_ = "/home/fins/Desktop/Nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_v14.pcd";
     tomography_visualize_ = true;
 
     /********* Parameters for Tomography *********/
@@ -110,8 +119,6 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
     RCLCPP_INFO(this->get_logger(), "Executing path planning");
     const auto goal = goal_handle->get_goal();
 
-
-
     // 获取机器人当前位置作为起点
     Eigen::Vector3d start_real;
     {
@@ -167,6 +174,7 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
     }
 
     // 获取路径并转换为ROS消息格式
+    // 获取路径并转换为ROS消息格式
     auto path_indices = path_finder_->getPath();
     nav_msgs::msg::Path path_msg;
     path_msg.header.frame_id = "map";
@@ -182,14 +190,135 @@ void PctPlanner::execute(const std::shared_ptr<ComputePathGoalHandle> goal_handl
         pose.pose.position.y =
             (static_cast<double>(idx[1]) - tomography_->getMapDimY() / 2) * tomography_config.resolution +
             tomography_->getCenter()[1];
-        pose.pose.position.z = static_cast<double>(idx[0]) / 100;;
+        pose.pose.position.z = static_cast<double>(idx[0]) / 100;
+        ;
         pose.pose.orientation.w = 1.0;  // 无旋转
         path_msg.poses.push_back(pose);
 
         // 发布路径用于调试
-        if (path_visualize_) {
-            path_pub_->publish(path_msg);
+    }
+
+    // TODO: 平滑路径
+    // -------------------------- 2. 核心平滑逻辑 --------------------------
+    std::vector<PathSegment> path_segments{{0u, static_cast<unsigned int>(path_msg.poses.size() - 1)}};
+    if (enforce_path_inversion) {
+        path_segments = findDirectionalPathSegments(path_msg);
+    }
+
+    const auto start_time = std::chrono::steady_clock::now();
+    double time_remaining = max_smooth_time.seconds();
+    int refinement_ctr = 0;
+    bool reversing_segment;
+    nav_msgs::msg::Path curr_path_segment;
+    curr_path_segment.header = path_msg.header;
+
+    for (auto& segment : path_segments) {
+        if (segment.end - segment.start <= 3)
+            continue;
+
+        curr_path_segment.poses.clear();
+        std::copy(path_msg.poses.begin() + segment.start, path_msg.poses.begin() + segment.end + 1,
+                  std::back_inserter(curr_path_segment.poses));
+
+        const auto now = std::chrono::steady_clock::now();
+        time_remaining = max_smooth_time.seconds() -
+                         std::chrono::duration_cast<std::chrono::duration<double>>(now - start_time).count();
+        if (time_remaining <= 0) {
+            RCLCPP_WARN(this->get_logger(), "Smoothing time exhausted, skip remaining segments");
+            break;
         }
+
+        // 段内平滑实现
+        const auto seg_start_time = std::chrono::steady_clock::now();
+        const rclcpp::Duration seg_max_dur = rclcpp::Duration::from_seconds(time_remaining);
+        int its = 0;
+        double change = tolerance;
+        const unsigned int path_size = curr_path_segment.poses.size();
+        nav_msgs::msg::Path new_path = curr_path_segment;
+        nav_msgs::msg::Path last_path = curr_path_segment;
+
+        while (change >= tolerance) {
+            its++;
+            change = 0.0;
+
+            if (its >= max_its) {
+                RCLCPP_WARN(this->get_logger(), "Smoothing iterations exceed limit (%d), use last valid path", max_its);
+                curr_path_segment = last_path;
+                updateApproximatePathOrientations(curr_path_segment, reversing_segment);
+                break;
+            }
+
+            const auto seg_now = std::chrono::steady_clock::now();
+            const rclcpp::Duration seg_timespan = rclcpp::Duration::from_seconds(
+                std::chrono::duration_cast<std::chrono::duration<double>>(seg_now - seg_start_time).count());
+            if (seg_timespan > seg_max_dur) {
+                RCLCPP_WARN(this->get_logger(), "Smoothing time exceed limit (%.2fs), use last valid path",
+                            time_remaining);
+                curr_path_segment = last_path;
+                updateApproximatePathOrientations(curr_path_segment, reversing_segment);
+                throw std::runtime_error("Smoothing timed out");
+            }
+
+            for (unsigned int i = 1; i < path_size - 1; ++i) {
+                for (unsigned int dim = 0; dim < 2; ++dim) {
+                    const double x_i = getFieldByDim(curr_path_segment.poses[i], dim);
+                    double y_i = getFieldByDim(new_path.poses[i], dim);
+                    const double y_m1 = getFieldByDim(new_path.poses[i - 1], dim);
+                    const double y_ip1 = getFieldByDim(new_path.poses[i + 1], dim);
+                    const double y_i_org = y_i;
+
+                    y_i += w_data * (x_i - y_i) + w_smooth * (y_ip1 + y_m1 - 2.0 * y_i);
+                    setFieldByDim(new_path.poses[i], dim, y_i);
+                    change += std::abs(y_i - y_i_org);
+                }
+            }
+
+            last_path = new_path;
+        }
+
+        // 二次细化
+        if (do_refinement && refinement_ctr < refinement_num) {
+            refinement_ctr++;
+            const auto refine_now = std::chrono::steady_clock::now();
+            const double refine_remaining =
+                time_remaining -
+                std::chrono::duration_cast<std::chrono::duration<double>>(refine_now - start_time).count();
+            if (refine_remaining > 0) {
+                nav_msgs::msg::Path refined_path = curr_path_segment;
+                int refine_its = 0;
+                double refine_change = tolerance;
+                nav_msgs::msg::Path refine_last = refined_path;
+                while (refine_change >= tolerance && refine_its < max_its / 2) {
+                    refine_its++;
+                    refine_change = 0.0;
+                    nav_msgs::msg::Path refine_new = refined_path;
+                    for (unsigned int i = 1; i < refined_path.poses.size() - 1; ++i) {
+                        for (unsigned int dim = 0; dim < 2; ++dim) {
+                            const double x_i = getFieldByDim(curr_path_segment.poses[i], dim);
+                            double y_i = getFieldByDim(refine_new.poses[i], dim);
+                            const double y_m1 = getFieldByDim(refine_new.poses[i - 1], dim);
+                            const double y_ip1 = getFieldByDim(refine_new.poses[i + 1], dim);
+                            const double y_i_org = y_i;
+
+                            y_i += w_data * 0.5 * (x_i - y_i) + w_smooth * 1.2 * (y_ip1 + y_m1 - 2.0 * y_i);
+                            setFieldByDim(refine_new.poses[i], dim, y_i);
+                            refine_change += std::abs(y_i - y_i_org);
+                        }
+                    }
+                    refine_last = refine_new;
+                    refined_path = refine_new;
+                }
+                curr_path_segment = refined_path;
+            }
+        }
+
+        updateApproximatePathOrientations(curr_path_segment, reversing_segment);
+        std::copy(curr_path_segment.poses.begin(), curr_path_segment.poses.end(),
+                  path_msg.poses.begin() + segment.start);
+    }
+
+    if (path_visualize_) {
+        path_pub_->publish(path_msg);
     }
 
     // 返回规划结果
@@ -340,7 +469,7 @@ void PctPlanner::publishTomography() const {
 //         robot_current_position_[2] = transform.transform.translation.z;  // z坐标（2D场景通常为0）
 
 //         // 打印DEBUG日志（可选）
-//         RCLCPP_DEBUG(this->get_logger(), 
+//         RCLCPP_DEBUG(this->get_logger(),
 //             "Updated robot position: x=%.2f, y=%.2f, z=%.2f",
 //             robot_current_position_[0],
 //             robot_current_position_[1],
@@ -362,12 +491,8 @@ bool PctPlanner::get_robot_position_manual(Eigen::Vector3d& position) {
         rclcpp::Time time = rclcpp::Time(0);  // 获取最新变换
 
         // 阻塞查询，超时时间1秒（可根据需求调整）
-        geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
-            source_frame,
-            target_frame,
-            time,
-            rclcpp::Duration::from_seconds(1.0)
-        );
+        geometry_msgs::msg::TransformStamped transform =
+            tf_buffer_->lookupTransform(source_frame, target_frame, time, rclcpp::Duration::from_seconds(1.0));
 
         // 提取位置信息
         position[0] = transform.transform.translation.x;
@@ -381,6 +506,7 @@ bool PctPlanner::get_robot_position_manual(Eigen::Vector3d& position) {
         return false;  // 查询失败
     }
 }
+
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions options;
