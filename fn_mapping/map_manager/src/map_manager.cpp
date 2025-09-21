@@ -18,7 +18,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
-    local_map_ = std::make_shared<GridMap<float>>(Length{7.0, 7.0, 7.0}, 0.05);
+    local_map_ = std::make_shared<GridMap<float>>(Length{8.0, 8.0, 8.0}, 0.05);
     global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率，暂且虚拟设置global_map_原点在(resolution/2, resolution/2, resolution/2)
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
