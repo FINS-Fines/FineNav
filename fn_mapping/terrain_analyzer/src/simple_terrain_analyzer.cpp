@@ -11,7 +11,7 @@
 
 namespace finenav_2d {
 
-const float MAX_GRADIENT = 0.10f;  // 最大允许坡度（梯度阈值）
+const float MAX_GRADIENT = 0.03f;  // 最大允许坡度（梯度阈值）
 const float ROBOT_HEIGHT = 0.4f;   // 机器人最小通过高度
 const int KERNEL_SIZE = 3;      // 中值滤波核大小
 
@@ -43,6 +43,11 @@ void SimpleTerrainAnalyzer::analyzeTerrain(const float robot_pose_z) {
             auto z_values_before = interface_->getMap(x, y);
             auto z_values =
                 z_values_before | std::views::filter([&](const float& z) { return interface_->dataIsValid(z); });
+            for(auto &z : z_values) {
+                if(z > 50){
+                    z=z-100;  //
+                }
+            }
 
             float nearest_ground = std::numeric_limits<float>::max();  // 距离当前位置最近的ground
 
