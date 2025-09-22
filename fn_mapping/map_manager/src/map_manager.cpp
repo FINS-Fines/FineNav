@@ -352,7 +352,10 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
             if(!std::isnan(ground_array_(x,y))){
                 Position pos = local_map_->getPosition(Index(x - local_map_->getSize().x() / 2,
                                                             y - local_map_->getSize().y() / 2,0));
-                cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{255,0,0});
+                if (passability_array_(x,y) == 1)
+                    cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{255,100,100});
+                else
+                    cloud_pub_helper_.addPoint(pos.x(), pos.y(), ground_array_(x,y),{0,255,255});
             }
         }
     }
