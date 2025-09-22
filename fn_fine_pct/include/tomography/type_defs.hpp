@@ -26,7 +26,7 @@ struct TomographyConfig {
     float slope_cost_ratio = 0.0f; // Slope cost ratio 这个参数用来代表机器人爬坡的损耗 
     float cost_barrier = 50.0f;  // Cost for non-traversable areas
     float safe_margin = 0.15f;      // Safe margin around obstacles // TODO:硬安全边界?
-    float inflation = 0.05f;        // Inflation radius // TODO:膨胀层？
+    float inflation = 1.25f;        // Inflation radius // TODO:膨胀层？
     int kernal_size = 0;        // 中值滤波的核大小
 };
 // struct TomographyConfig {

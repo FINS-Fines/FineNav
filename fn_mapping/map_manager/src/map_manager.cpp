@@ -18,7 +18,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
-    local_map_ = std::make_shared<GridMap<float>>(Length{8.0, 8.0, 8.0}, 0.05);
+    local_map_ = std::make_shared<GridMap<float>>(Length{7.0, 7.0, 7.0}, 0.05);
     global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率，暂且虚拟设置global_map_原点在(resolution/2, resolution/2, resolution/2)
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -58,6 +58,13 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
 
     // 加载ot文件作为全局地图
     global_map_->openFile("/home/fins/Downloads/final_map.ot");
+    // 确保加载成功
+    if (global_map_->getOctree().size() == 0) {
+        RCLCPP_ERROR(get_logger(), "Failed to load octomap from file!");
+    } else {
+        RCLCPP_INFO(get_logger(), "Octomap loaded from file, size: %zu", global_map_->getOctree().size());
+    }
+    
 }
 
 MapManager::~MapManager() {
