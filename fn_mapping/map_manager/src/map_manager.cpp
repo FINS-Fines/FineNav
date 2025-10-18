@@ -18,7 +18,10 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     : Node("map_manager", options) {
     RCLCPP_INFO(get_logger(), "MapManager initialized");
 
-    local_map_ = std::make_shared<GridMap<float>>(Length{5.0, 5.0, 5.0}, 0.05);
+    declareParameters();
+    getParameters();
+
+    local_map_ = std::make_shared<GridMap<float>>(Length{length_x_,length_y_ ,length_z_},0.05);
     global_map_ = std::make_shared<OctoMapServer>(0.05); // TODO: 八叉树的离散方式与GridMap刚好差一个分辨率，暂且虚拟设置global_map_原点在(resolution/2, resolution/2, resolution/2)
 
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -28,7 +31,7 @@ MapManager::MapManager(const rclcpp::NodeOptions& options)
     tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
     rclcpp::QoS qos = rclcpp::SensorDataQoS(); // 自动 BestEffort, Depth 10
-    point_sub_.subscribe(this, "/cloud_registered_body", qos.get_rmw_qos_profile());
+    point_sub_.subscribe(this, pointcloud_topic_, qos.get_rmw_qos_profile());
 
     tf2_filter_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
         point_sub_, *tf2_buffer_, "/odom", 10,
@@ -74,6 +77,28 @@ MapManager::~MapManager() {
     RCLCPP_INFO(get_logger(), "Final map saved to final_map.ot");
 }
 
+void MapManager::declareParameters(){
+    this->declare_parameter("pointcloud_topic", "/cloud_registered_body");
+    this->declare_parameter("length_x", 5.0);
+    this->declare_parameter("length_y", 5.0);
+    this->declare_parameter("length_z", 5.0);
+    this->declare_parameter("resolution", 0.05);
+    this->declare_parameter("sensor_frame", "base_lidar");
+    this->declare_parameter("base_frame", "base_link");
+    this->declare_parameter("world_frame", "map");
+}
+
+void MapManager::getParameters(){
+    pointcloud_topic_ = this->get_parameter("pointcloud_topic").as_string();
+    length_x_ = this->get_parameter("length_x").as_double();
+    length_y_ = this->get_parameter("length_y").as_double();
+    length_z_ = this->get_parameter("length_z").as_double();
+    resolution_ = this->get_parameter("resolution").as_double();
+    sensor_frame_ = this->get_parameter("sensor_frame").as_string();
+    base_frame_ = this->get_parameter("base_frame").as_string();
+    world_frame_ = this->get_parameter("world_frame").as_string();
+}
+
 void MapManager::AnalyzerInit() {
     passability_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x(), local_map_->getSize().y(), 0);
     ground_array_ = Eigen::ArrayXXf::Constant(local_map_->getSize().x(), local_map_->getSize().y(), NAN);
@@ -113,15 +138,12 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     auto t0 = std::chrono::high_resolution_clock::now();
     /************************* 处理点云数据 **************************/
     // 获取tf
-    const std::string sensor_frame = "base_lidar";     // TODO: 这些作为参数给用户
-    const std::string base_frame = "base_link";
-    const std::string world_frame = "map";
 
     geometry_msgs::msg::TransformStamped base_to_world_transform_stamped;
     geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
     try {
-        base_to_world_transform_stamped = tf2_buffer_->lookupTransform(world_frame, base_frame, msg->header.stamp, 100ms);
-        sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(world_frame, sensor_frame, msg->header.stamp, 100ms);
+        base_to_world_transform_stamped = tf2_buffer_->lookupTransform(world_frame_, base_frame_, msg->header.stamp, 100ms);
+        sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(world_frame_, sensor_frame_, msg->header.stamp, 100ms);
     } catch (tf2::TransformException& ex) {
         RCLCPP_WARN(this->get_logger(), "Could not transform pointcloud: %s", ex.what());
         return;
@@ -335,7 +357,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     // publishFullOctoMap(msg->header.stamp);
 
     // 发布局部地图（可视化）
-    cloud_pub_helper_.configure(local_map_pub_, true, world_frame);
+    cloud_pub_helper_.configure(local_map_pub_, true, world_frame_);
     for (auto it = local_map_->begin(); it != local_map_->end(); ++it) {
         Position pos = it.getPosition();
         if (!std::isnan(*it) && local_map_->atPosition(pos) < 50) { // 如果栅格被占据，则发布
@@ -347,7 +369,7 @@ void MapManager::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedP
     cloud_pub_helper_.publish(msg->header.stamp);
 
     //发布ground分析结果
-    cloud_pub_helper_.configure(ground_pub_, true, world_frame);
+    cloud_pub_helper_.configure(ground_pub_, true, world_frame_);
     for(int x = 0 ; x < local_map_->getSize().x() ; x++){
         for(int y = 0 ; y <local_map_->getSize().y() ; y++){
             if(!std::isnan(ground_array_(x,y))){

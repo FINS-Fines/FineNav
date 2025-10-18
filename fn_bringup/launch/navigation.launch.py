@@ -13,7 +13,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch.conditions import LaunchConfigurationEquals, IfCondition
-from launch.substitutions import PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, TextSubstitution, PythonExpression
 
 def generate_launch_description():
     # 配置文件路径
@@ -42,6 +42,15 @@ def generate_launch_description():
         description='Choose the strategy of navigation: aggressive or conservative'
     )
 
+    declare_pct_planner_param = DeclareLaunchArgument(
+        'pct_planner_params_file',
+        default_value=PathJoinSubstitution([
+            FindPackageShare('fine_nav2d_bringup'),  # 自动查找包路径
+            'config',
+            'pct_planner.yaml'  # 默认参数文件
+        ]),
+        description='Full path to the Map Manager parameters file'
+    )
 
     ################### Nav2 ###################
     # work mode determine how nav2 and slamtoolbox work
@@ -66,6 +75,9 @@ def generate_launch_description():
     pct_node = Node(
         package = 'fn_fine_pct',
         executable = 'fn_global_planner_node',
+        parameters=[
+            LaunchConfiguration('pct_planner_params_file')  # 使用动态参数
+        ]
     )
 
 
@@ -87,6 +99,7 @@ def generate_launch_description():
 
     ld.add_action(declare_enable_rviz)
     ld.add_action(declare_nav_strategy)
+    ld.add_action(declare_pct_planner_param)
     # 使用 TimerAction 来控制节点启动顺序 TODO PAREMETERS
     ld.add_action(pct_node)
     ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))

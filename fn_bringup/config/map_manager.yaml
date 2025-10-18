@@ -1,0 +1,17 @@
+map_manager:
+  ros__parameters:
+    # 点云话题配置
+    pointcloud_topic: "/cloud_registered_body"
+
+    # 局部地图尺寸 (单位: 米)
+    length_x: 5.0
+    length_y: 5.0
+    length_z: 5.0
+
+    # 地图分辨率 (单位: 米)
+    resolution: 0.05
+
+    # TF 帧配置
+    sensor_frame: "base_lidar"
+    base_frame: "base_link"
+    world_frame: "map"

@@ -55,7 +55,18 @@ def generate_launch_description():
         description='Enable octomap loading a map before navigation'
     )
 
-    # 动态选择配置文件路径（使用 PythonExpression）
+    declare_map_manager_param = DeclareLaunchArgument(
+        'map_manager_params_file',
+        default_value=PathJoinSubstitution([
+            FindPackageShare('fine_nav2d_bringup'),  # 自动查找包路径
+            'config',
+            'map_manager.yaml'  # 默认参数文件
+        ]),
+        description='Full path to the Map Manager parameters file'
+    )
+
+
+# 动态选择配置文件路径（使用 PythonExpression）
     fast_lio_config = PythonExpression([
         '"', config_dir, '/fastlio_mid360_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "livox" else ',
         '"', config_dir, '/fastlio_gazebo_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "virtual" else ',
@@ -136,8 +147,9 @@ def generate_launch_description():
         name='map_manager',                    # 节点名
         output='screen',
         parameters=[{
-            'use_sim_time': LaunchConfiguration('use_sim_time')
-        }]
+            'use_sim_time': LaunchConfiguration('use_sim_time')},
+            LaunchConfiguration('map_manager_params_file')  # 使用动态参数
+        ]
     )
 
     pointcloud2_converter = IncludeLaunchDescription(
@@ -155,7 +167,8 @@ def generate_launch_description():
     ld.add_action(declare_map_save)
     ld.add_action(declare_map_load)
     ld.add_action(declare_nav_mode)
-
+    ld.add_action(declare_nav_mode)
+    ld.add_action(declare_map_manager_param)
     #ld.add_action(pointcloud2_converter)
     ld.add_action(static_tf_node)
     ld.add_action(fast_lio_node)

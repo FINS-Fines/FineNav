@@ -49,10 +49,27 @@ public:
 
 private:
     /**
+    * @brief 设置参数
+    */
+    void declareParameters();
+    /**
+    * @brief 获取参数
+    */
+    void getParameters();
+    /**
      * @brief 管理主流程
      */
     void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 
+    // MapManager传入的参数
+    std::string pointcloud_topic_;
+    double length_x_;
+    double length_y_;
+    double length_z_;
+    double resolution_;
+    std::string sensor_frame_;
+    std::string base_frame_;
+    std::string world_frame_;
 
     // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
     std::shared_ptr<GridMap<float>>local_map_;

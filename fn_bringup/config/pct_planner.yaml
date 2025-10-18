@@ -1,0 +1,17 @@
+pct_planner:
+  ros__parameters:
+    # PctPlanner 参数
+    pcd_file_path_: "/home/fins/Desktop/nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_v16.pcd" # PCD文件路径，代码中会覆盖为固定值
+    tomography_visualize_: true  # 断层扫描可视化开关
+
+    # Tomography 断层扫描参数
+    resolution: 0.05       # 地图分辨率 (米)
+    slice_dh: 0.45         # 切片高度间隔 (米) - 影响垂直方向的分析精度
+    ground_h: 0.0          # 地面基准高度 (米)
+    interval_min: 0.45     # 最小可通过高度间隔 (米)
+    slope_max: 0.523599    # 最大可通过坡度 (弧度，约30度)
+    slope_cost_ratio: 10.0 # 坡度成本系数 - 代表机器人爬坡的损耗
+    cost_barrier: 50.0     # 不可通行区域的代价值
+    safe_margin: 0.10      # 障碍物周围的安全边界 (米) - 硬安全边界
+    inflation: 0.15        # 膨胀半径 (米) - 用于路径规划的膨胀层
+    kernal_size: 3         # 中值滤波的核大小

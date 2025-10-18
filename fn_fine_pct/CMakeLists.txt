@@ -18,8 +18,8 @@ find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)  # 添加nav2_msgs依赖
-# find_package(octomap REQUIRED)
-# find_package(fn_octomap_server REQUIRED)
+find_package(octomap REQUIRED)
+find_package(fn_octomap_server REQUIRED)
 
 
 ament_auto_find_build_dependencies()
