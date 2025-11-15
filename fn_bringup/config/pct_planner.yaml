@@ -1,7 +1,7 @@
 pct_planner:
   ros__parameters:
     # PctPlanner 参数
-    pcd_file_path_: "/home/fins/Desktop/nav_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_v16.pcd" # PCD文件路径，代码中会覆盖为固定值
+    pcd_file_path_: "/home/fins/Desktop/demo/nav2d_ws/FineNav2D/fn_fine_pct/rsc/pcd/final_map_v16.pcd" # PCD文件路径，代码中会覆盖为固定值
     tomography_visualize_: true  # 断层扫描可视化开关
 
     # Tomography 断层扫描参数

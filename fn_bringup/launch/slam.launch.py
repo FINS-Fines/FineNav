@@ -65,6 +65,11 @@ def generate_launch_description():
         description='Full path to the Map Manager parameters file'
     )
 
+    declare_working_mode = DeclareLaunchArgument(
+        'working_mode',
+        default_value='mapping',
+        description='Choose the working mode: mapping, navigation, or exploration'
+    )
 
 # 动态选择配置文件路径（使用 PythonExpression）
     fast_lio_config = PythonExpression([
@@ -142,13 +147,18 @@ def generate_launch_description():
 
     # Map Manager 节点
     map_manager_node = Node(
-        package='fn_map_manager',              # 包名
-        executable='fn_map_manager_node',      # 可执行文件
-        name='map_manager',                    # 节点名
+        package='fn_map_manager',
+        executable='fn_map_manager_node',
+        name='map_manager',
         output='screen',
-        parameters=[{
-            'use_sim_time': LaunchConfiguration('use_sim_time')},
-            LaunchConfiguration('map_manager_params_file')  # 使用动态参数
+        parameters=[
+            # 先加载YAML文件
+            LaunchConfiguration('map_manager_params_file'),
+            # 然后覆盖或添加特定参数
+            {
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'working_mode': LaunchConfiguration('working_mode')
+            }
         ]
     )
 
@@ -166,6 +176,7 @@ def generate_launch_description():
     ld.add_action(declare_lio_type)
     ld.add_action(declare_map_save)
     ld.add_action(declare_map_load)
+    ld.add_action(declare_working_mode)
     ld.add_action(declare_nav_mode)
     ld.add_action(declare_nav_mode)
     ld.add_action(declare_map_manager_param)

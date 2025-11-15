@@ -70,6 +70,7 @@ private:
     std::string sensor_frame_;
     std::string base_frame_;
     std::string world_frame_;
+    std::string working_mode_;
 
     // MapManager需要管理全局地图和代价地图，这里通过依赖注入的方式实现
     std::shared_ptr<GridMap<float>>local_map_;
@@ -88,6 +89,9 @@ private:
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> point_sub_;
     std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>> tf2_filter_;
+
+    std::vector<std::pair<Position, float>> removed_region_prev_;
+
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr local_map_pub_;    // 发布局部地图的点云消息
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pub_;      // 发布分析后的ground信息

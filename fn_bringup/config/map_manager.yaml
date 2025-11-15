@@ -4,9 +4,9 @@ map_manager:
     pointcloud_topic: "/cloud_registered_body"
 
     # 局部地图尺寸 (单位: 米)
-    length_x: 5.0
-    length_y: 5.0
-    length_z: 5.0
+    length_x: 1.0
+    length_y: 1.0
+    length_z: 1.0
 
     # 地图分辨率 (单位: 米)
     resolution: 0.05

@@ -120,6 +120,7 @@ def generate_launch_description():
                 'navigation_mode': LaunchConfiguration('navigation_mode'),
                 'map_save': LaunchConfiguration('map_save'),
                 'map_load': LaunchConfiguration('map_load'),
+                'working_mode': LaunchConfiguration('working_mode')
             }.items()
         ),
 
