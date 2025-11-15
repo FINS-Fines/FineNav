@@ -13,7 +13,7 @@ using namespace finenav_2d;
 int main(int argc, char** argv) {
 
     OctoMapServer octomap_server(0.02); // 分辨率0.05米
-    auto result = octomap_server.openFile("/home/huigg/Desktop/nav_ws/final_map.ot");
+    auto result = octomap_server.openFile("/home/fins/Desktop/Nav_ws/final_map.ot");
     if (!result) {
         std::cerr << "Can't open file" << std::endl;
         return -1;
@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
             point_cloud.push_back(pcl::PointXYZ(it.getCoordinate().x(), it.getCoordinate().y(), it->getHeight()));
         }
     }
-    pcl::io::savePCDFileBinary("/home/huigg/Desktop/nav_ws/final_map.pcd", point_cloud);
+    pcl::io::savePCDFileBinary("/home/fins/Desktop/Nav_ws/final_map.pcd", point_cloud);
     std::cout << "Saved " << point_cloud.size() << " points to PCD file." << std::endl;
 
 

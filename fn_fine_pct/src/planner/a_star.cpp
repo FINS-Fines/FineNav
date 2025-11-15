@@ -150,7 +150,7 @@ bool Astar::search(const Index& start, const Index& goal) {
             auto neighbor_node = &grid_map_[layer][i][j];
 
             if (neighbor_node->cost > cost_threshold_  ||
-                 std::abs(neighbor_node->height - current_node->height) > 0.2
+                 std::abs(neighbor_node->height - current_node->height) > 0.5
             ) {
                 continue;
             }

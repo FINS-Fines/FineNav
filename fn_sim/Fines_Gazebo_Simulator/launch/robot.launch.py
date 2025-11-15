@@ -26,7 +26,7 @@ def generate_launch_description():
     bridge_config = os.path.join(pkg_simulator, "config", "ros_gz_bridge.yaml")
 
     robot_name = "fine_robot"  
-    x_pose = "-2.0"           
+    x_pose = "4.0"           
     y_pose = "-0.5"           
     z_pose = "0.8"           
     yaw = "0.0"             

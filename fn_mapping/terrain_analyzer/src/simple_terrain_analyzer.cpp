@@ -161,5 +161,8 @@ Eigen::ArrayXXf SimpleTerrainAnalyzer::median_filtering (const Eigen::ArrayXXf& 
 
 
 
+
+
+
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(finenav_2d::SimpleTerrainAnalyzer, finenav_2d::TerrainAnalyzerBase)

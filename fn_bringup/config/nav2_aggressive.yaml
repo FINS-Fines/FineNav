@@ -354,11 +354,11 @@ controller_server:
       # 动力学约束
       #****************************************************************************************************************
       motion_model: "DiffDrive"
-      vx_max: 0.7
+      vx_max: 10.0
       vx_min: 0.0
       vy_max: 0.5 # Max VY in either direction, if holonomic
       wz_max: 3.5
-      ax_max: 5.0
+      ax_max: 7.0
       ax_min: -3.0
       ay_min: -3.0
       ay_max: 3.0
@@ -445,8 +445,8 @@ controller_server:
       PathAlignCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 50.0
-        max_path_occupancy_ratio: 0.05 # 允许全局路径穿过occupied的比例，超过这个比例，会在跟踪路径的同时避障
+        cost_weight: 120.0
+        max_path_occupancy_ratio: 0.10 # 允许全局路径穿过occupied的比例，超过这个比例，会在跟踪路径的同时避障
         trajectory_point_step: 4 # 评估轨迹采用的步长。由于轨迹非常密集，评估每个点开销很大
         threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathAlignCritic
         offset_from_furthest: 20 # 只有待选轨迹规划了足够远的点，才会考虑PathAlignCritic
@@ -454,13 +454,13 @@ controller_server:
       PathFollowCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 9.0
+        cost_weight: 35.0
         offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
         threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathFollowCritic
       PathAngleCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 2.0
+        cost_weight: 15.0
         offset_from_furthest: 15 # 只有待选轨迹规划了足够远的点，才会考虑PathFollowCritic
         threshold_to_consider: 0.25 # 与goal在此距离内时，不考虑PathFollowCritic
         max_angle_to_furthest: 1.0

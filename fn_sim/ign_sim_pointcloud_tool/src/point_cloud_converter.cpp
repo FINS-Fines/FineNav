@@ -38,8 +38,9 @@ PointCloudConverter::PointCloudConverter(const rclcpp::NodeOptions & options)
   pcd_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
     pcd_topic_, 10, std::bind(&PointCloudConverter::lidarHandle, this, std::placeholders::_1));
 
-  pcd_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-    "/lidar_converted", rclcpp::SensorDataQoS());
+  auto qos = rclcpp::SensorDataQoS();
+  qos.reliability(rclcpp::ReliabilityPolicy::Reliable);
+  pcd_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("cloud_registered_body", qos);
 
   RCLCPP_INFO(this->get_logger(), "Listening to lidar topic: %s", pcd_topic_.c_str());
 }

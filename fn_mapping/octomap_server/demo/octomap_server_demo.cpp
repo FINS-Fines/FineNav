@@ -69,7 +69,7 @@ private:
         // 发布地图
         pub_helper_.configure(map_pub_, true, "map");
         OctoMapServer octomap_demo(0.1);
-        octomap_demo.openFile("/home/fins/Desktop/nav_ws/final_map.ot");
+        octomap_demo.openFile("/home/fins/Desktop/Nav_ws/final_map.ot");
         const auto& tree = octomap_demo.getOctree();
         for(octomap::HeightOcTree::leaf_iterator it = tree.begin_leafs(), end=tree.end_leafs(); it!= end; ++it)
         {

@@ -28,7 +28,7 @@ def generate_launch_description():
 
     declare_lidar_type = DeclareLaunchArgument(
         'lidar_type',
-        default_value='livox',
+        default_value='virtual',
         description='Choose the type of lidar: livox or unitree'
     )
 
@@ -130,7 +130,7 @@ def generate_launch_description():
     arguments=[
         "--x", "0.0",   # X方向偏移：激光雷达在底盘前方0.8米
         "--y", "0.0",   # Y方向偏移：无左右偏移
-        "--z", "0.85",   # Z方向偏移：激光雷达在底盘上方0.5米
+        "--z", "0.40",   # Z方向偏移：激光雷达在底盘上方0.85米
         "--roll", "0.0",  # 无滚转偏移
         "--pitch", "0.0", 
         "--yaw", "0.0",  # 姿态无偏移（与底盘一致）
@@ -169,15 +169,15 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     ld.add_action(declare_lidar_type)
     ld.add_action(declare_lio_type)
-    ld.add_action(declare_maplidar_TF_save)
+    # ld.add_action(declare_maplidar_TF_save)
     ld.add_action(declare_map_load)
 
     ld.add_action(declare_nav_mode)
     ld.add_action(static_tf_node)
-    #ld.add_action(fast_lio_node)
+    # ld.add_action(fast_lio_node)
     ld.add_action(map_manager_node)
-    #ld.add_action(localization_manager_node)
+    ld.add_action(localization_manager_node)
     ld.add_action(odometry_gz_manager_node)
-    ld.add_action(TimerAction(period=5.0, actions=[octomap_server_node]))  # 延迟 5s 确保 FAST-LIO 初始化
+    # ld.add_action(TimerAction(period=5.0, actions=[octomap_server_node]))  # 延迟 5s 确保 FAST-LIO 初始化
 
     return ld

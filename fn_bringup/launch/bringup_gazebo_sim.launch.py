@@ -38,6 +38,12 @@ def generate_launch_description():
     # 6. 异步建图 or 同步建图
     # 7. 使用什么激光雷达
 
+    declare_lidar_type = DeclareLaunchArgument(
+        'lidar_type',
+        default_value='virtual',
+        description='Choose the type of lidar: livox or unitree'
+    )
+
     # 9. 用什么LIO
     declare_lio_type = DeclareLaunchArgument(
         'lio_type',
@@ -57,13 +63,7 @@ def generate_launch_description():
         'enable_rviz',
         default_value='true',
         description='Enable RViz to visualize the data'
-    )
-
-    declare_lidar_type = DeclareLaunchArgument(
-        'lidar_type',
-        default_value='livox',
-        description='Choose the type of lidar: livox or unitree'
-    )
+    ) 
 
     declare_nav_mode = DeclareLaunchArgument(
         'navigation_mode',
@@ -90,7 +90,7 @@ def generate_launch_description():
     )
 
     launch_group = GroupAction([
-        # 启动driver.launch.py
+        # 启动gazebo_driver.launch.py
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 PathJoinSubstitution([launch_dir, 'gazebo_driver.launch.py'])
@@ -101,8 +101,9 @@ def generate_launch_description():
                 # 'serial_port': LaunchConfiguration('serial_port'),
             }.items()
         ),
-
-        # 启动slam.launch.py
+        # ),
+        #
+        # 启动gazebo_slam.launch.py
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 PathJoinSubstitution([launch_dir, 'gazebo_slam.launch.py'])
