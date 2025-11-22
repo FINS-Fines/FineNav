@@ -8,7 +8,7 @@ from datetime import datetime
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, GroupAction, TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, GroupAction, TimerAction, SetLaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
@@ -42,14 +42,13 @@ def generate_launch_description():
         description='Choose the strategy of navigation: aggressive or conservative'
     )
 
-    declare_pct_planner_param = DeclareLaunchArgument(
+    set_pct_planner_param = SetLaunchConfiguration(
         'pct_planner_params_file',
-        default_value=PathJoinSubstitution([
-            FindPackageShare('fine_nav2d_bringup'),  # 自动查找包路径
-            'config',
-            'pct_planner.yaml'  # 默认参数文件
-        ]),
-        description='Full path to the Map Manager parameters file'
+        value=PythonExpression([
+            '("', PathJoinSubstitution([FindPackageShare('fine_nav2d_bringup'), 'config', 'pct_sim_planner.yaml']), '") ',
+            'if "', LaunchConfiguration('use_sim_time'), '" == "true" ',
+            'else ("', PathJoinSubstitution([FindPackageShare('fine_nav2d_bringup'), 'config', 'pct_planner.yaml']), '")'
+        ])
     )
 
     ################### Nav2 ###################
@@ -99,7 +98,7 @@ def generate_launch_description():
 
     ld.add_action(declare_enable_rviz)
     ld.add_action(declare_nav_strategy)
-    ld.add_action(declare_pct_planner_param)
+    ld.add_action(set_pct_planner_param)
     # 使用 TimerAction 来控制节点启动顺序 TODO PAREMETERS
     ld.add_action(pct_node)
     ld.add_action(TimerAction(period=8.0, actions=[nav2_bringup]))
