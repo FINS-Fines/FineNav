@@ -8,9 +8,9 @@ from datetime import datetime
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, GroupAction, TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, GroupAction, TimerAction, SetLaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare
 from launch.conditions import LaunchConfigurationEquals, IfCondition
 
@@ -25,11 +25,19 @@ def generate_launch_description():
 
     ################### Declare Parameters ###################
     # 定义参数
-    # 1. 使用仿真时间
-    declare_use_sim_time = DeclareLaunchArgument(
+    # 1. 运行模式
+    declare_mode = DeclareLaunchArgument(
+        'mode',
+        default_value='reality',
+        description='reality or simulation (Gazebo) '
+    )
+
+    # 2. 是否使用仿真时间
+    set_use_sim_time = SetLaunchConfiguration(
         'use_sim_time',
-        default_value='false',
-        description='Use reality (Gazebo) clock if true'
+        value=PythonExpression([
+            '"true" if "', LaunchConfiguration('mode'), '" == "simulation" else "false"'
+        ])
     )
     # 2. 使用雷达的IMU还是下位机的IMU
     # 3. 可视化三维or二维
@@ -146,7 +154,8 @@ def generate_launch_description():
 
     ld = LaunchDescription()
 
-    ld.add_action(declare_use_sim_time)
+    ld.add_action(declare_mode)
+    ld.add_action(set_use_sim_time)
     ld.add_action(declare_lidar_type)
 
     ld.add_action(declare_lio_type)
