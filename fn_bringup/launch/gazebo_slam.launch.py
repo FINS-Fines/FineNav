@@ -56,6 +56,16 @@ def generate_launch_description():
         description='Enable octomap loading a map before navigation'
     )
 
+    declare_map_manager_param = DeclareLaunchArgument(
+        'map_manager_params_file',
+        default_value=PathJoinSubstitution([
+            FindPackageShare('fine_nav2d_bringup'),  # 自动查找包路径
+            'config',
+            'map_sim_manager.yaml'  # 默认参数文件
+        ]),
+        description='Full path to the Map Manager parameters file'
+    )
+
     # 动态选择配置文件路径（使用 PythonExpression）
     fast_lio_config = PythonExpression([
         '"', config_dir, '/fastlio_mid360_config.yaml" if "', LaunchConfiguration('lidar_type'), '" == "livox" else ',
@@ -155,13 +165,19 @@ def generate_launch_description():
 
     # Map Manager 节点
     map_manager_node = Node(
-        package='fn_map_manager',              # 包名
-        executable='fn_map_manager_node',      # 可执行文件
-        name='map_manager',                    # 节点名
+        package='fn_map_manager',
+        executable='fn_map_manager_node',
+        name='map_manager',
         output='screen',
-        parameters=[{
-            'use_sim_time': LaunchConfiguration('use_sim_time')
-        }]
+        parameters=[
+            # 先加载YAML文件
+            LaunchConfiguration('map_manager_params_file'),
+            # 然后覆盖或添加特定参数
+            {
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'working_mode': LaunchConfiguration('working_mode')
+            }
+        ]
     )
 
     # 启动顺序控制
@@ -169,6 +185,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     ld.add_action(declare_lidar_type)
     ld.add_action(declare_lio_type)
+    ld.add_action(declare_map_manager_param)
     # ld.add_action(declare_maplidar_TF_save)
     ld.add_action(declare_map_load)
 
