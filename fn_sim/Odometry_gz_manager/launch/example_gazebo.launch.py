@@ -26,7 +26,7 @@ def generate_launch_description():
     Odometry_gz_manager = Node(
         package='odometry_gz_manager',
         executable='Odometry_gz_manager_node',
-        name='global_localization',
+        name='Odometry_gz_manager',
         output='screen',
         parameters=[
             {'use_sim_time': use_sim_time}
