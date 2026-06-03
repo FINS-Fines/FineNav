@@ -11,7 +11,6 @@
 The code currently available in the `icra2026` branch contains the experimental implementation corresponding to our ICRA 2026 paper. It is provided for algorithm verification and academic reference. **It is not yet optimized for direct production deployment.**
 
 
-
 **Upcoming Release (June 2026):**
 
 We are currently conducting a comprehensive system refactoring based on **FineNav-Engine**—a dedicated C++20 development framework for robotics navigation. This upcoming release will be fully optimized for direct production deployment and accompanied by detailed documentation.
@@ -48,8 +47,9 @@ FineNav is a navigation framework tailored for ground robots to navigate in unst
 
 ## How to use FineNav
 
-The experimental code corresponding to our paper is available in the `icra2026` branch. The complete source code for practical deployment will be officially released in June 2026, coinciding with the ICRA conference.
+The code currently available in the `icra2026` branch contains the experimental implementation corresponding to our ICRA 2026 paper. It is provided for algorithm verification and academic reference. **It is not yet optimized for direct production deployment.**
 
+The production-ready version based on FineNav-Engine will be released soon.
 
 
 ## Citation
