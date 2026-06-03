@@ -18,8 +18,6 @@ We are currently conducting a comprehensive system refactoring based on **FineNa
 
 If you are interested in our work, please Star this repository to receive updates on the upcoming full release ;D
 
----
-
 ## Table of Contents
 
 - [What is FineNav?](#what-is-finenav)
