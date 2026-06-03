@@ -16,7 +16,7 @@ The code currently available in the `icra2026` branch contains the experimental 
 We are currently conducting a comprehensive system refactoring based on **FineNav-Engine**—a dedicated C++20 development framework for robotics navigation. This upcoming release will be fully optimized for direct production deployment and accompanied by detailed documentation.
 
 
-If you are interested in our work, please Star this repository to receive updates on the upcoming full release ;D
+If you are interested in our work, please ⭐Star this repository to receive updates on the upcoming full release ;D
 
 ## Table of Contents
 
