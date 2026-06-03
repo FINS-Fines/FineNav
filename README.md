@@ -24,8 +24,9 @@ If you are interested in our work, please ⭐Star this repository to receive upd
 - [Citation](#citation)
 
 ## What is FineNav?
+FineNav is a navigation framework tailored for ground robots operating in unstructured 3D environments. It feaures on a cache-memory-like hierarchical mapping system, which achieves a favorable balance between low-latency real-time perception (for dynamic obstacle avoidance and terrain analysis), and scalable global storage (for large-scale 3D reasoning).
 
-FineNav is a navigation framework tailored for ground robots operating in unstructured 3D environments. At its core is a novel hierarchical mapping system featuring a cache-memory-like mechanism. This architecture achieves a strict balance between low-latency real-time perception (for dynamic obstacle avoidance and terrain analysis) and scalable global storage (for large-scale 3D reasoning).
+**Video Demonstration:** [Bilibili](https://www.bilibili.com/video/BV1ce7d6uEmU/) | [Youtube](https://youtu.be/yixLPqI5Zx8)  
 <img title="System Overview" src="./assets/graphical-abstract.png" alt="graphical-abstract.png" data-align="inline">
 
 ## Why FineNav?
