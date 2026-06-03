@@ -13,6 +13,7 @@ The code currently available in the `icra2026` branch contains the experimental 
 
 
 **Upcoming Release (June 2026):**
+
 We are currently conducting a comprehensive system refactoring based on **FineNav-Engine**—a dedicated C++20 development framework for robotics navigation. This upcoming release will be fully optimized for direct production deployment and accompanied by detailed documentation.
 
 
