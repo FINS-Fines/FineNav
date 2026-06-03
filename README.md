@@ -1,8 +1,8 @@
 # FineNav
 
-https://2026.ieee-icra.org/
+[![Paper](https://img.shields.io/badge/Paper-ICRA_2026-green.svg)](#)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
-[![C++20](https://img.shields.io/badge/C++-20-blue.svg)](https://isocpp.org/)
+[![ROS 2](https://img.shields.io/badge/ROS_2-Humble-blue.svg)](https://docs.ros.org/en/humble/)
 
 ## Notes
 
